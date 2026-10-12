@@ -1,0 +1,9 @@
+{
+  "appId": "hu.piacbufe.crm",
+  "appName": "Piac Büfé",
+  "webDir": "www",
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "LocalNotifications": { "iconColor": "#1F6F4A" }
+  }
+}

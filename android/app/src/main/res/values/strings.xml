@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Piac Büfé</string>
+    <string name="title_activity_main">Piac Büfé</string>
+    <string name="package_name">hu.piacbufe.crm</string>
+    <string name="custom_url_scheme">hu.piacbufe.crm</string>
+</resources>

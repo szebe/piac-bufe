@@ -1,0 +1,83 @@
+name: Build app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Firestore emulator)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: python3 build.py
+      - run: npx playwright install --with-deps chromium
+      - run: npx firebase emulators:exec --project demo-bufe --only firestore,auth "node test/e2e.js"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-screenshot, path: test/e2e.png, if-no-files-found: ignore }
+
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: python3 build.py
+      - name: Signing key
+        env:
+          KS: ${{ secrets.BUFE_KEYSTORE_B64 }}
+        run: |
+          mkdir -p android/keystore
+          if [ -n "$KS" ]; then echo "$KS" | base64 -d > android/keystore/bufe-release.jks; fi
+          test -f android/keystore/bufe-release.jks || { echo "::error::Hiányzik az aláíró kulcs (BUFE_KEYSTORE_B64 secret)"; exit 1; }
+      - run: npx cap sync android
+      - name: Gradle build
+        working-directory: android
+        env:
+          BUFE_KS_PASS: ${{ secrets.BUFE_KS_PASS }}
+        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+      - run: cp android/app/build/outputs/apk/release/app-release.apk PiacBufe.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: PiacBufe-apk, path: PiacBufe.apk }
+
+  web:
+    name: Web + APK download page (GitHub Pages)
+    needs: [test, android]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: python3 build.py
+      - uses: actions/download-artifact@v4
+        with: { name: PiacBufe-apk, path: www }
+      - run: cp download.html www/letoltes.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: www }
+      - id: deploy
+        uses: actions/deploy-pages@v4

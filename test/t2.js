@@ -1,0 +1,12 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:800}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=tamas]'); await p.waitForTimeout(300);
+await p.evaluate(()=>{ const d=ymd(addDays(new Date(),1)); firebase.firestore().doc('orders/o1').set({id:'o1',date:d,time:'11:30',remindMin:15,status:'nyitott',name:'Kovács',items:'10 virslis kifli'}); firebase.firestore().doc('items/k1').set({id:'k1',name:'Krém',krem:true,stock:2}); });
+await p.evaluate(()=>{ __store.set('x/y',{}); }); await p.waitForTimeout(300);
+await p.evaluate(()=>alarmTick()); await p.waitForTimeout(500); console.log(await p.evaluate(()=>JSON.stringify({o:S.orders.length,ok:S.dbOk,b:BACKEND,ln:!!LN(),busy:nBusy,sig:nSig.length})));
+const s = await p.evaluate(()=>__sched.map(l=>l.map(n=>[n.id,n.title,n.body,new Date(n.schedule.at).toString().slice(0,21)])));
+console.log(JSON.stringify(s[s.length-1],null,0).replace(/\],\[/g,'],\n['));
+await b.close(); })();
