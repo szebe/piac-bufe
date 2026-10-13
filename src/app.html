@@ -601,6 +601,8 @@ function view(){
   }
 }
 
+function importCard(){ return `<section class="card"><h3>Adatok importálása</h3><p class="small muted">Egyszeri átköltöztetés: válaszd ki a kapott <b>bufe-adatok.json</b> fájlt. A meglévő azonos tételeket felülírja.</p>
+    <input id="impFile" type="file" accept=".json,application/json" data-imp="1">${S.impMsg?`<div class="note" style="margin-top:8px">${esc(S.impMsg)}</div>`:""}</section>`; }
 function pickView(){
   const st = activeStaff();
   return header() + `<div class="stack"><div class="card"><h2>Ki használja ezt a telefont?</h2>
@@ -608,6 +610,7 @@ function pickView(){
     ${st.length ? `<div class="menu">${st.map(s=>`<button data-act="pickMe" data-id="${esc(s.id)}"><span class="grow">${esc(s.name)}${s.admin?" <small>adminisztrátor</small>":""}</span></button>`).join("")}</div>`
       : `<div class="empty">Még nincs felvéve kolléga.</div>`}
   </div>
+  ${BACKEND==="fb" && !st.length ? importCard() : ""}
   ${isOwnerish() ? staffEditor() : ""}</div>`;
 }
 
@@ -1114,8 +1117,7 @@ function settingsView(){
     <div class="row"><input id="atAmt" class="grow" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Új összeg, Ft" data-f="f.atAmt" value="${esc(S.f.atAmt||"")}"><button class="btn" data-act="atSave">Mentés</button></div>
     <span class="label">Ünneplés kipróbálása</span>
     <div class="row"><button class="btn sm" data-act="celebDemo" data-l="week">Heti top</button><button class="btn sm" data-act="celebDemo" data-l="month">Havi top</button><button class="btn sm" data-act="celebDemo" data-l="quarter">Negyedéves</button><button class="btn sm" data-act="celebDemo" data-l="year">Éves</button><button class="btn sm warn" data-act="celebDemo" data-l="all">All-time</button></div></section>
-  ${BACKEND==="fb" && isOwnerish() ? `<section class="card"><h3>Adatok importálása</h3><p class="small muted">Egyszeri átköltöztetés: válaszd ki a kapott <b>bufe-adatok.json</b> fájlt. A meglévő azonos tételeket felülírja.</p>
-    <input id="impFile" type="file" accept=".json,application/json" data-imp="1">${S.impMsg?`<div class="note" style="margin-top:8px">${esc(S.impMsg)}</div>`:""}</section>` : ""}
+  ${BACKEND==="fb" && isOwnerish() ? importCard() : ""}
   ${closedCal()}
   </div>`;
 }
