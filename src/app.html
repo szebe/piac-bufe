@@ -420,6 +420,8 @@ function dueOrders(){ const now = Date.now(); return S.orders.filter(o => o.stat
 let lastBeep = {};
 const KREM_ID = () => "krem-" + today();
 const INV_ID = () => "inv-" + today();
+const CASH_ID = () => "cash-" + today();
+function cashDue(){ if(!canCash() || isReadonly() || isClosed(today())) return false; const d = new Date(); if(d.getHours() < 11) return false; const c = S.cash.find(x=>x.date===today()); return !(c && c.close!=null && c.close!==""); }
 function invDue(){ const d = new Date(); if(d.getHours()*60 + d.getMinutes() < 10*60) return false; return leltarPending() > 0; }
 function kremDue(){
   const d = new Date(), wd = d.getDay();
@@ -469,6 +471,7 @@ function alarmTick(){
   const due = dueOrders().filter(o => !(S.snooze[o.id] > now)).sort((a,b)=> pickupTs(a)-pickupTs(b));
   let next = due[0];
   if(!next && invDue() && !(S.snooze[INV_ID()] > now)) next = { id: INV_ID() };
+  if(!next && cashDue() && !(S.snooze[CASH_ID()] > now) && S.sub !== "cash") next = { id: CASH_ID() };
   if(!next && kremDue() && !(S.snooze[KREM_ID()] > now)) next = { id: KREM_ID() };
   if(!next && bakeCloseDue() && !(S.snooze["bake-"+today()] > now)) next = { id: "bake-"+today() };
   if(S.close){ document.title = "Büfé CRM"; return; }
@@ -476,7 +479,7 @@ function alarmTick(){
     if(S.alarmFor !== next.id){ S.alarmFor = next.id; renderAlarm(); }
     if(!lastBeep[next.id] || now - lastBeep[next.id] >= 5*60000 - 1000){ lastBeep[next.id] = now; beep(); }
   } else if(S.alarmFor){ S.alarmFor = null; renderAlarm(); }
-  document.title = next ? (next.id.startsWith("inv-") ? "⏰ Leltár!" : next.id.startsWith("krem-") ? "⏰ Krémleltár!" : next.id.startsWith("bake-") ? "⏰ Pékáru zárás!" : "⏰ Előrendelés!") : "Büfé CRM";
+  document.title = next ? (next.id.startsWith("cash-") ? "⏰ Kasszazárás" : next.id.startsWith("inv-") ? "⏰ Leltár!" : next.id.startsWith("krem-") ? "⏰ Krémleltár!" : next.id.startsWith("bake-") ? "⏰ Pékáru zárás!" : "⏰ Előrendelés!") : "Büfé CRM";
 }
 /* ---------- native (Android app) notifications: alarms also fire when the app is closed ---------- */
 const LN = () => { const C = window.Capacitor; return C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.LocalNotifications; };
@@ -491,6 +494,7 @@ async function nativeSched(){
   for(let k = 0; k < 7; k++){ const dd = addDays(new Date(), k), ds = ymd(dd); if(isClosed(ds)) continue;
     const base = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 50).getTime();
     if(hasKrem && (dd.getDay() === 1 || dd.getDay() === 4) && !(k === 0 && !kremDue() && now >= base)){ const done = k === 0 && S.items.filter(i=>i.krem).every(i => i.lastCountDate === ds); if(!done) for(let i = 0; i < 4; i++) add(base + i*5*60000, "⏰ Krémleltár!", "Hétfő/csütörtök 10:50 – számold meg a krémeket."); }
+    if(canCash() && !isReadonly()){ const b11 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 11, 0).getTime(); if(!(k === 0 && !cashDue() && now >= b11)){ const tc = k===0 && S.cash.find(x=>x.date===ds); if(!(tc && tc.close!=null && tc.close!=="")) add(b11, "⏰ Mehet a kasszazárás?", "11:00 – nyisd meg az appot a kasszazáráshoz."); } }
     if(dd.getDay() === 1 || dd.getDay() === 4){ const b10 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 0).getTime();
       if(!(k === 0 && !leltarPending())) for(let i = 0; i < 4; i++) add(b10 + i*15*60000, "⏰ Leltár ma!", (dd.getDay()===1 ? "Hétfői teljes leltár" : "Csütörtöki részleges leltár") + " – indítsd el az appban."); }
     if(k === 0){ const doc = bakeDoc(ds); if(!(doc && doc.remaining) && (hasArrived(doc) || Object.keys(openingFor(ds)).length)) for(let i = 0; i < 3; i++) add(base + 5*60000 + i*5*60000, "⏰ Pékáru zárás", "10:55 – írd be a maradékot."); }
@@ -515,6 +519,15 @@ function renderAlarm(){
       <div class="note w">5 percenként jelez, amíg ki nem töltöd.</div>
       <button class="btn pri" data-act="bakeCloseOpen">Kitöltés most</button>
       <button class="btn ghost" data-act="bakeCloseLater">Emlékeztess 5 perc múlva</button></div></div>`;
+    return;
+  }
+  if(S.alarmFor && S.alarmFor.startsWith("cash-")){
+    $("#overlay").innerHTML = `<div class="alarm" role="alertdialog" aria-labelledby="alT"><div class="box calm">
+      <span class="label">Nap vége</span><div class="big">11:00</div>
+      <h2 id="alT">Mehet a kasszazárás?</h2>
+      <div class="muted">A mai kiadások már benne vannak, csak a záró egyenleget és a kártyás forgalmat kell beírni.</div>
+      <button class="btn pri" data-act="cashOfferGo">Igen, kasszazárás</button>
+      <button class="btn ghost" data-act="cashOfferLater">Később (15 perc)</button></div></div>`;
     return;
   }
   if(S.alarmFor && S.alarmFor.startsWith("inv-")){
@@ -714,7 +727,8 @@ function bakeryBox(){
   }
   return out;
 }
-function homeView(){
+function homeView(){ return homeViewInner() + (S.cashPop && S.cashPop.home ? cashPopView() : ""); }
+function homeViewInner(){
   const fz = S.freezer || {};
   const notes = [];
   const due = dueOrders();
@@ -742,6 +756,8 @@ function homeView(){
     ${liveMsgs().some(m=>!(m.okBy||{})[S.me]) ? "" : `<section class="card"><div class="row"><button class="namebtn grow" style="text-decoration:none;color:var(--fg);font:600 1.05rem var(--display)" data-act="goSub" data-sub="msgs">Üzenőfal</button><button class="btn sm pri" data-act="msgNew">+ Új</button></div></section>`}
     ${notes.join("")}
     ${!S.soundOn ? `<div class="note w"><span class="grow">Kapcsold be a hangot, hogy az emlékeztető megszólaljon</span><button class="btn sm warn" data-act="sound">Bekapcsol</button></div>` : ""}
+    ${(()=>{ const tc = S.cash.find(x=>x.date===today()), ex = (tc && tc.exp) || [], sum = ex.reduce((a,e)=>a+num(e.amt),0);
+      return `<section class="card"><div class="row"><span class="grow"><b>Mai kiadások</b><br><span class="small muted">${ex.length ? `${ex.length} tétel · ${ft(sum)}` : "még nincs"}</span></span><button class="btn sm pri" data-act="homeExp">+ Kiadás</button></div></section>`; })()}
     <section class="card"><div class="row"><h3 class="grow">Előrendelések</h3><button class="btn sm pri" data-act="newOrder">+ Új</button></div>
       ${tOrders.length ? `<div class="list">${tOrders.map(o=>orderRow(o,true)).join("")}</div>` : ""}
       ${future?`<div class="small muted">További ${future} előrendelés a következő napokra.</div>`:""}
@@ -1093,7 +1109,7 @@ async function saveCashDraft(){
   }
 }
 function cashView(){
-  if(!S.cashDraft) loadCashDraft();
+  if(!S.cashDraft || !S.cashPop) loadCashDraft();
   const c = S.cashDraft, prev = prevCash(S.cashDate), r = cashCalc(c, prev), saved = S.cash.find(x=>x.date===S.cashDate);
   const histRows = [...S.cash].sort((a,b)=> a.date<b.date?1:-1).slice(0,14);
   return header("Kasszazárás") + `<div class="stack">${back}
@@ -1259,7 +1275,7 @@ function settingsView(){
 /* ---------- actions ---------- */
 const cfgRef = "config/main";
 async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
-const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","goLeltar","cashPopClose","goShift","invClose","forgetLogins"]);
+const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
 const A = {
   nav(d){ S.tab = d.tab; S.sub = null; S.personCal = null; window.scrollTo(0,0); render(); },
   goSub(d){ S.tab = "more"; S.sub = d.sub || null; if(d.sub==="cash") S.cashDraft=null; window.scrollTo(0,0); render(); if(d.sub==="msgs") markRead(); },
@@ -1268,6 +1284,8 @@ const A = {
     if(!ids.length) return toast("Minden tétel meg van számolva mára.");
     S.inv = {name: lt.name, ids, i:0, n:0, skipped:0}; window.scrollTo(0,0); render(); },
   async invOk(){ const inv = S.inv; if(!inv) return; const it = S.items.find(x => x.id === inv.ids[inv.i]); inv.i++; inv.n++; render(); if(it) await countItem(it, num(it.stock||0)).catch(()=>{}); },
+  cashOfferGo(){ S.snooze[CASH_ID()] = Date.now() + 60*60000; S.alarmFor = null; renderAlarm(); S.cashDate = today(); S.cashDraft = null; A.goSub({sub:"cash"}); },
+  cashOfferLater(){ S.snooze[CASH_ID()] = Date.now() + 15*60000; lastBeep[CASH_ID()] = 0; S.alarmFor = null; render(); },
   invAlarmStart(){ S.snooze[INV_ID()] = Date.now() + 15*60000; lastBeep[INV_ID()] = 0; S.alarmFor = null; renderAlarm(); A.invStart(); },
   invSkip(){ if(!S.inv) return; S.inv.i++; S.inv.skipped++; render(); },
   invClose(){ S.inv = null; S.tab = "home"; S.sub = null; window.scrollTo(0,0); render(); },
@@ -1422,12 +1440,13 @@ const A = {
   async itemDel(d){ if(S.f.delConfirm!==d.id){ S.f.delConfirm=d.id; return render(); } S.f.delConfirm=null; S.items = S.items.filter(i=>i.id!==d.id); S.openItem=null; render(); await write("items/"+d.id, r=>r.delete()); toast("Törölve."); },
   cashPop(d){ const c = S.cashDraft; S.cashPop = {k:d.k, val: (d.k==="close"||d.k==="card") ? String(c[d.k]??"") : "", note:""}; render(); setTimeout(()=>{ const el = $("#cpVal"); if(el){ el.focus(); el.select && el.select(); } }, 30); },
   cashPopClose(){ S.cashPop = null; render(); },
+  homeExp(){ S.cashDate = today(); loadCashDraft(); S.cashPop = {k:"exp", val:"", note:"", home:true}; render(); setTimeout(()=>{ const el = $("#cpVal"); el && el.focus(); }, 30); },
   async cashPopDel(d){ const p = S.cashPop; if(!p) return; const arr = p.k==="exp" ? S.cashDraft.exp : S.cashDraft.wd; arr.splice(+d.i, 1); render(); await saveCashDraft(); },
   async cashPopOk(){ const p = S.cashPop, c = S.cashDraft; if(!p) return; const raw = String(p.val||"").replace(/\s/g,"");
     if(p.k==="close" || p.k==="card"){ if(raw!=="" && !/^\d+$/.test(raw)) return toast("Csak számot írj be."); c[p.k] = raw; }
     else { if(raw==="") { S.cashPop = null; return render(); } if(!/^\d+$/.test(raw)) return toast("Csak számot írj be.");
       if(p.k==="exp") c.exp.push({name:(p.note||"").trim()||"Kiadás", amt:num(raw)}); else c.wd.push({note:(p.note||"").trim(), amt:num(raw), by:S.me}); }
-    S.cashPop = null; render(); await saveCashDraft(); },
+    const pr = saveCashDraft(); S.cashPop = null; render(); await pr; },
   expAdd(){ S.cashDraft.exp.push({name:"",amt:""}); render(); },
   expDel(d){ S.cashDraft.exp.splice(+d.i,1); render(); },
   wdAdd(){ S.cashDraft.wd.push({note:"",amt:"",by:S.me}); render(); },
