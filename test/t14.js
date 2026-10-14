@@ -1,0 +1,13 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:1100}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore(); await fs.doc('shifts/2026-10-15').set({date:'2026-10-15',entries:[{staffId:'b',start:'06:00',end:'11:00'}]}); await fs.doc('shifts/2026-10-16').set({date:'2026-10-16',entries:[{staffId:'tamas',start:'07:00',end:'11:00'}]}); await fs.doc('freezer/main').set({kenyer:6,kifli:5,zsemle:4,by:'b',at:Date.now()}); });
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(400);
+console.log('bars:', await p.evaluate(()=>[...document.querySelectorAll('.shiftbar')].map(e=>e.innerText.replace(/\s+/g,' ')).join(' || ')));
+await p.screenshot({path:'home13.png'});
+await p.evaluate(()=>{ S.isOwner=true; S.tab='stock'; render(); }); await p.waitForTimeout(200);
+console.log('ni collapsed:', await p.evaluate(()=>!document.querySelector('#niName')));
+await p.click('.newitem'); await p.waitForTimeout(200); console.log('ni open:', await p.evaluate(()=>!!document.querySelector('#niName')));
+await b.close(); })();
