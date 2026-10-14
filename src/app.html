@@ -272,6 +272,9 @@ textarea{min-height:70px;resize:vertical}
 .newitem h3{color:var(--ni-ink)}
 :root{--ni-bg:#eaf1fb;--ni-line:#7fa6d9;--ni-ink:#1f4f8a}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ni-bg:#16233a;--ni-line:#3d6aa8;--ni-ink:#a9c8f0}}
+body.ro [data-act=homeExp],body.ro [data-act=msgNew],body.ro [data-act=newOrder],body.ro [data-act=invStart],body.ro [data-act=shiftAdd],body.ro [data-act=pinToggle],body.ro .msgok,body.ro .msgnew,body.ro .newitem,body.ro .wsel{display:none!important}
+body.ro select[data-qty],body.ro select[data-fz],body.ro select[data-invq]{pointer-events:none}
+body.ro .qsel span[aria-hidden]{visibility:hidden}
 .wsel{border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
 .waste{display:grid;grid-template-columns:56px 1fr 56px;gap:8px}
 .waste .st{min-height:52px;font-size:1.5rem;font-weight:800;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--fg)}
@@ -467,7 +470,7 @@ function closeWizard(){
   return `<div class="alarm" role="dialog" aria-labelledby="alT"><div class="box calm">${body}</div></div>`;
 }
 function alarmTick(){
-  const now = Date.now(); if(isReadonly() || S.needLogin || !S.me || !meStaff() || S.pinFor){ if(S.alarmFor){ S.alarmFor = null; renderAlarm(); } return; } nativeSched();
+  const now = Date.now(); if(isReadonly() || S.needLogin || !S.me || !meStaff() || S.pinFor){ if(isReadonly()) clearNativeNotifs(); if(S.alarmFor){ S.alarmFor = null; renderAlarm(); } return; } nativeSched();
   const due = dueOrders().filter(o => !(S.snooze[o.id] > now)).sort((a,b)=> pickupTs(a)-pickupTs(b));
   let next = due[0];
   if(!next && invDue() && !(S.snooze[INV_ID()] > now)) next = { id: INV_ID() };
@@ -484,7 +487,9 @@ function alarmTick(){
 /* ---------- native (Android app) notifications: alarms also fire when the app is closed ---------- */
 const LN = () => { const C = window.Capacitor; return C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.LocalNotifications; };
 let nSig = "", nBusy = false, nInit = false;
-async function nativeSched(){
+let nCleared = false;
+async function clearNativeNotifs(){ const ln = LN(); if(!ln || nCleared) return; nCleared = true; nSig = ""; try{ const pend = await ln.getPending(); if(pend && pend.notifications && pend.notifications.length) await ln.cancel({notifications: pend.notifications.map(n => ({id:n.id}))}); }catch(e){} }
+async function nativeSched(){ nCleared = false;
   const ln = LN(); if(!ln || nBusy || !S.dbOk || BACKEND!=="fb") return;
   const now = Date.now(), horizon = now + 7*86400000, list = [];
   const add = (at, title, body) => { if(at > now + 5000 && at < horizon) list.push({at, title, body}); };
@@ -612,7 +617,7 @@ const IC = {
 /* ---------- render ---------- */
 function render(){
   if(dragState){ pendingRender = true; return; }
-  try{ syncHistory(); }catch(e){}
+  try{ syncHistory(); document.body.classList.toggle("ro", isReadonly()); }catch(e){}
   const ae = document.activeElement, aid = ae && ae.id, sel = ae && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null;
   const sy = window.scrollY;
   $("#app").innerHTML = view();
@@ -1275,6 +1280,7 @@ function settingsView(){
 /* ---------- actions ---------- */
 const cfgRef = "config/main";
 async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
+const RO_FIELDS = new Set(["cashDate","tempDate","f.pinIn2","f.pinA","f.pinB","f.pinTrust","f.lgEm","f.lgPw"]);
 const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
 const A = {
   nav(d){ S.tab = d.tab; S.sub = null; S.personCal = null; window.scrollTo(0,0); render(); },
@@ -1526,7 +1532,7 @@ async function setShift(date, entries){
 }
 async function addMove(m){ try{ await db.collection("moves").add({...m, ...by()}); }catch(e){} }
 async function logFreezer(kind, op, qty){ try{ const k = today().slice(0,7); await enqueue("fzlog/"+k, async ()=>{ const ref = db.doc("freezerlog/"+k); const s = await ref.get(); const list = s.exists ? (s.data().list||[]) : []; await ref.set({list:[...list, {kind, op, qty, ...by()}].slice(-3000)}); }); }catch(e){} }
-async function markRead(){ if(!db) return; for(const m of liveMsgs()){ if(m.by!==S.me && !(m.readBy||{})[S.me]){ try{ await enqueue("messages/"+m.id, ()=> db.doc("messages/"+m.id).update({readBy:{[S.me]:Date.now()}})); }catch(e){} } } }
+async function markRead(){ if(!db || isReadonly()) return; for(const m of liveMsgs()){ if(m.by!==S.me && !(m.readBy||{})[S.me]){ try{ await enqueue("messages/"+m.id, ()=> db.doc("messages/"+m.id).update({readBy:{[S.me]:Date.now()}})); }catch(e){} } } }
 
 /* ---------- events ---------- */
 document.addEventListener("click", e => {
@@ -1562,6 +1568,7 @@ async function onQty(el){
 }
 function onField(e){
   const el = e.target;
+  if(isReadonly() && el.dataset && el.dataset.f && !RO_FIELDS.has(el.dataset.f)){ if(e.type==="change"){ toast("Csak olvasási jogod van, itt nem módosíthatsz."); render(); } else { el.blur && el.blur(); } return; }
   if(isReadonly() && el.dataset && (el.dataset.qty || el.dataset.waste || el.dataset.fz || el.dataset.invq || el.dataset.imp || el.dataset.role)){ if(e.type==="change"){ toast("Csak olvasási jogod van, itt nem módosíthatsz."); render(); } return; }
   if(el.dataset && el.dataset.qty){ if(e.type==="change") onQty(el).catch(()=>{}); return; }
   if(el.dataset && el.dataset.waste){ if(e.type==="change" && el.value!=="") A.wasteSave({id:el.dataset.waste, q:el.value}).catch(()=>{}); return; }

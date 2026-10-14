@@ -1,0 +1,21 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:900}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore(); const c=__store.get('config/main'); c.staff.push({id:'v',name:'Könyvelő',active:true,role:'readonly'}); await fs.doc('config/main').set(c); await fs.doc('bakery/'+today()).set({date:today(),arrived:{kenyer:1,kifli:1,zsemle:1}}); });
+await p.waitForTimeout(300);
+await p.click('[data-act=pickMe][data-id=v]'); await p.waitForTimeout(200);
+await p.fill('#pinA','5555'); await p.fill('#pinB','5555'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(500);
+const before = __s = await p.evaluate(()=>JSON.stringify(__store.get('messages/m1').readBy));
+await p.evaluate(()=>{ alarmTick(); }); await p.waitForTimeout(300);
+console.log('overlay empty:', await p.evaluate(()=>!document.querySelector('#overlay').innerText.trim()), 'cancel calls:', await p.evaluate(()=>window.__cancel), 'scheduled:', await p.evaluate(()=>window.__sched.length));
+console.log('hidden +Kiadás:', await p.evaluate(()=>getComputedStyle(document.querySelector('[data-act=homeExp]')).display));
+await p.evaluate(()=>{ S.tab='more'; S.sub='msgs'; render(); markRead(); }); await p.waitForTimeout(300);
+console.log('readBy unchanged:', before === await p.evaluate(()=>JSON.stringify(__store.get('messages/m1').readBy)));
+await p.evaluate(()=>{ S.sub='cash'; render(); }); console.log('cash taps:', await p.evaluate(()=>document.querySelectorAll('[data-act=cashPop]').length));
+await p.evaluate(()=>{ S.tab='home'; S.sub=null; render(); });
+// try typing in bakery order select via data-f
+const r = await p.evaluate(()=>{ const sel=document.querySelector('[data-f^="bo."]'); return !!sel; }); console.log('bo field present:', r);
+console.log('store writes by v:', await p.evaluate(()=>[...__store.entries()].filter(([k,v])=>v && v.by==='v' && !k.startsWith('config')).map(x=>x[0])));
+await b.close(); })();
