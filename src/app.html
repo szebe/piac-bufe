@@ -732,8 +732,6 @@ function bakeryBox(){
   }
   if(!d.remaining){
     out += `<section class="shiftbar bakebar"><span class="label">Pékáru a büfében</span><span class="small">${bakeLine(bakeStock(today()))}</span>${d.ordered?`<span class="small muted">· holnapra rendelve: ${BAKERY.map(([k])=>d.ordered[k]||0).join(" / ")}</span>`:""}</section>`;
-  } else if(d.sold){
-    out += `<section class="shiftbar bakebar"><span class="label">Ma fogyott</span><span class="small">${bakeLine(d.sold)}</span></section>`;
   }
   return out;
 }
@@ -762,12 +760,13 @@ function homeViewInner(){
     <section aria-label="Fagyasztó" class="fzbox"><div class="fzhead"><span class="fzflake" aria-hidden="true">${FLAKE}</span>FAGYASZTÓ<span class="fzflake" aria-hidden="true">${FLAKE}</span></div>
     <div class="freezer">${FREEZER.map(([k,l])=>{ const cur = fz[k]||0; return `<label class="fz fzsel" title="${l}">${FLAKE}${BAKE_ICON[k]}<span class="sr">${l}</span><span class="n">${cur}</span><select id="fz_${k}" data-fz="${k}" aria-label="${l}: mennyit teszel be (+) vagy veszel ki (−) a fagyasztóból">${fzDeltaOptions(k, cur)}</select></label>`; }).join("")}</div></section>
     ${bakeryBox()}
+    ${(()=>{ const tc = S.cash.find(x=>x.date===today()), ex = (tc && tc.exp) || [], sum = ex.reduce((a,e)=>a+num(e.amt),0);
+      return `<section class="card"><div class="row"><span class="grow"><b>Mai kiadások</b><br><span class="small muted">${ex.length ? `${ex.length} tétel · ${ft(sum)}` : "még nincs"}</span></span><button class="btn sm pri" data-act="homeExp">+ Kiadás</button></div></section>`; })()}
     ${(()=>{ const pend = liveMsgs().filter(m=>!(m.okBy||{})[S.me]); if(!pend.length) return ""; return `<div class="msgwrap"><button class="msgnew" data-act="msgNew" aria-label="Új üzenet írása">+</button><div class="msgcol">${pend.map(m=>`<div class="msgrow"><button class="msgcard" data-act="msgOpen" data-id="${esc(m.id)}"><span class="meta">${esc(staffName(m.by))}, ${m.showFrom?fmtDay(m.showFrom).split(",")[0]:tsLabel(m.at)}</span><span class="txt">${esc(m.text)}</span></button><button class="msgok" data-act="msgOk" data-id="${esc(m.id)}" aria-label="Elolvastam, levétel a főoldalról">OK</button></div>`).join("")}</div></div>`; })()}
     ${liveMsgs().some(m=>!(m.okBy||{})[S.me]) ? "" : `<section class="card"><div class="row"><button class="namebtn grow" style="text-decoration:none;color:var(--fg);font:600 1.05rem var(--display)" data-act="goSub" data-sub="msgs">Üzenőfal</button><button class="btn sm pri" data-act="msgNew">+ Új</button></div></section>`}
     ${notes.join("")}
     ${!S.soundOn ? `<div class="note w"><span class="grow">Kapcsold be a hangot, hogy az emlékeztető megszólaljon</span><button class="btn sm warn" data-act="sound">Bekapcsol</button></div>` : ""}
-    ${(()=>{ const tc = S.cash.find(x=>x.date===today()), ex = (tc && tc.exp) || [], sum = ex.reduce((a,e)=>a+num(e.amt),0);
-      return `<section class="card"><div class="row"><span class="grow"><b>Mai kiadások</b><br><span class="small muted">${ex.length ? `${ex.length} tétel · ${ft(sum)}` : "még nincs"}</span></span><button class="btn sm pri" data-act="homeExp">+ Kiadás</button></div></section>`; })()}
+
     ${tOrders.length ? `<section class="card"><div class="row"><h3 class="grow">Előrendelések</h3><button class="btn sm pri" data-act="newOrder">+ Új</button></div>
       ${tOrders.length ? `<div class="list">${tOrders.map(o=>orderRow(o,true)).join("")}</div>` : ""}
       ${future?`<div class="small muted">További ${future} előrendelés a következő napokra.</div>`:""}
@@ -776,6 +775,7 @@ function homeViewInner(){
       ${isClosed(d) ? `<span class="small">Zárva: ${esc(closedLabel(d))}</span>` : sh.length ? sh.map(e=>`<span class="schip"><b>${esc(staffName(e.staffId))}</b> <span class="num">${e.start}–${e.end}</span></span>`).join("") : `<span class="small muted">nincs beosztva senki</span>`}
     </section>`; }).join("")}
     <section class="card"><div class="row"><span class="grow small muted">Ha a telefon képernyője ébren marad, az emlékeztető biztosan megszólal.</span><button class="btn sm" data-act="wake">${S.wake?"Ébren tartva ✓":"Ébren tartás"}</button></div></section>
+    ${(()=>{ const d = bakeDoc(today()); return d && d.remaining && d.sold ? `<section class="shiftbar bakebar"><span class="label">Ma fogyott</span><span class="small">${bakeLine(d.sold)}</span></section>` : ""; })()}
   </div>`;
 }
 
