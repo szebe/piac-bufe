@@ -1,0 +1,17 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:1300}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore(); const c=__store.get('config/main'); c.staff.push({id:'vk',name:'Viki',active:true}); await fs.doc('config/main').set(c); await fs.doc('shifts/2026-10-16').set({date:'2026-10-16',entries:[{staffId:'b',start:'06:00',end:'11:00'}]}); });
+await p.waitForTimeout(300);
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(300);
+await p.evaluate(()=>{ S.tab='more'; S.sub='reqs'; render(); }); await p.waitForTimeout(200);
+await p.selectOption('#rqDate','2026-10-16'); await p.fill('#rqNote','orvos'); await p.click('[data-act=reqAdd]'); await p.waitForTimeout(400);
+await p.evaluate(()=>A.switchMe()); await p.click('[data-act=pickMe][data-id=vk]'); await p.waitForTimeout(300); await p.evaluate(()=>A.nav({tab:'home'})); await p.waitForTimeout(200);
+console.log('Viki home note:', await p.evaluate(()=>[...document.querySelectorAll('.note')].map(n=>n.innerText.replace(/\s+/g,' ')).filter(t=>/átvehető/.test(t))));
+await p.evaluate(()=>{ S.tab='more'; S.sub='reqs'; render(); }); await p.waitForTimeout(200);
+await p.click('[data-act=reqTake]'); await p.waitForTimeout(500);
+console.log('shift 16:', JSON.stringify(await p.evaluate(()=>__store.get('shifts/2026-10-16').entries)));
+console.log('req:', await p.evaluate(()=>document.querySelector('.pill.ok')?.innerText));
+await b.close(); })();
