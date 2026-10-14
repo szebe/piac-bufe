@@ -1,0 +1,12 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:760}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore(); for(let i=0;i<8;i++) await fs.doc('items/z'+i).set({id:'z'+i,name:'Tétel '+i,stock:3}); });
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(200);
+await p.evaluate(()=>{ S.isOwner=true; S.tab='stock'; render(); }); await p.waitForTimeout(200);
+await p.evaluate(()=>document.querySelector('.newitem').scrollIntoView({block:'end'})); await p.waitForTimeout(200);
+await p.click('.newitem'); await p.waitForTimeout(800);
+const r = await p.evaluate(()=>{ const r=document.querySelector('.newitem').getBoundingClientRect(); return {top:Math.round(r.top), bottom:Math.round(r.bottom), vh:innerHeight, tabs:document.querySelector('.tabs').offsetHeight}; });
+console.log(JSON.stringify(r)); await p.screenshot({path:'niopen.png'}); await b.close(); })();

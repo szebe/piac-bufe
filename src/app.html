@@ -1447,7 +1447,9 @@ const A = {
     const edits = [...((old&&old.edits)||[]), ...(Object.keys(before).length?[{by:S.me, at:Date.now(), before}]:[])].slice(-20);
     S.f.bkEdit=null; S.bk={}; await bakeMerge(d.date, {arrived, edits}); toast("Mentve."); },
   wasteStep(d){ const now = new Date(), c = S.wasteMonth || {y:now.getFullYear(), m:now.getMonth()}; const x = new Date(c.y, c.m + (+d.d), 1); S.wasteMonth = {y:x.getFullYear(), m:x.getMonth()}; subWaste(); render(); },
-  niToggle(){ S.niOpen = !S.niOpen; render(); },
+  niToggle(){ S.niOpen = !S.niOpen; render(); if(S.niOpen) setTimeout(()=>{ const el = document.querySelector(".newitem"); if(!el) return; const r = el.getBoundingClientRect(), tabs = document.querySelector(".tabs"), top = document.querySelector(".top");
+    const bottomLimit = window.innerHeight - (tabs ? tabs.offsetHeight : 0) - 12, topLimit = (top ? top.getBoundingClientRect().bottom : 0) + 8;
+    let dy = r.bottom - bottomLimit; if(dy > 0){ dy = Math.min(dy, r.top - topLimit); if(dy > 0) window.scrollBy({top: dy, behavior: "smooth"}); } }, 30); },
   async pinToggle(d){ let pins = pinnedIds(); const it = S.items.find(i=>i.id===d.id); if(!it) return;
     if(pins.includes(d.id)) pins = pins.filter(x=>x!==d.id);
     else { if(pins.length >= 3) return toast("Már 3 tétel ki van tűzve. Előbb vegyél le egyet."); pins = [...pins, d.id]; }
