@@ -7,3 +7,4 @@ test/*.png
 test/mock.html
 *.log
 android/keystore/
+test/mockmon.html
