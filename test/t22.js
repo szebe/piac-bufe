@@ -1,0 +1,12 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:900}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ await firebase.firestore().doc('items/q').set({id:'q',name:'Nem havi',stock:2,monthly:false}); });
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(300);
+console.log('monthly 31?', await p.evaluate(()=>[isMonthlyInvDay('2026-10-31'), monthEndInvDay(2026,11)]));
+await p.evaluate(()=>alarmTick()); await p.waitForTimeout(200);
+console.log('alarm:', await p.evaluate(()=>document.querySelector('#overlay').innerText.replace(/\s+/g,' ').slice(0,80)));
+console.log('items:', await p.evaluate(()=>leltarToday().items.map(i=>i.name)));
+await b.close(); })();

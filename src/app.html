@@ -521,8 +521,8 @@ async function nativeSched(){ nCleared = false;
     const base = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 50).getTime();
     if(hasKrem && (dd.getDay() === 1 || dd.getDay() === 4) && !(k === 0 && !kremDue() && now >= base)){ const done = k === 0 && S.items.filter(i=>i.krem).every(i => i.lastCountDate === ds); if(!done) for(let i = 0; i < 4; i++) add(base + i*5*60000, "⏰ Krémleltár!", "Hétfő/csütörtök 10:50 – számold meg a krémeket."); }
     if(canCash() && !isReadonly()){ const b11 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 11, 0).getTime(); if(!(k === 0 && !cashDue() && now >= b11)){ const tc = k===0 && S.cash.find(x=>x.date===ds); if(!(tc && tc.close!=null && tc.close!=="")) add(b11, "⏰ Mehet a kasszazárás?", "11:00 – nyisd meg az appot a kasszazáráshoz."); } }
-    if(dd.getDay() === 1 || dd.getDay() === 4){ const b10 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 0).getTime();
-      if(!(k === 0 && !leltarPending())) for(let i = 0; i < 4; i++) add(b10 + i*15*60000, "⏰ Leltár ma!", (dd.getDay()===1 ? "Hétfői teljes leltár" : "Csütörtöki részleges leltár") + " – indítsd el az appban."); }
+    if(dd.getDay() === 1 || dd.getDay() === 4 || isMonthlyInvDay(ds)){ const b10 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 0).getTime();
+      if(!(k === 0 && !leltarPending())) for(let i = 0; i < 4; i++) add(b10 + i*15*60000, "⏰ Leltár ma!", (isMonthlyInvDay(ds) ? "Havi leltár" : dd.getDay()===1 ? "Hétfői teljes leltár" : "Csütörtöki részleges leltár") + " – indítsd el az appban."); }
     if(k === 0){ const doc = bakeDoc(ds); if(!(doc && doc.remaining) && (hasArrived(doc) || Object.keys(openingFor(ds)).length)) for(let i = 0; i < 3; i++) add(base + 5*60000 + i*5*60000, "⏰ Pékáru zárás", "10:55 – írd be a maradékot."); }
   }
   list.sort((a,b) => a.at - b.at); const sel = list.slice(0, 60);
@@ -605,9 +605,13 @@ const UNITS = ["db","karton","doboz","csomag","üveg","kg","liter"];
 function U(it){ return (it && it.unit) || "db"; }
 function PC(it){ return U(it)==="db" ? (Number(it.perCarton)||0) : 0; }
 function fmtQty(q, it){ if(U(it)!=="db") return `${fmtN(q)} ${U(it)}`; const pc = PC(it); if(pc > 1){ const k = Math.floor(q/pc + 1e-9), r = Math.round((q - k*pc)*100)/100; return k ? `${k} karton ${r ? fmtN(r)+" db" : ""}`.trim() : `${fmtN(r)} db`; } return `${fmtN(q)} db`; }
+function monthEndInvDay(y, m){ for(let d = new Date(y, m+1, 0); d.getMonth() === m; d = addDays(d, -1)){ const s = ymd(d); if(!isClosed(s)) return s; } return null; }
+function isMonthlyInvDay(ds){ const d = parseYmd(ds); return monthEndInvDay(d.getFullYear(), d.getMonth()) === ds; }
 function leltarToday(){
   const wd = new Date().getDay();
   if(isClosed(today())) return null;
+  if(isMonthlyInvDay(today())){ const extra = wd === 1 ? (i => i.monday !== false) : wd === 4 ? (i => i.partial || i.krem) : (() => false);
+    return { name:"Havi leltár (hónap utolsó nyitvatartási napja)", items: S.items.filter(i => i.monthly !== false || extra(i)) }; }
   if(wd === 1) return { name:"Teljes leltár (hétfő)", items: S.items.filter(i => i.monday !== false) };
   if(wd === 4) return { name:"Részleges leltár (csütörtök)", items: S.items.filter(i => i.partial || i.krem) };
   return null;
@@ -952,7 +956,7 @@ function itemsView(){
         ${it.wasteable?`<label class="qsel wsel"><span>Selejt: válassz mennyiséget</span><span aria-hidden="true">▾</span><select id="ws_${esc(it.id)}" data-waste="${esc(it.id)}" aria-label="Selejtezett darabszám"><option value="" selected>–</option>${wasteOptions(it)}</select></label>
         <div class="small muted">A kiválasztott mennyiséget azonnal selejtként könyveli le, és ennyivel csökkenti a készletet. A Selejt fülön visszakövethető.</div>`:""}
         <div class="small">${it.min?`Minimum: <b>${fmtN(it.min)} ${U(it)}</b>`:"Nincs minimum beállítva."}</div>
-        <div class="small">Leltár: ${[it.monday!==false?"hétfő (teljes)":"", (it.partial||it.krem)?"csütörtök (részleges)":""].filter(Boolean).join(", ") || "nincs ütemezett leltárban"}</div>
+        <div class="small">Leltár: ${[it.monday!==false?"hétfő (teljes)":"", (it.partial||it.krem)?"csütörtök (részleges)":"", it.monthly!==false?"havi":""].filter(Boolean).join(", ") || "nincs ütemezett leltárban"}</div>
         <div class="small"><b>Beérkezések:</b> ${(it.inLog||[]).length ? (it.inLog||[]).map(e=>`<br>${tsLabel(e.at)} · <b>+${fmtN(e.qty)} ${U(it)}</b> · ${esc(staffName(e.by))}`).join("") : "még nincs rögzítve (ha a Készleten értéket növeled, beérkezésként kerül ide)."}</div>
         <button class="btn ${pins.includes(it.id)?"":"ghost"}" style="width:100%" data-act="pinToggle" data-id="${esc(it.id)}">${pins.includes(it.id) ? "📌 Kitűzés levétele" : `📌 Kitűzés az első helyekre (${pins.length}/3)`}</button>
         ${isAdmin()?`<hr>${itemForm(it)}`:""}`:""}
@@ -966,6 +970,7 @@ function itemForm(it){
   <label class="field"><span>Mértékegység</span><select id="${p}unit" data-f="f.${p}unit">${UNITS.map(u=>`<option value="${u}" ${(g("unit")||"db")===u?"selected":""}>${u}</option>`).join("")}</select></label></div>
   ${(g("unit")||"db")==="db"?`<label class="field"><span>1 karton = db (0 = nincs karton)</span><input id="${p}perCarton" type="number" min="0" step="1" data-f="f.${p}perCarton" value="${esc(g("perCarton")||0)}"></label>`:""}
   <label class="field"><span>Minimumszint (${g("unit")||"db"})</span><input id="${p}min" type="number" min="0" step="1" data-f="f.${p}min" value="${esc(g("min")||0)}"></label>
+  <label class="chk"><input id="${p}monthly" type="checkbox" data-f="f.${p}monthly" ${g("monthly")!==false?"checked":""}> Havi leltárba (hónap utolsó nyitvatartási napja)</label>
   <label class="chk"><input id="${p}monday" type="checkbox" data-f="f.${p}monday" ${g("monday")!==false?"checked":""}> Hétfői teljes leltárba</label>
   <label class="chk"><input id="${p}partial" type="checkbox" data-f="f.${p}partial" ${g("partial")?"checked":""}> Csütörtöki részleges leltárba</label>
   <label class="chk"><input id="${p}waste" type="checkbox" data-f="f.${p}wasteable" ${g("wasteable")?"checked":""}> Selejtezhető (megjelenik a Selejt választó)</label>
@@ -979,6 +984,7 @@ function itemAdmin(){
   <label class="field"><span>Mértékegység</span><select id="niUnit" data-f="f.niUnit">${UNITS.map(u=>`<option value="${u}" ${(S.f.niUnit||"db")===u?"selected":""}>${u}</option>`).join("")}</select></label></div>
   ${(S.f.niUnit||"db")==="db"?`<label class="field"><span>1 karton = db (0 = nincs)</span><input id="niPc" type="number" min="0" step="1" data-f="f.niPc" value="${esc(S.f.niPc||"")}"></label>`:""}
   <label class="field"><span>Minimumszint (${S.f.niUnit||"db"})</span><input id="niMin" type="number" min="0" step="1" data-f="f.niMin" value="${esc(S.f.niMin||"")}"></label>
+  <label class="chk"><input id="niMonthly" type="checkbox" data-f="f.niMonthly" ${S.f.niMonthly!==false?"checked":""}> Havi leltárba</label>
   <label class="chk"><input id="niMon" type="checkbox" data-f="f.niMon" ${S.f.niMon!==false?"checked":""}> Hétfői teljes leltárba</label>
   <label class="chk"><input id="niPart" type="checkbox" data-f="f.niPart" ${S.f.niPart?"checked":""}> Csütörtöki részleges leltárba</label>
   <label class="chk"><input id="niWaste" type="checkbox" data-f="f.niWaste" ${S.f.niWaste?"checked":""}> Selejtezhető</label>
@@ -986,7 +992,7 @@ function itemAdmin(){
   <button class="btn pri" data-act="itemAdd">Hozzáadás</button></section>`;
 }
 function leltarView(lt){
-  if(!lt) return `<div class="card"><h3>Ma nincs ütemezett leltár</h3><p class="muted small">Hétfő: teljes leltár · csütörtök: részleges leltár (a megjelölt tételek és a krémek). A krémeket hétfőn és csütörtökön 10:50-kor külön is jelzi. Soron kívüli leltárt a teljes listán rögzíthetsz.</p><button class="btn" data-act="leltarAll">Soron kívüli teljes leltár</button></div>${S.f.leltarAll?leltarForm({name:"Soron kívüli teljes leltár",items:S.items}):""}`;
+  if(!lt) return `<div class="card"><h3>Ma nincs ütemezett leltár</h3><p class="muted small">Hétfő: teljes leltár · csütörtök: részleges leltár (a megjelölt tételek és a krémek) · havi leltár: a hónap utolsó nyitvatartási napján. A krémeket hétfőn és csütörtökön 10:50-kor külön is jelzi. Soron kívüli leltárt a teljes listán rögzíthetsz.</p><button class="btn" data-act="leltarAll">Soron kívüli teljes leltár</button></div>${S.f.leltarAll?leltarForm({name:"Soron kívüli teljes leltár",items:S.items}):""}`;
   return `${leltarPending()?`<button class="btn pri" style="width:100%" data-act="invStart">Leltár indítása egyesével (egyszerű)</button>`:""}` + leltarForm(lt);
 }
 function invView(){
@@ -1482,13 +1488,13 @@ const A = {
       await write("items/"+it.id, r => r.update({...patch, changedAt:Date.now()})); await addMove({itemId:it.id, type:"leltar", qty:q, usage}); }
     S.f.leltarAll = false; render(); toast(`${todo.length} tétel leltára mentve.`); },
   async itemAdd(){ const name=(S.f.niName||"").trim(); if(!name) return toast("Add meg a nevét."); if(S.items.some(i=>i.name.toLowerCase()===name.toLowerCase())) return toast("Ilyen nevű tétel már van.");
-    const id = uid(), it = {id, name, unit:S.f.niUnit||"db", perCarton:Math.max(0,Math.round(num(S.f.niPc))), min:num(S.f.niMin), monday: S.f.niMon!==false, partial:!!S.f.niPart, wasteable:!!S.f.niWaste, krem:!!S.f.niKrem, stock:0, inSince:0, wasteSince:0, lastCount:null, createdAt:Date.now()};
-    ["niName","niUnit","niPc","niMin","niMon","niPart","niWaste","niKrem"].forEach(k=>delete S.f[k]); S.items=[...S.items,it]; S.niOpen = false; render(); await write("items/"+id, r=>r.set(it)); toast("Hozzáadva."); },
+    const id = uid(), it = {id, name, unit:S.f.niUnit||"db", perCarton:Math.max(0,Math.round(num(S.f.niPc))), min:num(S.f.niMin), monday: S.f.niMon!==false, monthly: S.f.niMonthly!==false, partial:!!S.f.niPart, wasteable:!!S.f.niWaste, krem:!!S.f.niKrem, stock:0, inSince:0, wasteSince:0, lastCount:null, createdAt:Date.now()};
+    ["niName","niUnit","niPc","niMin","niMon","niMonthly","niPart","niWaste","niKrem"].forEach(k=>delete S.f[k]); S.items=[...S.items,it]; S.niOpen = false; render(); await write("items/"+id, r=>r.set(it)); toast("Hozzáadva."); },
   async itemUpdate(d){ const it = S.items.find(i=>i.id===d.id), e = S.f["e_"+d.id]||{}; const patch = {};
     if(e.name!==undefined){ if(!e.name.trim()) return toast("A név nem lehet üres."); patch.name = e.name.trim(); }
     if(e.unit!==undefined && e.unit!==(it.unit||"db")) patch.unit = e.unit;
     if(e.perCarton!==undefined) patch.perCarton = Math.max(0,Math.round(num(e.perCarton)));
-    if(e.min!==undefined) patch.min = num(e.min); if(e.partial!==undefined) patch.partial=!!e.partial; if(e.wasteable!==undefined) patch.wasteable=!!e.wasteable; if(e.monday!==undefined) patch.monday=!!e.monday; if(e.krem!==undefined) patch.krem=!!e.krem;
+    if(e.min!==undefined) patch.min = num(e.min); if(e.partial!==undefined) patch.partial=!!e.partial; if(e.wasteable!==undefined) patch.wasteable=!!e.wasteable; if(e.monday!==undefined) patch.monday=!!e.monday; if(e.monthly!==undefined) patch.monthly=!!e.monthly; if(e.krem!==undefined) patch.krem=!!e.krem;
     if(!Object.keys(patch).length){ S.openItem = null; render(); return toast("Nincs változás."); } Object.assign(it, patch); delete S.f["e_"+d.id]; S.openItem = null; render(); await write("items/"+d.id, r=>r.update(patch)); toast("Mentve."); },
   async itemDel(d){ if(S.f.delConfirm!==d.id){ S.f.delConfirm=d.id; return render(); } S.f.delConfirm=null; S.items = S.items.filter(i=>i.id!==d.id); S.openItem=null; render(); await write("items/"+d.id, r=>r.delete()); toast("Törölve."); },
   cashPop(d){ const c = S.cashDraft; S.cashPop = {k:d.k, val: (d.k==="close"||d.k==="card") ? String(c[d.k]??"") : "", note:""}; render(); setTimeout(()=>{ const el = $("#cpVal"); if(el){ el.focus(); el.select && el.select(); } }, 30); },
