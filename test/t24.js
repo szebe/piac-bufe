@@ -1,0 +1,12 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:900}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore(); const c=__store.get('config/main'); c.staff.push({id:'v',name:'Könyvelő',active:true,role:'readonly'}); await fs.doc('config/main').set(c);
+  const d=k=>ymd(addDays(new Date(),-k)); await fs.doc('cash/'+d(3)).set({date:d(3),close:100000,card:0,exp:[],wd:[]}); await fs.doc('cash/'+d(2)).set({date:d(2),close:150000,card:20000,exp:[{name:'x',amt:3000}],wd:[]}); await fs.doc('cash/'+d(1)).set({date:d(1),close:120000,card:10000,exp:[],wd:[{amt:80000}]}); });
+await p.waitForTimeout(300);
+console.log('monthly Oct/Nov/Dec:', await p.evaluate(()=>[monthEndInvDay(2026,9),monthEndInvDay(2026,10),monthEndInvDay(2026,11)]));
+await p.click('[data-act=pickMe][data-id=v]'); await p.fill('#pinA','5555'); await p.fill('#pinB','5555'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(500);
+console.log(await p.evaluate(()=>document.querySelector('.stack').innerText.slice(0,400).replace(/\n+/g,' | ')));
+await p.screenshot({path:'ro7.png'}); await b.close(); })();
