@@ -1,0 +1,16 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:800}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockmon.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(300);
+await p.evaluate(async()=>{ const fs=firebase.firestore(); await fs.doc('items/x').set({id:'x',name:'Kihagyott',stock:1,monday:false}); }); await p.waitForTimeout(300);
+await p.evaluate(()=>alarmTick()); await p.waitForTimeout(300);
+console.log('alarm:', await p.evaluate(()=>document.querySelector('#overlay').innerText.replace(/\s+/g,' ')));
+await p.screenshot({path:'invalarm.png'});
+await p.click('[data-act=snooze]'); await p.waitForTimeout(200);
+await p.evaluate(()=>alarmTick()); console.log('after snooze overlay empty:', await p.evaluate(()=>!document.querySelector('#overlay').innerText.trim()), 'snooze min:', await p.evaluate(()=>Math.round((S.snooze[INV_ID()]-Date.now())/60000)));
+await p.evaluate(()=>{ S.snooze[INV_ID()]=0; alarmTick(); }); await p.waitForTimeout(200);
+await p.click('[data-act=invAlarmStart]'); await p.waitForTimeout(300);
+console.log('wizard:', await p.evaluate(()=>S.inv && S.inv.ids));
+await b.close(); })();

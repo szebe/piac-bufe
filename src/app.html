@@ -419,6 +419,8 @@ const remindTs = o => pickupTs(o) - (Number(o.remindMin)||30)*60000;
 function dueOrders(){ const now = Date.now(); return S.orders.filter(o => o.status === "nyitott" && now >= remindTs(o) && now < pickupTs(o) + 3*3600000); }
 let lastBeep = {};
 const KREM_ID = () => "krem-" + today();
+const INV_ID = () => "inv-" + today();
+function invDue(){ const d = new Date(); if(d.getHours()*60 + d.getMinutes() < 10*60) return false; return leltarPending() > 0; }
 function kremDue(){
   const d = new Date(), wd = d.getDay();
   if((wd !== 1 && wd !== 4) || isClosed(today())) return false;
@@ -463,9 +465,10 @@ function closeWizard(){
   return `<div class="alarm" role="dialog" aria-labelledby="alT"><div class="box calm">${body}</div></div>`;
 }
 function alarmTick(){
-  const now = Date.now(); if(isReadonly()){ if(S.alarmFor){ S.alarmFor = null; renderAlarm(); } return; } nativeSched();
+  const now = Date.now(); if(isReadonly() || S.needLogin || !S.me || !meStaff() || S.pinFor){ if(S.alarmFor){ S.alarmFor = null; renderAlarm(); } return; } nativeSched();
   const due = dueOrders().filter(o => !(S.snooze[o.id] > now)).sort((a,b)=> pickupTs(a)-pickupTs(b));
   let next = due[0];
+  if(!next && invDue() && !(S.snooze[INV_ID()] > now)) next = { id: INV_ID() };
   if(!next && kremDue() && !(S.snooze[KREM_ID()] > now)) next = { id: KREM_ID() };
   if(!next && bakeCloseDue() && !(S.snooze["bake-"+today()] > now)) next = { id: "bake-"+today() };
   if(S.close){ document.title = "Büfé CRM"; return; }
@@ -473,7 +476,7 @@ function alarmTick(){
     if(S.alarmFor !== next.id){ S.alarmFor = next.id; renderAlarm(); }
     if(!lastBeep[next.id] || now - lastBeep[next.id] >= 5*60000 - 1000){ lastBeep[next.id] = now; beep(); }
   } else if(S.alarmFor){ S.alarmFor = null; renderAlarm(); }
-  document.title = next ? (next.id.startsWith("krem-") ? "⏰ Krémleltár!" : next.id.startsWith("bake-") ? "⏰ Pékáru zárás!" : "⏰ Előrendelés!") : "Büfé CRM";
+  document.title = next ? (next.id.startsWith("inv-") ? "⏰ Leltár!" : next.id.startsWith("krem-") ? "⏰ Krémleltár!" : next.id.startsWith("bake-") ? "⏰ Pékáru zárás!" : "⏰ Előrendelés!") : "Büfé CRM";
 }
 /* ---------- native (Android app) notifications: alarms also fire when the app is closed ---------- */
 const LN = () => { const C = window.Capacitor; return C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.LocalNotifications; };
@@ -488,6 +491,8 @@ async function nativeSched(){
   for(let k = 0; k < 7; k++){ const dd = addDays(new Date(), k), ds = ymd(dd); if(isClosed(ds)) continue;
     const base = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 50).getTime();
     if(hasKrem && (dd.getDay() === 1 || dd.getDay() === 4) && !(k === 0 && !kremDue() && now >= base)){ const done = k === 0 && S.items.filter(i=>i.krem).every(i => i.lastCountDate === ds); if(!done) for(let i = 0; i < 4; i++) add(base + i*5*60000, "⏰ Krémleltár!", "Hétfő/csütörtök 10:50 – számold meg a krémeket."); }
+    if(dd.getDay() === 1 || dd.getDay() === 4){ const b10 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 0).getTime();
+      if(!(k === 0 && !leltarPending())) for(let i = 0; i < 4; i++) add(b10 + i*15*60000, "⏰ Leltár ma!", (dd.getDay()===1 ? "Hétfői teljes leltár" : "Csütörtöki részleges leltár") + " – indítsd el az appban."); }
     if(k === 0){ const doc = bakeDoc(ds); if(!(doc && doc.remaining) && (hasArrived(doc) || Object.keys(openingFor(ds)).length)) for(let i = 0; i < 3; i++) add(base + 5*60000 + i*5*60000, "⏰ Pékáru zárás", "10:55 – írd be a maradékot."); }
   }
   list.sort((a,b) => a.at - b.at); const sel = list.slice(0, 60);
@@ -510,6 +515,19 @@ function renderAlarm(){
       <div class="note w">5 percenként jelez, amíg ki nem töltöd.</div>
       <button class="btn pri" data-act="bakeCloseOpen">Kitöltés most</button>
       <button class="btn ghost" data-act="bakeCloseLater">Emlékeztess 5 perc múlva</button></div></div>`;
+    return;
+  }
+  if(S.alarmFor && S.alarmFor.startsWith("inv-")){
+    const lt = leltarToday();
+    $("#overlay").innerHTML = `<div class="alarm" role="alertdialog" aria-labelledby="alT"><div class="box">
+      <span class="label">Leltárnap</span>
+      <div class="big">10:00</div>
+      <h2 id="alT">${lt ? esc(lt.name) : "Leltár"}</h2>
+      <div class="muted">${leltarPending()} tétel van hátra.</div>
+      <div class="note w">5 percenként jelez, amíg a leltár el nem készül, vagy szundit nem nyomsz.</div>
+      <button class="btn pri" data-act="invAlarmStart">Leltár indítása</button>
+      <button class="btn ghost" data-act="snooze" data-id="${esc(S.alarmFor)}" data-min="15">Szundi 15 percre</button>
+    </div></div>`;
     return;
   }
   if(S.alarmFor && S.alarmFor.startsWith("krem-")){
@@ -551,7 +569,7 @@ function fmtQty(q, it){ if(U(it)!=="db") return `${fmtN(q)} ${U(it)}`; const pc 
 function leltarToday(){
   const wd = new Date().getDay();
   if(isClosed(today())) return null;
-  if(wd === 1) return { name:"Teljes leltár (hétfő)", items: S.items };
+  if(wd === 1) return { name:"Teljes leltár (hétfő)", items: S.items.filter(i => i.monday !== false) };
   if(wd === 4) return { name:"Részleges leltár (csütörtök)", items: S.items.filter(i => i.partial || i.krem) };
   return null;
 }
@@ -903,6 +921,7 @@ function itemForm(it){
   <label class="field"><span>Mértékegység</span><select id="${p}unit" data-f="f.${p}unit">${UNITS.map(u=>`<option value="${u}" ${(g("unit")||"db")===u?"selected":""}>${u}</option>`).join("")}</select></label></div>
   ${(g("unit")||"db")==="db"?`<label class="field"><span>1 karton = db (0 = nincs karton)</span><input id="${p}perCarton" type="number" min="0" step="1" data-f="f.${p}perCarton" value="${esc(g("perCarton")||0)}"></label>`:""}
   <label class="field"><span>Minimumszint (${g("unit")||"db"})</span><input id="${p}min" type="number" min="0" step="1" data-f="f.${p}min" value="${esc(g("min")||0)}"></label>
+  <label class="chk"><input id="${p}monday" type="checkbox" data-f="f.${p}monday" ${g("monday")!==false?"checked":""}> Hétfői teljes leltárba</label>
   <label class="chk"><input id="${p}partial" type="checkbox" data-f="f.${p}partial" ${g("partial")?"checked":""}> Csütörtöki részleges leltárba</label>
   <label class="chk"><input id="${p}waste" type="checkbox" data-f="f.${p}wasteable" ${g("wasteable")?"checked":""}> Selejtezhető (megjelenik a Selejt választó)</label>
   <label class="chk"><input id="${p}krem" type="checkbox" data-f="f.${p}krem" ${g("krem")?"checked":""}> Krémriasztás 10:50-kor hétfőn és csütörtökön (csak egész doboz)</label>
@@ -914,6 +933,7 @@ function itemAdmin(){
   <label class="field"><span>Mértékegység</span><select id="niUnit" data-f="f.niUnit">${UNITS.map(u=>`<option value="${u}" ${(S.f.niUnit||"db")===u?"selected":""}>${u}</option>`).join("")}</select></label></div>
   ${(S.f.niUnit||"db")==="db"?`<label class="field"><span>1 karton = db (0 = nincs)</span><input id="niPc" type="number" min="0" step="1" data-f="f.niPc" value="${esc(S.f.niPc||"")}"></label>`:""}
   <label class="field"><span>Minimumszint (${S.f.niUnit||"db"})</span><input id="niMin" type="number" min="0" step="1" data-f="f.niMin" value="${esc(S.f.niMin||"")}"></label>
+  <label class="chk"><input id="niMon" type="checkbox" data-f="f.niMon" ${S.f.niMon!==false?"checked":""}> Hétfői teljes leltárba</label>
   <label class="chk"><input id="niPart" type="checkbox" data-f="f.niPart" ${S.f.niPart?"checked":""}> Csütörtöki részleges leltárba</label>
   <label class="chk"><input id="niWaste" type="checkbox" data-f="f.niWaste" ${S.f.niWaste?"checked":""}> Selejtezhető</label>
   <label class="chk"><input id="niKrem" type="checkbox" data-f="f.niKrem" ${S.f.niKrem?"checked":""}> Krémriasztás 10:50-kor</label>
@@ -1239,6 +1259,7 @@ const A = {
     if(!ids.length) return toast("Minden tétel meg van számolva mára.");
     S.inv = {name: lt.name, ids, i:0, n:0, skipped:0}; window.scrollTo(0,0); render(); },
   async invOk(){ const inv = S.inv; if(!inv) return; const it = S.items.find(x => x.id === inv.ids[inv.i]); inv.i++; inv.n++; render(); if(it) await countItem(it, num(it.stock||0)).catch(()=>{}); },
+  invAlarmStart(){ S.snooze[INV_ID()] = Date.now() + 15*60000; lastBeep[INV_ID()] = 0; S.alarmFor = null; renderAlarm(); A.invStart(); },
   invSkip(){ if(!S.inv) return; S.inv.i++; S.inv.skipped++; render(); },
   invClose(){ S.inv = null; S.tab = "home"; S.sub = null; window.scrollTo(0,0); render(); },
   goLeltar(){ S.tab="stock"; S.invTab="leltar"; render(); },
@@ -1290,7 +1311,7 @@ const A = {
   },
   async orderStatus(d){ const o = S.orders.find(x=>x.id===d.id); if(!o) return; o.status = d.st; o.by=S.me; o.at=Date.now(); if(d.st==="kesz"){ o.doneBy=S.me; o.doneAt=Date.now(); } if(S.alarmFor===o.id) S.alarmFor=null; render();
     await write("orders/"+d.id, r => r.update({status:d.st, by:S.me, at:Date.now(), ...(d.st==="kesz"?{doneBy:S.me, doneAt:Date.now()}:{})})); },
-  snooze(d){ S.snooze[d.id] = Date.now() + 5*60000; lastBeep[d.id] = 0; S.alarmFor = null; render(); },
+  snooze(d){ S.snooze[d.id] = Date.now() + (Number(d.min)||5)*60000; lastBeep[d.id] = 0; S.alarmFor = null; render(); },
   goShift(d){ const target = parseYmd(d.date), wd = (target.getDay()+6)%7; const ws = addDays(target, -wd); ws.setHours(0,0,0,0);
     S.weekOff = Math.round((ws - weekStart(0)) / (7*86400000)); S.tab="shift"; S.sub=null; S.personCal=null; S.shiftForm=null; window.scrollTo(0,0); render();
     setTimeout(()=>{ const el = document.querySelector(`[data-act="shiftAdd"][data-date="${d.date}"]`); el && el.closest(".dcard").scrollIntoView({block:"center"}); },0); },
@@ -1380,13 +1401,13 @@ const A = {
       await write("items/"+it.id, r => r.update({...patch, changedAt:Date.now()})); await addMove({itemId:it.id, type:"leltar", qty:q, usage}); }
     S.f.leltarAll = false; render(); toast(`${todo.length} tétel leltára mentve.`); },
   async itemAdd(){ const name=(S.f.niName||"").trim(); if(!name) return toast("Add meg a nevét."); if(S.items.some(i=>i.name.toLowerCase()===name.toLowerCase())) return toast("Ilyen nevű tétel már van.");
-    const id = uid(), it = {id, name, unit:S.f.niUnit||"db", perCarton:Math.max(0,Math.round(num(S.f.niPc))), min:num(S.f.niMin), partial:!!S.f.niPart, wasteable:!!S.f.niWaste, krem:!!S.f.niKrem, stock:0, inSince:0, wasteSince:0, lastCount:null, createdAt:Date.now()};
-    ["niName","niUnit","niPc","niMin","niPart","niWaste","niKrem"].forEach(k=>delete S.f[k]); S.items=[...S.items,it]; render(); await write("items/"+id, r=>r.set(it)); toast("Hozzáadva."); },
+    const id = uid(), it = {id, name, unit:S.f.niUnit||"db", perCarton:Math.max(0,Math.round(num(S.f.niPc))), min:num(S.f.niMin), monday: S.f.niMon!==false, partial:!!S.f.niPart, wasteable:!!S.f.niWaste, krem:!!S.f.niKrem, stock:0, inSince:0, wasteSince:0, lastCount:null, createdAt:Date.now()};
+    ["niName","niUnit","niPc","niMin","niMon","niPart","niWaste","niKrem"].forEach(k=>delete S.f[k]); S.items=[...S.items,it]; render(); await write("items/"+id, r=>r.set(it)); toast("Hozzáadva."); },
   async itemUpdate(d){ const it = S.items.find(i=>i.id===d.id), e = S.f["e_"+d.id]||{}; const patch = {};
     if(e.name!==undefined){ if(!e.name.trim()) return toast("A név nem lehet üres."); patch.name = e.name.trim(); }
     if(e.unit!==undefined && e.unit!==(it.unit||"db")) patch.unit = e.unit;
     if(e.perCarton!==undefined) patch.perCarton = Math.max(0,Math.round(num(e.perCarton)));
-    if(e.min!==undefined) patch.min = num(e.min); if(e.partial!==undefined) patch.partial=!!e.partial; if(e.wasteable!==undefined) patch.wasteable=!!e.wasteable; if(e.krem!==undefined) patch.krem=!!e.krem;
+    if(e.min!==undefined) patch.min = num(e.min); if(e.partial!==undefined) patch.partial=!!e.partial; if(e.wasteable!==undefined) patch.wasteable=!!e.wasteable; if(e.monday!==undefined) patch.monday=!!e.monday; if(e.krem!==undefined) patch.krem=!!e.krem;
     if(!Object.keys(patch).length){ S.openItem = null; render(); return toast("Nincs változás."); } Object.assign(it, patch); delete S.f["e_"+d.id]; S.openItem = null; render(); await write("items/"+d.id, r=>r.update(patch)); toast("Mentve."); },
   async itemDel(d){ if(S.f.delConfirm!==d.id){ S.f.delConfirm=d.id; return render(); } S.f.delConfirm=null; S.items = S.items.filter(i=>i.id!==d.id); S.openItem=null; render(); await write("items/"+d.id, r=>r.delete()); toast("Törölve."); },
   cashPop(d){ const c = S.cashDraft; S.cashPop = {k:d.k, val: (d.k==="close"||d.k==="card") ? String(c[d.k]??"") : "", note:""}; render(); setTimeout(()=>{ const el = $("#cpVal"); if(el){ el.focus(); el.select && el.select(); } }, 30); },
