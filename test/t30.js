@@ -1,0 +1,13 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:800}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(300);
+console.log('pin screen for Böbe:', await p.evaluate(()=>!!document.querySelector('#pinA')));
+await p.fill('#pinA','2222'); await p.fill('#pinB','2222'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(400);
+console.log('in:', await p.evaluate(()=>S.me && !document.querySelector('#pinA')));
+await p.evaluate(()=>A.switchMe()); await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(200);
+await p.fill('#pinIn2','9999'); await p.click('[data-act=pinEnter]'); await p.waitForTimeout(300); console.log('wrong:', await p.evaluate(()=>S.me));
+await p.fill('#pinIn2','2222'); await p.click('[data-act=pinEnter]'); await p.waitForTimeout(300); console.log('right:', await p.evaluate(()=>S.me));
+await b.close(); })();

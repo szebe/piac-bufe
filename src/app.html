@@ -398,7 +398,7 @@ const staffName = id => (S.cfg.staff.find(s => s.id === id)||{}).name || "?";
 const ROLES = [["staff","Dolgozó"],["admin","Adminisztrátor"],["readonly","Csak olvasás"],["owner","Admin (főfiók)"]];
 const roleOf = s => (s && (s.role || (s.admin ? "admin" : "staff"))) || "staff";
 const roleName = r => (ROLES.find(x=>x[0]===r)||ROLES[0])[1];
-const needsPin = s => !!s && roleOf(s) !== "staff";
+const needsPin = s => !!s;
 function trustMap(){ try{ return JSON.parse(ls.get("bufe.trust") || "{}"); }catch(e){ return {}; } }
 const trusted = id => { const st = S.cfg.staff.find(x=>x.id===id); return !!st && !!st.pinHash && trustMap()[id] === st.pinHash; };
 const unlocked = () => !!S.me && (S.unlockedId === S.me || trusted(S.me));
@@ -739,7 +739,7 @@ function pickView(){
   const st = activeStaff();
   return header() + `<div class="stack"><div class="card"><h2>Ki használja ezt a telefont?</h2>
     <p class="muted small">A választásod ezen az eszközön marad, minden bejegyzésnél ez a név jelenik meg.</p>
-    ${st.length ? `<div class="menu">${st.map(s=>`<button data-act="pickMe" data-id="${esc(s.id)}"><span class="grow">${esc(s.name)}${roleOf(s)!=="staff"?` <small>${roleName(roleOf(s)).toLowerCase()} 🔒</small>`:""}</span></button>`).join("")}</div>`
+    ${st.length ? `<div class="menu">${st.map(s=>`<button data-act="pickMe" data-id="${esc(s.id)}"><span class="grow">${esc(s.name)}${roleOf(s)!=="staff"?` <small>${roleName(roleOf(s)).toLowerCase()}</small>`:""}</span></button>`).join("")}</div>`
       : `<div class="empty">Még nincs felvéve kolléga.</div>`}
   </div>
   ${BACKEND==="fb" && !st.length ? importCard() : ""}
@@ -1373,7 +1373,7 @@ function settingsView(){
   <section class="card"><h3>Hűtők</h3><div class="list">${fr.map(f=>`<div class="li"><span class="grow"><b>${esc(f.name)}</b><br><span class="small muted">${f.min} – ${f.max} °C</span></span><button class="btn sm ghost" data-act="fridgeDel" data-id="${esc(f.id)}">Törlés</button></div>`).join("")||'<div class="empty">Még nincs hűtő.</div>'}</div>
   <div class="grid3"><label class="field"><span>Név</span><input id="frName" data-f="f.frName" value="${esc(S.f.frName||"")}"></label><label class="field"><span>Min °C</span><input id="frMin" type="number" step="1" data-f="f.frMin" value="${esc(S.f.frMin??"0")}"></label><label class="field"><span>Max °C</span><input id="frMax" type="number" step="1" data-f="f.frMax" value="${esc(S.f.frMax??"5")}"></label></div>
   <button class="btn" data-act="fridgeAdd">Hűtő hozzáadása</button></section>
-  ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted"><b>Dolgozó:</b> napi munka, jelszó nélkül. <b>Adminisztrátor:</b> beállítások és kasszazárás, jelszóval. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat, jelszóval. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre koppintva lehet.</p>${Object.keys(trustMap()).length?`<button class="btn ghost" style="width:100%" data-act="forgetLogins">Megjegyzett belépések törlése ezen a telefonon</button>`:""}</section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
+  ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted"><b>Dolgozó:</b> napi munka. Mindenki saját jelszóval lép be, az első belépéskor ő állítja be. <b>Adminisztrátor:</b> beállítások és kasszazárás, jelszóval. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat, jelszóval. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre koppintva lehet.</p>${Object.keys(trustMap()).length?`<button class="btn ghost" style="width:100%" data-act="forgetLogins">Megjegyzett belépések törlése ezen a telefonon</button>`:""}</section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
    :`<button class="btn ghost" data-act="adminLogout">Kilépés az admin módból</button>`}
   <section class="card"><h3>Éves rekord (${today().slice(0,4)})</h3>
     <p class="small muted">Az idei legjobb napi forgalom. Január 1-jén nulláról indul, januárban csak gyűjt, február 1-től ünnepel, ha valamelyik nap megdönti.${today().slice(0,4)==="2026" ? " <b>2026-ban még nincs éves top, az első összehasonlítás 2027. február 1-jén indul.</b>" : ""}</p>

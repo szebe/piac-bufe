@@ -69,7 +69,7 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   const p2 = await b.newPage({viewport: {width: 400, height: 850}});
   await p2.route("**/firebase-config.js", r => r.fulfill({contentType: "text/javascript", body: `window.FB_CONFIG={apiKey:"fake",authDomain:"${PROJECT}.firebaseapp.com",projectId:"${PROJECT}"};window.FB_EMAIL=${JSON.stringify(EMAIL)};window.FB_EMULATOR=true;`}));
   await p2.goto("http://127.0.0.1:5173/"); await p2.waitForSelector("#lgPw"); await p2.fill("#lgPw", PASS); await p2.click("[data-act=fbLogin]");
-  await p2.waitForSelector("[data-act=pickMe][data-id=b]", {timeout: 15000}); await p2.click("[data-act=pickMe][data-id=b]"); await p2.waitForTimeout(800);
+  await p2.waitForSelector("[data-act=pickMe][data-id=b]", {timeout: 15000}); await p2.click("[data-act=pickMe][data-id=b]"); await p2.waitForSelector("#pinA", {timeout: 5000}); ok(true, "staff account also asks for a password"); await p2.fill("#pinA", "1111"); await p2.fill("#pinB", "1111"); await p2.click("[data-act=pinCreate]"); await p2.waitForTimeout(1200);
   ok(await p2.evaluate(() => !isAdmin()), "Böbe is not admin");
   await p.evaluate(async () => { const it = S.items.find(i => i.id === "i1"); await write("items/i1", r => r.update({stock: 9})); });
   await p2.waitForTimeout(1500); ok(await p2.evaluate(() => S.items.find(i => i.id === "i1").stock === 9), "realtime sync to second device");
