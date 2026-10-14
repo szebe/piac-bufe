@@ -306,6 +306,10 @@ body.ro .qsel span[aria-hidden]{visibility:hidden}
 .rohome .tbl td{padding:3px 2px;font-size:.88rem}
 .rohome .shiftbar{padding:6px 10px}
 .rohome .li{padding:5px 0}
+.unbox{border:2px solid var(--danger);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.unhead{display:flex;align-items:center;gap:8px;width:100%;border:0;background:var(--danger-soft);color:var(--danger);font:800 .95rem var(--display);letter-spacing:.04em;padding:12px 14px;text-align:left;cursor:pointer;min-height:48px}
+.unbody{padding:10px}
+.unbody > .card{border:none;padding:4px 2px}
 .wsel{border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
 .waste{display:grid;grid-template-columns:56px 1fr 56px;gap:8px}
 .waste .st{min-height:52px;font-size:1.5rem;font-weight:800;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--fg)}
@@ -833,7 +837,7 @@ function homeViewInner(){
   const um = unreadMsgs();
 
   const orq = shiftStaff().some(x=>x.id===S.me) ? openReqs().filter(r=>r.staffId!==S.me && !unavailOn(S.me, r.date)) : [];
-  if(orq.length) notes.push(`<div class="note i"><span class="grow">${orq.length} műszak átvehető</span><button class="btn sm" data-act="goSub" data-sub="reqs">Megnézem</button></div>`);
+  if(orq.length) notes.push(`<div class="note i"><span class="grow">${orq.length} műszak átvehető</span><button class="btn sm" data-act="goUnavail">Megnézem</button></div>`);
   S.notices.forEach((n,i)=> notes.push(`<div class="note i"><span class="grow">${esc(n)}</span><button class="btn sm ghost" data-act="dismiss" data-i="${i}">OK</button></div>`));
   const tOrders = S.orders.filter(o=> o.date===today() && o.status==="nyitott").sort((a,b)=>a.time<b.time?-1:1);
   const future = S.orders.filter(o=> o.date>today() && o.status==="nyitott").length;
@@ -910,6 +914,8 @@ function shiftView(){
     <div class="row"><button class="btn sm" data-act="week" data-d="-1" aria-label="Előző hét">‹</button><b class="grow" style="text-align:center">${fmtDay(days[0]).split(",")[0]} – ${fmtDay(days[6]).split(",")[0]}</b><button class="btn sm" data-act="week" data-d="1" aria-label="Következő hét">›</button></div>
     ${S.weekOff?`<button class="btn sm ghost" data-act="week" data-d="0">Vissza az aktuális hétre</button>`:""}
     <div class="stack" style="gap:6px">${days.map(dayCard).join("")}</div>
+    ${(()=>{ const n = openReqs().filter(r=>r.staffId!==S.me && !unavailOn(S.me, r.date)).length, mine = ((S.unavail||{})[S.me]||[]).filter(d=>d>=today()).length;
+      return `<section class="unbox ${S.unOpen?"open":""}" id="unbox"><button class="unhead" data-act="unOpen" aria-expanded="${!!S.unOpen}"><span class="grow">EZEKEN A NAPOKON NEM ÉREK RÁ</span>${n?`<span class="pill w">${n} átvehető</span>`:""}${mine?`<span class="pill d">${mine} napom</span>`:""}<span aria-hidden="true">${S.unOpen?"▴":"▾"}</span></button>${S.unOpen ? `<div class="unbody stack">${reqsBody()}</div>` : ""}</section>`; })()}
     <section class="card"><h3>Óraösszesítő</h3><div class="scroll"><table class="tbl"><thead><tr><th>Kolléga</th><th class="r">Ez a hét</th><th class="r">${MONTHS[mRef.getMonth()]}</th></tr></thead><tbody>
     ${ids.map(id=>`<tr><td><button class="namebtn" data-act="personCal" data-id="${esc(id)}">${esc(staffName(id))}</button></td><td class="r">${fmtN(totals[id]||0)} ó</td><td class="r">${fmtN(mt[id]||0)} ó</td></tr>`).join("")}</tbody></table></div></section>
   </div>`;
@@ -1106,7 +1112,7 @@ function moreView(){
   if(S.sub==="bakery") return bakeryView();
   if(S.sub==="olog") return orderLogView();
   if(S.sub==="msgs") return msgsView();
-  if(S.sub==="reqs") return reqsView();
+  if(S.sub==="reqs"){ S.sub=null; S.tab="shift"; S.unOpen=true; return shiftView(); }
   if(S.sub==="settings") return settingsView();
   const um = unreadMsgs(), rq = openReqs().length;
   return header() + `<div class="menu">
@@ -1115,7 +1121,6 @@ function moreView(){
     <button data-act="goSub" data-sub="bakery"><span class="grow">Pékáru érkezés<small>Naponta beérkezett kifli, zsemle, kenyér</small></span>›</button>
     <button data-act="goSub" data-sub="temp"><span class="grow">Hőmérsékletnapló<small>Hűtők hőfoka nyitáskor</small></span>›</button>
     <button data-act="goSub" data-sub="msgs"><span class="grow">Üzenőfal<small>${um?`${um} olvasatlan`:"Közlemények"}</small></span>${um?`<span class="pill d">${um}</span>`:""}›</button>
-    <button data-act="goSub" data-sub="reqs"><span class="grow">Nem érek rá<small>${rq?`${rq} átvehető műszak`:"Naptár: mely napokon nem tudsz dolgozni"}</small></span>${rq?`<span class="pill w">${rq}</span>`:""}›</button>
     <button data-act="goSub" data-sub="settings"><span class="grow">Beállítások<small>${isAdmin()?"Kollégák, hűtők, zárva tartás":"Admin belépés"}</small></span>›</button>
   </div>`;
 }
@@ -1314,18 +1319,17 @@ function unavailCal(){
   }
   const mk = `${c.y}-${pad(c.m+1)}`;
   const rows = [...others, ...(meStaff()?[meStaff()]:[])].map(s => ({s, days:((S.unavail||{})[s.id]||[]).filter(d=>d.startsWith(mk)).sort()})).filter(x=>x.days.length);
-  return `<section class="card"><h3>Ezeken a napokon nem érek rá</h3>
+  return `<section class="card">
   <p class="small muted">Koppints azokra a napokra, amikor nem tudsz műszakot vállalni. Újra koppintva visszavonod. A pirosak mindenkinek látszanak a nevekkel, és ezeken a napokon a Műszak beosztásnál nem választható az illető.</p>
   <div class="row"><button class="btn sm" data-act="unStep" data-d="-1" aria-label="Előző hónap">‹</button><b class="grow" style="text-align:center">${c.y}. ${MONTHS[c.m]}</b><button class="btn sm" data-act="unStep" data-d="1" aria-label="Következő hónap">›</button></div>
   <div class="ucal">${["H","K","Sze","Cs","P","Szo","V"].map(h=>`<div class="uh">${h}</div>`).join("")}${cells}</div>
   ${rows.length ? `<div class="list" style="margin-top:10px">${rows.map(x=>`<div class="li"><b style="width:76px">${x.s.id===S.me?"Én":esc(x.s.name)}</b><span class="grow small">${x.days.map(d=>fmtDay(d).split(",")[0]).join(", ")}</span></div>`).join("")}</div>` : `<div class="small muted" style="margin-top:8px">Ebben a hónapban még senki nem jelölt napot.</div>`}
   </section>`;
 }
-function reqsView(){
+function reqsBody(){
   const mine = shiftsOfMe();
   const list = [...S.reqs].sort((a,b)=> a.date<b.date?-1:1).filter(r=> r.date >= ymd(addDays(new Date(),-14)));
-  return header("Nem érek rá") + `<div class="stack">${back}
-  ${unavailCal()}
+  return `${unavailCal()}
   <section class="card"><h3>Műszakcsere – átadom a műszakom</h3>
   ${mine.length?`<label class="field"><span>Melyik műszakod?</span><select id="rqDate" data-f="f.rqDate"><option value="">Válassz…</option>${mine.map(d=>`<option value="${d}" ${S.f.rqDate===d?"selected":""}>${fmtDay(d)}</option>`).join("")}</select></label>
   <label class="field"><span>Megjegyzés</span><input id="rqNote" data-f="f.rqNote" value="${esc(S.f.rqNote||"")}"></label>
@@ -1334,8 +1338,7 @@ function reqsView(){
   ${list.length?`<section class="card"><h3>Átvehető és átadott műszakok</h3><div class="list">${list.map(r=>{ const e = shiftOf(r.date).find(x=>x.staffId===r.staffId) || r.entry || {}; return `<div class="li"><span class="grow"><b>${esc(staffName(r.staffId))}</b> · ${fmtDay(r.date)}<br><span class="small muted">${e.start||""}–${e.end||""}${r.note?` · ${esc(r.note)}`:""}</span><br>
   ${r.status==="atvett"?`<span class="pill ok">Átvette: ${esc(staffName(r.takenBy))}</span>`:r.status==="visszavont"?'<span class="pill">Visszavonva</span>':'<span class="pill w">Átvehető</span>'}</span>
   ${r.status==="nyitott"&&r.staffId!==S.me&&r.date>=today()&&shiftStaff().some(x=>x.id===S.me)?`<button class="btn sm pri" data-act="reqTake" data-id="${esc(r.id)}">Átveszem</button>`:""}
-  ${r.status==="nyitott"&&r.staffId===S.me?`<button class="btn sm ghost" data-act="reqCancel" data-id="${esc(r.id)}">Visszavon</button>`:""}</div>`; }).join("")}</div></section>`:""}
-  </div>`;
+  ${r.status==="nyitott"&&r.staffId===S.me?`<button class="btn sm ghost" data-act="reqCancel" data-id="${esc(r.id)}">Visszavon</button>`:""}</div>`; }).join("")}</div></section>`:""}`;
 }
 function shiftsOfMe(){ const out=[]; for(let i=0;i<30;i++){ const d = ymd(addDays(new Date(),i)); if(shiftOf(d).some(e=>e.staffId===S.me) && !S.reqs.some(r=>r.date===d&&r.staffId===S.me&&r.status==="nyitott")) out.push(d); } return out; }
 
@@ -1391,7 +1394,7 @@ function settingsView(){
 const cfgRef = "config/main";
 async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
 const RO_FIELDS = new Set(["cashDate","tempDate","f.pinIn2","f.pinA","f.pinB","f.pinTrust","f.lgEm","f.lgPw"]);
-const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
+const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","unOpen","goUnavail","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
 const A = {
   nav(d){ S.tab = d.tab; S.sub = null; S.personCal = null; window.scrollTo(0,0); render(); },
   goSub(d){ S.tab = "more"; S.sub = d.sub || null; if(d.sub==="cash") S.cashDraft=null; window.scrollTo(0,0); render(); if(d.sub==="msgs") markRead(); },
@@ -1596,6 +1599,8 @@ const A = {
     const edits = [...(m.edits||[]), {by:S.me, at:Date.now(), before:m.text, after:t}].slice(-30);
     Object.assign(m, {text:t, edits}); S.f.msgEdit=null; delete S.f.msgEditText; render();
     await write("messages/"+d.id, r=>r.update({text:t, edits})); toast("Üzenet módosítva."); },
+  unOpen(){ S.unOpen = !S.unOpen; render(); if(S.unOpen) setTimeout(()=>{ const el = $("#unbox"); el && el.scrollIntoView({block:"start", behavior:"smooth"}); }, 30); },
+  goUnavail(){ S.tab = "shift"; S.sub = null; S.personCal = null; S.unOpen = true; render(); setTimeout(()=>{ const el = $("#unbox"); el && el.scrollIntoView({block:"start"}); }, 30); },
   unStep(d){ const now = new Date(), c = S.unMonth || {y:now.getFullYear(), m:now.getMonth()}; const x = new Date(c.y, c.m + (+d.d), 1); S.unMonth = {y:x.getFullYear(), m:x.getMonth()}; render(); },
   async unToggle(d){ const id = S.me; if(!id) return; const cur = ((S.unavail||{})[id]||[]).filter(x => x >= ymd(addDays(new Date(),-60)));
     const on = cur.includes(d.date); const days = on ? cur.filter(x=>x!==d.date) : [...cur, d.date].sort();

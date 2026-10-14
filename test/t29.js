@@ -1,0 +1,13 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:900}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(300);
+await p.click('[data-act=nav][data-tab=more]'); console.log('more has reqs:', await p.evaluate(()=>!!document.querySelector('[data-sub=reqs]')));
+await p.click('[data-act=nav][data-tab=shift]'); await p.waitForTimeout(200);
+console.log('unbox closed:', await p.evaluate(()=>document.querySelector('#unbox').innerText.replace(/\s+/g,' ')));
+await p.click('[data-act=unOpen]'); await p.waitForTimeout(500);
+await p.click('[data-act=unToggle][data-date="2026-10-20"]'); await p.waitForTimeout(300);
+console.log('head after:', await p.evaluate(()=>document.querySelector('.unhead').innerText.replace(/\s+/g,' ')));
+await p.screenshot({path:'unbox.png'}); await b.close(); })();
