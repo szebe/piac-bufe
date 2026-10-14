@@ -1,0 +1,14 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:700}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore(); const d=k=>ymd(addDays(new Date(),-k));
+ const docs=[[4,0],[3,100000],[2,250000],[1,350000],[0,448700]]; for(const [k,c] of docs) await fs.doc('cash/'+d(k)).set({date:d(k),close:c,card:k===2?1200:0,exp:[],wd:[]}); await fs.doc('freezer/main').set({kenyer:6,kifli:5,zsemle:4}); });
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(300);
+console.log('Böbe brand:', await p.evaluate(()=>document.querySelector('.brand').innerText));
+await p.evaluate(()=>A.switchMe()); await p.click('[data-act=pickMe][data-id=tamas]'); await p.fill('#pinA','1234'); await p.fill('#pinB','1234'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(400);
+console.log('Tamás brand:', await p.evaluate(()=>document.querySelector('.brand').innerText.replace(/\n/g,' / ')));
+await p.screenshot({path:'inco.png', clip:{x:0,y:0,width:400,height:200}});
+await p.evaluate(()=>A.nav({tab:'stock'})); console.log('stock header:', await p.evaluate(()=>document.querySelector('.brand').innerText.replace(/\n/g,' / ')));
+await b.close(); })();
