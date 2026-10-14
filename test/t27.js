@@ -1,0 +1,13 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:800}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(300);
+const has = ()=>p.evaluate(()=>!!document.querySelector('.msgcard'));
+console.log('Böbe sees msg:', await has());
+await p.click('.msgok'); await p.waitForTimeout(400);
+console.log('after OK Böbe:', await has());
+await p.evaluate(()=>A.switchMe()); await p.click('[data-act=pickMe][data-id=tamas]'); await p.fill('#pinA','1234'); await p.fill('#pinB','1234'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(400);
+console.log('Tamás sees msg:', await has());
+await b.close(); })();
