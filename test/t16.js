@@ -1,0 +1,13 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:900}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(300);
+const has = ()=>p.evaluate(()=>[...document.querySelectorAll('h3')].some(h=>h.innerText==='Előrendelések'));
+console.log('no orders -> card:', await has());
+await p.evaluate(async()=>{ await firebase.firestore().doc('orders/o1').set({id:'o1',date:today(),time:'10:30',name:'Kiss',items:'5 kifli',status:'nyitott',remindMin:30}); }); await p.waitForTimeout(300);
+console.log('open order today -> card:', await has(), await p.evaluate(()=>document.body.innerText.includes('5 kifli')));
+await p.evaluate(async()=>{ await firebase.firestore().doc('orders/o1').set({id:'o1',date:today(),time:'10:30',name:'Kiss',items:'5 kifli',status:'kesz',remindMin:30}); }); await p.waitForTimeout(300);
+console.log('done -> card:', await has(), await p.evaluate(()=>JSON.stringify(S.orders.map(o=>o.status))), await p.evaluate(()=>[...document.querySelectorAll('h3')].map(h=>h.innerText)));
+await b.close(); })();

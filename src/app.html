@@ -768,10 +768,10 @@ function homeViewInner(){
     ${!S.soundOn ? `<div class="note w"><span class="grow">Kapcsold be a hangot, hogy az emlékeztető megszólaljon</span><button class="btn sm warn" data-act="sound">Bekapcsol</button></div>` : ""}
     ${(()=>{ const tc = S.cash.find(x=>x.date===today()), ex = (tc && tc.exp) || [], sum = ex.reduce((a,e)=>a+num(e.amt),0);
       return `<section class="card"><div class="row"><span class="grow"><b>Mai kiadások</b><br><span class="small muted">${ex.length ? `${ex.length} tétel · ${ft(sum)}` : "még nincs"}</span></span><button class="btn sm pri" data-act="homeExp">+ Kiadás</button></div></section>`; })()}
-    <section class="card"><div class="row"><h3 class="grow">Előrendelések</h3><button class="btn sm pri" data-act="newOrder">+ Új</button></div>
+    ${tOrders.length ? `<section class="card"><div class="row"><h3 class="grow">Előrendelések</h3><button class="btn sm pri" data-act="newOrder">+ Új</button></div>
       ${tOrders.length ? `<div class="list">${tOrders.map(o=>orderRow(o,true)).join("")}</div>` : ""}
       ${future?`<div class="small muted">További ${future} előrendelés a következő napokra.</div>`:""}
-    </section>
+    </section>` : ""}
     ${(new Date().getHours() >= 12 ? [["Holnapi műszak", ymd(addDays(new Date(),1)), "sb-today"], ["Holnaputáni műszak", ymd(addDays(new Date(),2)), "sb-tmrw"]] : [["Mai műszak", today(), "sb-today"], ["Holnapi műszak", ymd(addDays(new Date(),1)), "sb-tmrw"]]).map(([lbl, d, cls])=>{ const sh = shiftOf(d); return `<section class="shiftbar ${cls}" data-act="goShift" data-date="${d}" role="button" tabindex="0" aria-label="${lbl} megnyitása a Műszak menüben"><span class="label">${lbl}</span>
       ${isClosed(d) ? `<span class="small">Zárva: ${esc(closedLabel(d))}</span>` : sh.length ? sh.map(e=>`<span class="schip"><b>${esc(staffName(e.staffId))}</b> <span class="num">${e.start}–${e.end}</span></span>`).join("") : `<span class="small muted">nincs beosztva senki</span>`}
     </section>`; }).join("")}
