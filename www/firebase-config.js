@@ -1,6 +1,6 @@
 // A Firebase-projekt webes konfigurációja (nem titkos adat; az adatokat a firestore.rules védi).
 window.FB_CONFIG = {
-  apiKey: "AIzaSyDwPIN2Fytw97chGm3NBTjn15yFcJHv25M",
+  apiKey: "AIzaSyDwPlN2Fytw97chGm3NBTjn15yFcJHv25M",
   authDomain: "bufe001-13dbb.firebaseapp.com",
   projectId: "bufe001-13dbb",
   storageBucket: "bufe001-13dbb.firebasestorage.app",
