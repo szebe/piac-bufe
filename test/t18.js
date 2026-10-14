@@ -1,0 +1,11 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:900}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(500);
+await p.evaluate(async()=>{ const c=__store.get('config/main'); c.staff.push({id:'v',name:'Könyvelő',active:true,role:'readonly'}); await firebase.firestore().doc('config/main').set(c); }); await p.waitForTimeout(300);
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(300);
+await p.click('[data-act=nav][data-tab=shift]'); await p.waitForTimeout(200);
+await p.click('[data-act=shiftAdd]'); await p.waitForTimeout(200);
+console.log('options:', await p.evaluate(()=>[...document.querySelectorAll('#sfStaff option')].map(o=>o.textContent).join(', ')));
+await b.close(); })();

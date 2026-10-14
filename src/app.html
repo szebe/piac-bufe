@@ -377,6 +377,7 @@ const isReadonly = () => BACKEND==="fb" && roleOf(meStaff())==="readonly";
 const canCash = () => S.isOwner || BACKEND!=="fb" || (["owner","admin","readonly"].includes(roleOf(meStaff())) && unlocked());
 const isOwnerish = () => S.isOwner || (BACKEND==="fb" && roleOf(meStaff())==="owner" && unlocked());
 const activeStaff = () => S.cfg.staff.filter(s => s.active !== false);
+const shiftStaff = () => activeStaff().filter(s => !["owner","readonly"].includes(roleOf(s)));
 
 let db = null, BACKEND = "";
 /* Firebase backend (standalone app): wraps Firestore so update() deep-merges like the artifact db */
@@ -825,7 +826,7 @@ function shiftView(){
   const totals = {}; days.forEach(d => shiftOf(d).forEach(e => totals[e.staffId] = (totals[e.staffId]||0) + hoursOf(e)));
   const mRef = parseYmd(days[0]), mKey = days[0].slice(0,7), mt = {};
   Object.keys(S.shifts).filter(d=>d.startsWith(mKey)).forEach(d => shiftOf(d).forEach(e => mt[e.staffId] = (mt[e.staffId]||0) + hoursOf(e)));
-  const ids = [...new Set([...Object.keys(totals), ...Object.keys(mt), ...activeStaff().map(s=>s.id)])];
+  const ids = [...new Set([...Object.keys(totals), ...Object.keys(mt), ...shiftStaff().map(s=>s.id)])];
   return header("Műszak") + `<div class="stack">
     <div class="row"><button class="btn sm" data-act="week" data-d="-1" aria-label="Előző hét">‹</button><b class="grow" style="text-align:center">${fmtDay(days[0]).split(",")[0]} – ${fmtDay(days[6]).split(",")[0]}</b><button class="btn sm" data-act="week" data-d="1" aria-label="Következő hét">›</button></div>
     ${S.weekOff?`<button class="btn sm ghost" data-act="week" data-d="0">Vissza az aktuális hétre</button>`:""}
@@ -849,7 +850,7 @@ function dayCard(d){
     <div class="daydate ${closed?"cl":""}"><span class="dnum">${MONTHS[dd.getMonth()].slice(0,3)}. ${dd.getDate()}.</span><span class="dname">${DAYS[dd.getDay()]}</span>${d===today()?'<span class="today">ma</span>':""}${closed?'<span class="zar">Zárva</span>':(!form?`<button class="dadd" data-act="shiftAdd" data-date="${d}" aria-label="Beosztás hozzáadása ${fmtDay(d)}">+</button>`:"")}</div>
     ${!closed ? `<div class="dbody">${es.length ? es.map((e,i)=>`<button class="schip sbtn" data-act="shiftEdit" data-date="${d}" data-i="${i}"><b>${esc(staffName(e.staffId))}</b> <span class="num">${e.start}–${e.end}</span></button>`).join("") : `<span class="nobody">nincs beosztva</span>`}</div>` : ""}
     ${meta.length?`<div class="dmeta">${meta.join("")}</div>`:""}
-    ${form ? `<div class="dform"><div class="sfgrid"><label class="field"><span>Kolléga</span><select id="sfStaff" data-f="shiftForm.staffId">${activeStaff().map(s=>`<option value="${esc(s.id)}" ${s.id===form.staffId?"selected":""}>${esc(s.name)}</option>`).join("")}</select></label>
+    ${form ? `<div class="dform"><div class="sfgrid"><label class="field"><span>Kolléga</span><select id="sfStaff" data-f="shiftForm.staffId">${shiftStaff().map(s=>`<option value="${esc(s.id)}" ${s.id===form.staffId?"selected":""}>${esc(s.name)}</option>`).join("")}</select></label>
       <label class="field"><span>Kezdés</span><select id="sfStart" data-f="shiftForm.start">${STARTS.map(t=>`<option ${t===form.start?"selected":""}>${t}</option>`).join("")}</select></label>
       <label class="field"><span>Vége</span><select id="sfEnd" data-f="shiftForm.end">${ENDS.map(t=>`<option ${t===form.end?"selected":""}>${t}</option>`).join("")}</select></label>
       <button class="sfplus" data-act="shiftSaveAdd" aria-label="Mentés és újabb kolléga felvétele erre a napra" title="Mentés és újabb kolléga">+</button></div>
@@ -1358,7 +1359,7 @@ const A = {
   personCalClose(){ S.personCal = null; render(); },
   personMonth(d){ const pc = S.personCal; const x = new Date(pc.y, pc.m + (+d.d), 1); pc.y = x.getFullYear(); pc.m = x.getMonth(); render(); },
   week(d){ S.weekOff = d.d==="0" ? 0 : S.weekOff + (+d.d); S.shiftForm=null; render(); },
-  shiftAdd(d){ S.shiftForm = { date:d.date, staffId: S.me, start:"06:00", end:"11:00", i:null }; S.shiftHist=null; render(); },
+  shiftAdd(d){ S.shiftForm = { date:d.date, staffId: shiftStaff().some(x=>x.id===S.me) ? S.me : ((shiftStaff()[0]||{}).id||""), start:"06:00", end:"11:00", i:null }; S.shiftHist=null; render(); },
   shiftEdit(d){ const e = shiftOf(d.date)[+d.i]; S.shiftForm = { date:d.date, staffId:e.staffId, start:e.start, end:e.end, i:+d.i }; S.shiftHist=null; render(); },
   shiftCancel(){ S.shiftForm=null; render(); },
   async shiftSave(){ const f = S.shiftForm, es = [...shiftOf(f.date)]; const e = {staffId:f.staffId, start:f.start, end:f.end};
@@ -1367,7 +1368,7 @@ const A = {
   async shiftSaveAdd(){ const f = S.shiftForm, es = [...shiftOf(f.date)]; const e = {staffId:f.staffId, start:f.start, end:f.end};
     if(es.some((x,i)=> x.staffId===f.staffId && i!==f.i)) return toast(`${staffName(f.staffId)} már be van osztva erre a napra.`);
     if(f.i==null) es.push(e); else es[f.i] = e; es.sort((a,b)=> a.start<b.start?-1:1);
-    const next = activeStaff().find(st => !es.some(x=>x.staffId===st.id));
+    const next = shiftStaff().find(st => !es.some(x=>x.staffId===st.id));
     S.shiftForm = next ? { date:f.date, staffId:next.id, start:f.start, end:f.end, i:null } : null;
     if(!next) toast("Mindenki be van osztva erre a napra.");
     await setShift(f.date, es); if(next) setTimeout(()=>{ const el=$("#sfStaff"); el && el.focus(); },0); },
