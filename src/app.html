@@ -1055,7 +1055,7 @@ function cashBadges(date){
   const t = today(), out = [];
   const at = allTimeInfo(); if((at.best && at.best.d === date) || (!at.best && S.cfg.allTime && S.cfg.allTime.date === date)) out.push("all");
   const y = date.slice(0,4), curY = t.slice(0,4) === y;
-  if(!curY || +t.slice(5,7) >= 2){ const b = periodBest(d=>d.slice(0,4)===y), yt = S.cfg.yearTop; if(b && b.d===date && (b.t > yearBase(y) || (yt && yt.year===y && yt.date===date))) out.push("year"); }
+  if(+y > 2026 && (!curY || +t.slice(5,7) >= 2)){ const b = periodBest(d=>d.slice(0,4)===y), yt = S.cfg.yearTop; if(b && b.d===date && (b.t > yearBase(y) || (yt && yt.year===y && yt.date===date))) out.push("year"); }
   const q = qOf(date), curQ = curY && qOf(t)===q;
   if(!curQ || (+t.slice(5,7)-1)%3 >= 1){ const b = periodBest(d=>d.slice(0,4)===y && qOf(d)===q); if(b && b.d===date) out.push("quarter"); }
   const mk = date.slice(0,7), curM = t.slice(0,7)===mk;
@@ -1269,7 +1269,7 @@ function settingsView(){
   ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted"><b>Dolgozó:</b> napi munka, jelszó nélkül. <b>Adminisztrátor:</b> beállítások és kasszazárás, jelszóval. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat, jelszóval. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre koppintva lehet.</p>${Object.keys(trustMap()).length?`<button class="btn ghost" style="width:100%" data-act="forgetLogins">Megjegyzett belépések törlése ezen a telefonon</button>`:""}</section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
    :`<button class="btn ghost" data-act="adminLogout">Kilépés az admin módból</button>`}
   <section class="card"><h3>Éves rekord (${today().slice(0,4)})</h3>
-    <p class="small muted">Az idei legjobb napi forgalom. Január 1-jén nulláról indul, januárban csak gyűjt, február 1-től ünnepel, ha valamelyik nap megdönti.</p>
+    <p class="small muted">Az idei legjobb napi forgalom. Január 1-jén nulláról indul, januárban csak gyűjt, február 1-től ünnepel, ha valamelyik nap megdönti.${today().slice(0,4)==="2026" ? " <b>2026-ban még nincs éves top, az első összehasonlítás 2027. február 1-jén indul.</b>" : ""}</p>
     <div class="small">Jelenleg: <b>${ft(yearBase(today().slice(0,4)))}</b>${S.cfg.yearTop && S.cfg.yearTop.year===today().slice(0,4) && S.cfg.yearTop.date ? ` (${fmtDay(S.cfg.yearTop.date)})` : " (kézzel beállítva)"}</div>
     <div class="row"><input id="ytAmt" class="grow" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Új összeg, Ft" data-f="f.ytAmt" value="${esc(S.f.ytAmt||"")}"><button class="btn" data-act="ytSave">Mentés</button></div></section>
   <section class="card"><h3>Über brutális all-time rekord</h3>
