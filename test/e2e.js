@@ -22,7 +22,7 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   await signUp(EMAIL, PASS);
   const intruder = await signUp("idegen@example.com", "idegen-123456");
   await put("config/main", {staff: [{id: "tamas", name: "Tamás", active: true, admin: true}, {id: "b", name: "Böbe", active: true, admin: false}], adminPin: "", allTime: {amount: 242500, date: null}, closedDays: [], openDays: [], fridges: [], itemOrder: []});
-  await put("items/i1", {id: "i1", name: "Szalvéta", unit: "karton", stock: 4, min: 2});
+  await put("items/i1", {id: "i1", name: "Szalvéta", unit: "karton", stock: 4, min: 2, wasteable: true});
   await put("messages/m1", {text: "Teszt üzenet", by: "b", at: Date.now(), readBy: {b: 1}});
 
   // security rules
