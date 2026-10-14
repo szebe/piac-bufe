@@ -1037,7 +1037,7 @@ function cashBadges(date){
 const BADGE_HTML = { all:'<span class="tpill at">ÜBER BRUTÁLIS ALL-TIME TOP</span>', year:'<span class="tpill yr">ÉVES TOP</span>', quarter:'<span class="tpill qt">NEGYEDÉVES TOP</span>', month:'<span class="tpill mo">HAVI TOP</span>', week:'<span class="tpill wk">HETI TOP</span>' };
 function cashWeekView(){
   const ws = weekStart(S.cashWeek||0), days = [...Array(7)].map((_,i)=> ymd(addDays(ws,i)));
-  const rows = days.map(d => S.cash.find(c=>c.date===d)).filter(Boolean).map(h => ({h, t: cashTotal(h)}));
+  const rows = [...days].reverse().map(d => S.cash.find(c=>c.date===d)).filter(Boolean).map(h => ({h, t: cashTotal(h)}));
   const ranked = rows.filter(r=>r.t!=null).sort((a,b)=> b.t-a.t);
   const showWeek = today() >= ymd(addDays(ws,4));
   const wkTop = showWeek && ranked[0] ? ranked[0].h.date : null, wk2 = showWeek && ranked[1] ? ranked[1].h.date : null;
