@@ -1,0 +1,16 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:900}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=tamas]'); await p.waitForTimeout(300);
+await p.evaluate(async()=>{ const fs=firebase.firestore(); await fs.doc('freezer/main').set({kenyer:6,kifli:5,zsemle:5}); await fs.doc('bakery/'+today()).set({date:today(),arrived:{kenyer:4,kifli:5,zsemle:10},opening:{}}); });
+await p.waitForTimeout(500);
+const st = async()=>p.evaluate(()=>JSON.stringify({fz:S.freezer.kenyer, buf:buffetCount('kenyer'), line:document.querySelector('.bakebar')?.innerText.replace(/\s+/g,' ')}));
+console.log('start', await st());
+console.log('opts', await p.evaluate(()=>[...document.querySelectorAll('#fz_kenyer option')].map(o=>o.textContent).join(',')));
+await p.selectOption('#fz_kenyer','-2'); await p.waitForTimeout(600); console.log('after -2', await st());
+console.log('toast', await p.evaluate(()=>document.querySelector('.toast')?.innerText));
+await p.selectOption('#fz_kenyer','3'); await p.waitForTimeout(600); console.log('after +3', await st());
+console.log('store', JSON.stringify(await p.evaluate(()=>[__store.get('freezer/main'), __store.get('bakery/'+today()).fromFreezer])));
+await p.screenshot({path:'fz.png'}); await b.close(); })();
