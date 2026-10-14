@@ -310,6 +310,8 @@ body.ro .qsel span[aria-hidden]{visibility:hidden}
 .unhead{display:flex;align-items:center;gap:8px;width:100%;border:0;background:var(--danger-soft);color:var(--danger);font:800 .95rem var(--display);letter-spacing:.04em;padding:12px 14px;text-align:left;cursor:pointer;min-height:48px}
 .unbody{padding:10px}
 .unbody > .card{border:none;padding:4px 2px}
+.bon{display:inline-block;background:var(--mustard,#e4a92a);color:#1b241d;border-radius:6px;font-size:.7rem;font-weight:800;padding:0 5px;margin-left:4px;vertical-align:1px}
+.bonc{color:var(--warn)}
 .wsel{border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
 .waste{display:grid;grid-template-columns:56px 1fr 56px;gap:8px}
 .waste .st{min-height:52px;font-size:1.5rem;font-weight:800;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--fg)}
@@ -615,6 +617,8 @@ function renderAlarm(){
 
 /* ---------- derived ---------- */
 function shiftOf(date){ return (S.shifts[date] && S.shifts[date].entries) || []; }
+function bonusOf(ds){ const wd = parseYmd(ds).getDay(), n = shiftOf(ds).length; let b = 0; if((wd === 5 || wd === 0) && n >= 2) b += 1; if(wd === 6 || wd === 0) b += 1; return b; }
+const bonusTag = ds => { const b = bonusOf(ds); return b ? ` <span class="bon" title="Plusz fizetett óra">+${b}</span>` : ""; };
 function hoursOf(e){ const t = s => (+s.slice(0,2)) + (+s.slice(3,5))/60; return Math.max(0, t(e.end) - t(e.start)); }
 function weekStart(off){ const d = new Date(); const wd = (d.getDay()+6)%7; d.setHours(0,0,0,0); return addDays(d, -wd + off*7); }
 function lowItems(){ return S.items.filter(i => i.min > 0 && (i.stock||0) < i.min); }
@@ -708,7 +712,7 @@ function view(){
   if(BACKEND==="fb" && needsPin(meStaff()) && !unlocked()){ S.pinFor = S.me; return pinView(); }
   if(S.inv) return invView();
   switch(S.tab){
-    case "order": return orderView();
+    case "order": return S.sub==="olog" ? orderLogView() : orderView();
     case "shift": return shiftView();
     case "stock": return stockView();
     case "more": return moreView();
@@ -898,7 +902,7 @@ function orderView(){
     </section>
     ${Object.keys(groups).length ? Object.keys(groups).map(dt=>`<section class="card"><h3>${dt===today()?"Ma":dt===ymd(addDays(new Date(),1))?"Holnap":""} ${fmtDay(dt)}</h3><div class="list">${groups[dt].map(o=>orderRow(o)).join("")}</div></section>`).join("")
       : `<div class="card"><div class="empty">Nincs nyitott előrendelés.</div></div>`}
-    <button class="wallbtn" data-act="goSub" data-sub="olog"><span class="grow">Rendelésnapló</span><span>elkészült és lemondott rendelések ›</span></button>
+    <button class="wallbtn" data-act="ologOpen"><span class="grow">Rendelésnapló</span><span>elkészült és lemondott rendelések ›</span></button>
   </div>`;
 }
 
@@ -906,9 +910,9 @@ function orderView(){
 function shiftView(){
   if(S.personCal) return personCalView();
   const ws = weekStart(S.weekOff), days = [...Array(7)].map((_,i)=> ymd(addDays(ws,i)));
-  const totals = {}; days.forEach(d => shiftOf(d).forEach(e => totals[e.staffId] = (totals[e.staffId]||0) + hoursOf(e)));
+  const totals = {}, tb = {}; days.forEach(d => shiftOf(d).forEach(e => { totals[e.staffId] = (totals[e.staffId]||0) + hoursOf(e) + bonusOf(d); tb[e.staffId] = (tb[e.staffId]||0) + bonusOf(d); }));
   const mRef = parseYmd(days[0]), mKey = days[0].slice(0,7), mt = {};
-  Object.keys(S.shifts).filter(d=>d.startsWith(mKey)).forEach(d => shiftOf(d).forEach(e => mt[e.staffId] = (mt[e.staffId]||0) + hoursOf(e)));
+  const mb = {}; Object.keys(S.shifts).filter(d=>d.startsWith(mKey)).forEach(d => shiftOf(d).forEach(e => { mt[e.staffId] = (mt[e.staffId]||0) + hoursOf(e) + bonusOf(d); mb[e.staffId] = (mb[e.staffId]||0) + bonusOf(d); }));
   const ids = [...new Set([...Object.keys(totals), ...Object.keys(mt), ...shiftStaff().map(s=>s.id)])];
   return header("Műszak") + `<div class="stack">
     <div class="row"><button class="btn sm" data-act="week" data-d="-1" aria-label="Előző hét">‹</button><b class="grow" style="text-align:center">${fmtDay(days[0]).split(",")[0]} – ${fmtDay(days[6]).split(",")[0]}</b><button class="btn sm" data-act="week" data-d="1" aria-label="Következő hét">›</button></div>
@@ -917,7 +921,7 @@ function shiftView(){
     ${(()=>{ const n = openReqs().filter(r=>r.staffId!==S.me && !unavailOn(S.me, r.date)).length, mine = ((S.unavail||{})[S.me]||[]).filter(d=>d>=today()).length;
       return `<section class="unbox ${S.unOpen?"open":""}" id="unbox"><button class="unhead" data-act="unOpen" aria-expanded="${!!S.unOpen}"><span class="grow">EZEKEN A NAPOKON NEM ÉREK RÁ</span>${n?`<span class="pill w">${n} átvehető</span>`:""}${mine?`<span class="pill d">${mine} napom</span>`:""}<span aria-hidden="true">${S.unOpen?"▴":"▾"}</span></button>${S.unOpen ? `<div class="unbody stack">${reqsBody()}</div>` : ""}</section>`; })()}
     <section class="card"><h3>Óraösszesítő</h3><div class="scroll"><table class="tbl"><thead><tr><th>Kolléga</th><th class="r">Ez a hét</th><th class="r">${MONTHS[mRef.getMonth()]}</th></tr></thead><tbody>
-    ${ids.map(id=>`<tr><td><button class="namebtn" data-act="personCal" data-id="${esc(id)}">${esc(staffName(id))}</button></td><td class="r">${fmtN(totals[id]||0)} ó</td><td class="r">${fmtN(mt[id]||0)} ó</td></tr>`).join("")}</tbody></table></div></section>
+    ${ids.map(id=>`<tr><td><button class="namebtn" data-act="personCal" data-id="${esc(id)}">${esc(staffName(id))}</button></td><td class="r">${fmtN(totals[id]||0)} ó${tb[id]?`<br><span class="small bonc">ebből +${fmtN(tb[id])}</span>`:""}</td><td class="r">${fmtN(mt[id]||0)} ó${mb[id]?`<br><span class="small bonc">ebből +${fmtN(mb[id])}</span>`:""}</td></tr>`).join("")}</tbody></table><div class="small muted" style="margin-top:6px"><span class="bon">+1</span> plusz fizetett óra: pénteken és vasárnap, ha legalább 2-en vannak, fejenként +1; szombaton és vasárnap mindenkinek +1 (vasárnap 2 főnél így +2).</div></div></section>
   </div>`;
 }
 function dayCard(d){
@@ -935,7 +939,7 @@ function dayCard(d){
   if((hol || closed) && isAdmin()) meta.push(`<button class="lnk" data-act="dayToggle" data-date="${d}">${closed?"Nyitvára":"Zárvára"}</button>`);
   return `<section class="dcard ${closed?"closed":""} ${!closed&&!es.length?"noshift":""}">
     <div class="daydate ${closed?"cl":""}"><span class="dnum">${MONTHS[dd.getMonth()].slice(0,3)}. ${dd.getDate()}.</span><span class="dname">${DAYS[dd.getDay()]}</span>${d===today()?'<span class="today">ma</span>':""}${closed?'<span class="zar">Zárva</span>':(!form?`<button class="dadd" data-act="shiftAdd" data-date="${d}" aria-label="Beosztás hozzáadása ${fmtDay(d)}">+</button>`:"")}</div>
-    ${!closed ? `<div class="dbody">${es.length ? es.map((e,i)=>`<button class="schip sbtn" data-act="shiftEdit" data-date="${d}" data-i="${i}"><b>${esc(staffName(e.staffId))}</b> <span class="num">${e.start}–${e.end}</span></button>`).join("") : `<span class="nobody">nincs beosztva</span>`}</div>` : ""}
+    ${!closed ? `<div class="dbody">${es.length ? es.map((e,i)=>`<button class="schip sbtn" data-act="shiftEdit" data-date="${d}" data-i="${i}"><b>${esc(staffName(e.staffId))}</b> <span class="num">${e.start}–${e.end}</span>${bonusTag(d)}</button>`).join("") : `<span class="nobody">nincs beosztva</span>`}</div>` : ""}
     ${meta.length?`<div class="dmeta">${meta.join("")}</div>`:""}
     ${form ? `<div class="dform"><div class="sfgrid"><label class="field"><span>Kolléga</span><select id="sfStaff" data-f="shiftForm.staffId">${[...shiftStaffOn(form.date), ...shiftStaff().filter(s=>s.id===form.staffId && unavailOn(s.id, form.date))].map(s=>`<option value="${esc(s.id)}" ${s.id===form.staffId?"selected":""}>${esc(s.name)}</option>`).join("")}</select></label>
       <label class="field"><span>Kezdés</span><select id="sfStart" data-f="shiftForm.start">${STARTS.map(t=>`<option ${t===form.start?"selected":""}>${t}</option>`).join("")}</select></label>
@@ -952,7 +956,7 @@ function personCalView(){
   for(let i=0;i<lead;i++) cells += `<div class="c blank"></div>`;
   for(let dn=1; dn<=n; dn++){
     const ds = `${pc.y}-${pad(pc.m+1)}-${pad(dn)}`, e = shiftOf(ds).find(x=>x.staffId===pc.id), cl = isClosed(ds);
-    if(e){ hours += hoursOf(e); days++; }
+    if(e){ hours += hoursOf(e) + bonusOf(ds); days++; }
     cells += `<div class="c ${e?"on":""} ${cl?"off":""}"><span class="dn">${dn}</span>${e?`<span class="tm">${e.start}<br>${e.end}</span>`:cl?'<span class="muted">zárva</span>':""}</div>`;
   }
   const list = [];
@@ -962,7 +966,7 @@ function personCalView(){
     <div class="row"><button class="btn sm" data-act="personMonth" data-d="-1" aria-label="Előző hónap">‹</button><b class="grow" style="text-align:center">${pc.y}. ${MONTHS[pc.m]}</b><button class="btn sm" data-act="personMonth" data-d="1" aria-label="Következő hónap">›</button></div>
     <div class="pcal">${["H","K","Sze","Cs","P","Szo","V"].map(h=>`<div class="h">${h}</div>`).join("")}${cells}</div>
     <div class="row"><span class="pill ok">${days} nap</span><span class="pill ok">${fmtN(hours)} óra</span></div></section>
-    ${list.length?`<section class="card"><h3>Ledolgozott napok</h3><div class="list">${list.map(([ds,e])=>`<div class="li"><span class="grow">${fmtDay(ds)}</span><b class="num">${e.start}–${e.end}</b><span class="small muted num">${fmtN(hoursOf(e))} ó</span></div>`).join("")}</div></section>`:`<div class="card"><div class="empty">Ebben a hónapban nincs beosztása.</div></div>`}
+    ${list.length?`<section class="card"><h3>Ledolgozott napok</h3><div class="list">${list.map(([ds,e])=>`<div class="li"><span class="grow">${fmtDay(ds)}</span><b class="num">${e.start}–${e.end}</b><span class="small muted num">${fmtN(hoursOf(e))} ó${bonusOf(ds)?` + ${bonusOf(ds)}`:""}</span></div>`).join("")}</div></section>`:`<div class="card"><div class="empty">Ebben a hónapban nincs beosztása.</div></div>`}
   </div>`;
 }
 
@@ -1116,7 +1120,6 @@ function moreView(){
   if(S.sub==="settings") return settingsView();
   const um = unreadMsgs(), rq = openReqs().length;
   return header() + `<div class="menu">
-    <button data-act="goSub" data-sub="olog"><span class="grow">Rendelésnapló<small>Elkészült és lemondott előrendelések</small></span>›</button>
     ${canCash()?`<button data-act="goSub" data-sub="cash"><span class="grow">Kasszazárás<small>Záró egyenleg, kiadások, kártyás forgalom</small></span>›</button>`:""}
     <button data-act="goSub" data-sub="bakery"><span class="grow">Pékáru érkezés<small>Naponta beérkezett kifli, zsemle, kenyér</small></span>›</button>
     <button data-act="goSub" data-sub="temp"><span class="grow">Hőmérsékletnapló<small>Hűtők hőfoka nyitáskor</small></span>›</button>
@@ -1242,7 +1245,7 @@ function orderLogView(){
   const done = rows.filter(o=>o.status!=="lemondva").length, canc = rows.length - done;
   const who = (o) => { const doneAt = o.status==="lemondva" ? null : (o.doneAt || o.at); return `Felvette: ${esc(staffName(o.createdBy))}${o.createdAt?`, ${tsLabel(o.createdAt)}`:""} · ${o.status==="lemondva"?"Lemondta":"Elkészítette"}: ${esc(staffName(o.status==="lemondva"?o.by:(o.doneBy||o.by)))}${doneAt?`, ${tsLabel(doneAt)}`:o.at?`, ${tsLabel(o.at)}`:""}`; };
   const fld = {name:"név",phone:"telefon",items:"tételek",date:"nap",time:"időpont",remindMin:"jelzés (perc)",note:"megjegyzés"};
-  return header("Rendelésnapló") + `<div class="stack">${back}
+  return header("Rendelésnapló") + `<div class="stack"><button class="back" data-act="nav" data-tab="order">‹ Vissza az előrendelésekhez</button>
   <section class="card">
     <label class="field"><span>Keresés vevőre, telefonszámra vagy tételre</span><input id="ologQ" type="search" data-f="f.ologQ" data-rr="1" value="${esc(S.f.ologQ||"")}" placeholder="pl. Kovács"></label>
     ${q?`<div class="small muted">Találatok az összes hónapból</div>`:`<div class="row"><button class="btn sm" data-act="ologStep" data-d="-1" aria-label="Előző hónap">‹</button><b class="grow" style="text-align:center">${c.y}. ${MONTHS[c.m]}</b><button class="btn sm" data-act="ologStep" data-d="1" aria-label="Következő hónap">›</button></div>`}
@@ -1394,7 +1397,7 @@ function settingsView(){
 const cfgRef = "config/main";
 async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
 const RO_FIELDS = new Set(["cashDate","tempDate","f.pinIn2","f.pinA","f.pinB","f.pinTrust","f.lgEm","f.lgPw"]);
-const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","unOpen","goUnavail","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
+const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","unOpen","goUnavail","ologOpen","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
 const A = {
   nav(d){ S.tab = d.tab; S.sub = null; S.personCal = null; window.scrollTo(0,0); render(); },
   goSub(d){ S.tab = "more"; S.sub = d.sub || null; if(d.sub==="cash") S.cashDraft=null; window.scrollTo(0,0); render(); if(d.sub==="msgs") markRead(); },
@@ -1599,6 +1602,7 @@ const A = {
     const edits = [...(m.edits||[]), {by:S.me, at:Date.now(), before:m.text, after:t}].slice(-30);
     Object.assign(m, {text:t, edits}); S.f.msgEdit=null; delete S.f.msgEditText; render();
     await write("messages/"+d.id, r=>r.update({text:t, edits})); toast("Üzenet módosítva."); },
+  ologOpen(){ S.tab = "order"; S.sub = "olog"; window.scrollTo(0,0); render(); },
   unOpen(){ S.unOpen = !S.unOpen; render(); if(S.unOpen) setTimeout(()=>{ const el = $("#unbox"); el && el.scrollIntoView({block:"start", behavior:"smooth"}); }, 30); },
   goUnavail(){ S.tab = "shift"; S.sub = null; S.personCal = null; S.unOpen = true; render(); setTimeout(()=>{ const el = $("#unbox"); el && el.scrollIntoView({block:"start"}); }, 30); },
   unStep(d){ const now = new Date(), c = S.unMonth || {y:now.getFullYear(), m:now.getMonth()}; const x = new Date(c.y, c.m + (+d.d), 1); S.unMonth = {y:x.getFullYear(), m:x.getMonth()}; render(); },
