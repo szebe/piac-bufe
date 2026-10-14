@@ -40,8 +40,12 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   ok(/Hibás/.test(await p.textContent(".note.d")), "wrong password rejected");
   await p.fill("#lgPw", PASS); await p.click("[data-act=fbLogin]");
   await p.waitForSelector("[data-act=pickMe][data-id=tamas]", {timeout: 15000}); ok(true, "logged in, staff list loaded from Firestore");
-  await p.click("[data-act=pickMe][data-id=tamas]"); await p.waitForTimeout(800);
-  ok(await p.evaluate(() => isAdmin() && isOwnerish()), "Tamás is admin without PIN (fb mode)");
+  await p.click("[data-act=pickMe][data-id=tamas]"); await p.waitForSelector("#pinA", {timeout: 5000});
+  ok(true, "admin account asks for a password");
+  await p.fill("#pinA", "4321"); await p.fill("#pinB", "4321"); await p.click("[data-act=pinCreate]"); await p.waitForTimeout(1200);
+  ok(await p.evaluate(() => isAdmin() && canCash()), "Tamás is admin after setting password");
+  const cfg = await get("config/main"); ok(cfg.staff.some(x => x.id === "tamas" && x.pinHash && x.pinHash.length === 64), "password stored as hash");
+  ok(cfg.staff.some(x => x.id === "admin" && x.role === "owner"), "Admin (owner) account auto-created");
   // nested update merge (readBy)
   await p.evaluate(() => { S.sub = "msgs"; render(); return markRead(); }); await p.waitForTimeout(1500);
   const m1 = await get("messages/m1"); ok(m1 && m1.readBy && m1.readBy.b === 1 && m1.readBy.tamas > 0, "nested update merges readBy: " + JSON.stringify(m1 && m1.readBy));

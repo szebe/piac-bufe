@@ -265,6 +265,9 @@ textarea{min-height:70px;resize:vertical}
 .atrow{background:linear-gradient(90deg,rgba(228,169,42,.18),transparent);border-radius:10px}
 .invcta{border:2px solid var(--mustard);background:var(--warn-soft)}
 .invbig{font:700 1.6rem var(--display);margin:6px 0 2px}
+.cashtbl tr.tap{cursor:pointer}
+.cashtbl tr.tap td{padding-top:12px;padding-bottom:12px}
+.cashtbl tr.tap:active{background:var(--surface2)}
 .wsel{border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
 .waste{display:grid;grid-template-columns:56px 1fr 56px;gap:8px}
 .waste .st{min-height:52px;font-size:1.5rem;font-weight:800;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--fg)}
@@ -342,7 +345,7 @@ const S = {
   cfg:{staff:[], fridges:[], openDays:[], closedDays:[], adminPin:""},
   calMonth:null, bakeryOpen:false, bk:{}, bo:{}, bakeOrdOpen:false, close:null, sortMode: (m => m==="custom" ? "recent" : m)(ls.get("bufe.sort") || "abc"),
   items:[], moves:[], orders:[], shifts:{}, cash:[], temps:[], msgs:[], reqs:[], freezer:{}, bakery:[], wasteLog:[],
-  me: ls.get("bufe.me") || "", adminUnlocked: ls.get("bufe.admin") === "1",
+  me: ls.get("bufe.me") || "", adminUnlocked: ls.get("bufe.admin") === "1", unlockedId: ls.get("bufe.unlock") || "", pinFor: null, cashPop: null,
   tab: "home", sub: null, f:{}, weekOff:0, invTab:"stock", openItem:null, editItem:null,
   cashDate: today(), cashDraft:null, tempDate: today(), tempDraft:{},
   shiftForm:null, shiftHist:null, notices:[], snooze:{}, alarmFor:null, soundOn:false, wake:null,
@@ -350,8 +353,15 @@ const S = {
 };
 const meStaff = () => S.cfg.staff.find(s => s.id === S.me);
 const staffName = id => (S.cfg.staff.find(s => s.id === id)||{}).name || "?";
-const isAdmin = () => S.isOwner || (!!meStaff()?.admin && (S.cfg.adminPin ? !!S.adminUnlocked : BACKEND==="fb"));
-const isOwnerish = () => S.isOwner || (BACKEND==="fb" && S.me==="tamas" && isAdmin());
+const ROLES = [["staff","Dolgozó"],["admin","Adminisztrátor"],["readonly","Csak olvasás"],["owner","Admin (főfiók)"]];
+const roleOf = s => (s && (s.role || (s.admin ? "admin" : "staff"))) || "staff";
+const roleName = r => (ROLES.find(x=>x[0]===r)||ROLES[0])[1];
+const needsPin = s => !!s && roleOf(s) !== "staff";
+const unlocked = () => !!S.me && S.unlockedId === S.me;
+const isAdmin = () => S.isOwner || (BACKEND!=="fb" ? !!meStaff()?.admin && (!S.cfg.adminPin || !!S.adminUnlocked) : (["owner","admin"].includes(roleOf(meStaff())) && unlocked()));
+const isReadonly = () => BACKEND==="fb" && roleOf(meStaff())==="readonly";
+const canCash = () => S.isOwner || BACKEND!=="fb" || (["owner","admin","readonly"].includes(roleOf(meStaff())) && unlocked());
+const isOwnerish = () => S.isOwner || (BACKEND==="fb" && roleOf(meStaff())==="owner" && unlocked());
 const activeStaff = () => S.cfg.staff.filter(s => s.active !== false);
 
 let db = null, BACKEND = "";
@@ -369,6 +379,7 @@ function fbAdapter(fs){
 const queues = {};
 function enqueue(key, fn){ const p = (queues[key] || Promise.resolve()).then(fn, fn); queues[key] = p.catch(()=>{}); return p; }
 async function write(path, fn){
+  if(isReadonly() && !/^config\/main$/.test(path)){ toast("Csak olvasási jogod van."); throw new Error("readonly"); }
   if(!db){ toast("Nincs kapcsolat az adatbázissal."); throw new Error("nodb"); }
   return enqueue(path, async () => {
     try { await fn(db.doc(path)); }
@@ -446,7 +457,7 @@ function closeWizard(){
   return `<div class="alarm" role="dialog" aria-labelledby="alT"><div class="box calm">${body}</div></div>`;
 }
 function alarmTick(){
-  const now = Date.now(); nativeSched();
+  const now = Date.now(); if(isReadonly()){ if(S.alarmFor){ S.alarmFor = null; renderAlarm(); } return; } nativeSched();
   const due = dueOrders().filter(o => !(S.snooze[o.id] > now)).sort((a,b)=> pickupTs(a)-pickupTs(b));
   let next = due[0];
   if(!next && kremDue() && !(S.snooze[KREM_ID()] > now)) next = { id: KREM_ID() };
@@ -544,7 +555,7 @@ function liveMsgs(){ const t = today(); return S.msgs.filter(m => !m.deleted && 
 function scheduledMsgs(){ const t = today(); return S.msgs.filter(m => !m.deleted && m.showFrom && m.showFrom > t).sort((a,b)=> a.showFrom<b.showFrom?-1:1); }
 function unreadMsgs(){ return liveMsgs().filter(m => !(m.readBy && m.readBy[S.me]) && m.by !== S.me).length; }
 function openReqs(){ return S.reqs.filter(r => r.status === "nyitott" && r.date >= today()); }
-function prevCash(date){ return S.cash.filter(c => c.date < date).sort((a,b)=> a.date < b.date ? 1 : -1)[0]; }
+function prevCash(date){ return S.cash.filter(c => c.date < date && c.close!=null && c.close!=="").sort((a,b)=> a.date < b.date ? 1 : -1)[0]; }
 function cashCalc(c, prev){
   const exp = (c.exp||[]).reduce((a,e)=> a + num(e.amt), 0), wd = (c.wd||[]).reduce((a,e)=> a + num(e.amt), 0);
   if(!prev || c.close==="" || c.close==null) return { exp, wd, cashT:null, total:null };
@@ -582,7 +593,7 @@ function header(sub){
   const m = meStaff();
   return `<header class="top"><div class="brand">${sub?esc(sub):"Büfé"}<small>${fmtDay(today())}${S.dbOk===false?" · nincs kapcsolat":""}</small></div>
   <img class="hlogo" src="${LOGO}" alt="Piac Büfé" width="54" height="54">
-  <div class="hright">${isAdmin()?'<span class="badge">admin</span>':""}
+  <div class="hright">${isAdmin()?'<span class="badge">admin</span>':isReadonly()?'<span class="badge">olvasó</span>':""}
   ${m?`<button class="who" data-act="switchMe" aria-label="Felhasználó váltása">${esc(m.name)} ▾</button>`:""}</div></header>`;
 }
 function loginView(){
@@ -595,7 +606,9 @@ function view(){
   if(S.needLogin) return loginView();
   if(S.dbOk === null) return header() + `<div class="card"><div class="empty">Adatok betöltése…</div></div>`;
   if(S.dbOk === false) return header() + `<div class="card"><h3>Az adatbázis nem érhető el</h3><p class="muted">${BACKEND==="fb" ? "Ellenőrizd az internetkapcsolatot, majd indítsd újra az appot." : "Nyisd meg az appot bejelentkezve a claude.ai-ban. A közös adatokhoz Tamásnak meg kell osztania veled szerkesztési joggal."}</p></div>`;
+  if(S.pinFor) return pinView();
   if(!S.me || !meStaff()) return pickView();
+  if(BACKEND==="fb" && needsPin(meStaff()) && !unlocked()){ S.pinFor = S.me; return pinView(); }
   if(S.inv) return invView();
   switch(S.tab){
     case "order": return orderView();
@@ -608,11 +621,24 @@ function view(){
 
 function importCard(){ return `<section class="card"><h3>Adatok importálása</h3><p class="small muted">Egyszeri átköltöztetés: válaszd ki a kapott <b>bufe-adatok.json</b> fájlt. A meglévő azonos tételeket felülírja.</p>
     <input id="impFile" type="file" accept=".json,application/json" data-imp="1">${S.impMsg?`<div class="note" style="margin-top:8px">${esc(S.impMsg)}</div>`:""}</section>`; }
+async function pinHash(id, pin){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("bufe:" + id + ":" + pin)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+function pinView(){
+  const s = S.cfg.staff.find(x=>x.id===S.pinFor); if(!s){ S.pinFor = null; return pickView(); }
+  const setNew = !s.pinHash;
+  return header() + `<div class="stack"><section class="card"><h2>${esc(s.name)}</h2><div class="small muted">${roleName(roleOf(s))} · jelszóval védett fiók</div>
+    ${setNew ? `<p class="small">Ennek a fióknak még nincs jelszava. Adj meg egyet (legalább 4 karakter), ezzel fogsz belépni.</p>
+      <label class="field"><span>Új jelszó</span><input id="pinA" type="password" autocomplete="new-password" data-f="f.pinA" value=""></label>
+      <label class="field"><span>Új jelszó még egyszer</span><input id="pinB" type="password" autocomplete="new-password" data-f="f.pinB" value=""></label>
+      <button class="btn pri" style="width:100%" data-act="pinCreate">Jelszó beállítása és belépés</button>`
+    : `<label class="field"><span>Jelszó</span><input id="pinIn2" type="password" autocomplete="current-password" data-f="f.pinIn2" value=""></label>
+      <button class="btn pri" style="width:100%" data-act="pinEnter">Belépés</button>`}
+    <button class="btn ghost" style="width:100%;margin-top:8px" data-act="pinBack">Másik név</button></section></div>`;
+}
 function pickView(){
   const st = activeStaff();
   return header() + `<div class="stack"><div class="card"><h2>Ki használja ezt a telefont?</h2>
     <p class="muted small">A választásod ezen az eszközön marad, minden bejegyzésnél ez a név jelenik meg.</p>
-    ${st.length ? `<div class="menu">${st.map(s=>`<button data-act="pickMe" data-id="${esc(s.id)}"><span class="grow">${esc(s.name)}${s.admin?" <small>adminisztrátor</small>":""}</span></button>`).join("")}</div>`
+    ${st.length ? `<div class="menu">${st.map(s=>`<button data-act="pickMe" data-id="${esc(s.id)}"><span class="grow">${esc(s.name)}${roleOf(s)!=="staff"?` <small>${roleName(roleOf(s)).toLowerCase()} 🔒</small>`:""}</span></button>`).join("")}</div>`
       : `<div class="empty">Még nincs felvéve kolléga.</div>`}
   </div>
   ${BACKEND==="fb" && !st.length ? importCard() : ""}
@@ -933,7 +959,7 @@ function movesView(){
 
 /* ----- more ----- */
 function moreView(){
-  if(S.sub==="cash") return cashView();
+  if(S.sub==="cash" && canCash()) return cashView();
   if(S.sub==="temp") return tempView();
   if(S.sub==="bakery") return bakeryView();
   if(S.sub==="olog") return orderLogView();
@@ -943,7 +969,7 @@ function moreView(){
   const um = unreadMsgs(), rq = openReqs().length;
   return header() + `<div class="menu">
     <button data-act="goSub" data-sub="olog"><span class="grow">Rendelésnapló<small>Elkészült és lemondott előrendelések</small></span>›</button>
-    <button data-act="goSub" data-sub="cash"><span class="grow">Kasszazárás<small>Záró egyenleg, kiadások, kártyás forgalom</small></span>›</button>
+    ${canCash()?`<button data-act="goSub" data-sub="cash"><span class="grow">Kasszazárás<small>Záró egyenleg, kiadások, kártyás forgalom</small></span>›</button>`:""}
     <button data-act="goSub" data-sub="bakery"><span class="grow">Pékáru érkezés<small>Naponta beérkezett kifli, zsemle, kenyér</small></span>›</button>
     <button data-act="goSub" data-sub="temp"><span class="grow">Hőmérsékletnapló<small>Hűtők hőfoka nyitáskor</small></span>›</button>
     <button data-act="goSub" data-sub="msgs"><span class="grow">Üzenőfal<small>${um?`${um} olvasatlan`:"Közlemények"}</small></span>${um?`<span class="pill d">${um}</span>`:""}›</button>
@@ -994,6 +1020,43 @@ function cashWeekView(){
     ${!showWeek && rows.length ? `<div class="small muted">A heti top jelvény pénteken jelenik meg.</div>`:""}
   </section>`;
 }
+function cashRow(k, label, val, sub){
+  const ro = isReadonly();
+  return `<tr class="${ro?"":"tap"}" ${ro?"":`data-act="cashPop" data-k="${k}" role="button" tabindex="0"`}><td>${ro?"":"✎ "}${label}${sub?`<br><span class="small muted">${sub}</span>`:""}</td><td class="r">${val==null?`<span class="muted">${ro?"—":"koppints"}</span>`:`<b>${val}</b>`}</td></tr>`;
+}
+function cashPopView(){
+  const p = S.cashPop; if(!p) return "";
+  const c = S.cashDraft, title = {close:"Záró egyenleg (készpénz)", card:"Bankkártyás forgalom", exp:"Új kiadás", wd:"Új pénzkivét"}[p.k];
+  const list = p.k==="exp" ? c.exp : p.k==="wd" ? c.wd : null;
+  return `<div class="alarm" role="dialog" aria-modal="true" aria-labelledby="cpT"><div class="box calm">
+    <h3 id="cpT" style="margin:0">${title}</h3>
+    ${list && list.length ? `<div class="list">${list.map((e,i)=>`<div class="li"><span class="grow">${esc((p.k==="exp"?e.name:e.note)||"–")}${p.k==="wd"&&e.by?` <span class="small muted">(${esc(staffName(e.by))})</span>`:""}</span><b class="num">${ft(e.amt)}</b><button class="btn sm ghost" data-act="cashPopDel" data-i="${i}" aria-label="Törlés">✕</button></div>`).join("")}</div>` : ""}
+    <label class="field"><span>Összeg (Ft)</span><input id="cpVal" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-f="cashPop.val" value="${esc(p.val||"")}"></label>
+    ${list ? `<label class="field"><span>${p.k==="exp"?"Megnevezés, pl. tej – Spar":"Megjegyzés, pl. bankba befizetés"} (nem kötelező)</span><input id="cpNote" data-f="cashPop.note" value="${esc(p.note||"")}"></label>` : ""}
+    <div class="row"><button class="btn grow" data-act="cashPopClose">Mégse</button><button class="btn pri grow" data-act="cashPopOk">OK</button></div>
+  </div></div>`;
+}
+async function saveCashDraft(){
+  const c = S.cashDraft; if(!c) return;
+  const exp = c.exp.filter(e => num(e.amt)).map(e => ({name:(e.name||"").trim()||"Kiadás", amt:num(e.amt)}));
+  const wd = c.wd.filter(e => num(e.amt)).map(e => ({note:(e.note||"").trim(), amt:num(e.amt), by:e.by||S.me}));
+  const old = S.cash.find(x=>x.date===S.cashDate), oldTot = old ? cashTotal(old) : null;
+  const doc = {date:S.cashDate, close: c.close===""||c.close==null ? null : num(c.close), card: c.card===""||c.card==null ? null : num(c.card), exp, wd, ...by()};
+  const i = S.cash.findIndex(x=>x.date===S.cashDate); if(i>=0) S.cash[i]=doc; else S.cash.push(doc); render();
+  await write("cash/"+S.cashDate, r=>r.set(doc));
+  const tot = cashTotal(doc), base = (S.cfg.allTime && +S.cfg.allTime.amount) || 0;
+  if(tot == null || tot === oldTot){ toast("Mentve."); return; }
+  if(tot > base && !allCashTotals().some(x=> x.d!==doc.date && x.t >= tot)){
+    celebrate("all", tot);
+    await saveCfg({allTime:{amount:tot, date:doc.date, by:S.me, at:Date.now()}}).catch(()=>{});
+  } else {
+    const bs = cashBadges(doc.date);
+    const best = ["year","quarter","month"].find(k=>bs.includes(k));
+    const pd = parseYmd(doc.date), wsd = addDays(pd, -((pd.getDay()+6)%7)), fri = ymd(addDays(wsd,4)), wkDays = [...Array(7)].map((_,i)=>ymd(addDays(wsd,i)));
+    const wkBest = today() >= fri && allCashTotals().filter(x=>wkDays.includes(x.d) && x.d!==doc.date).every(x=> x.t < tot);
+    if(best) celebrate(best, tot, doc.date); else if(wkBest) celebrate("week", tot, doc.date); else toast("Kasszazárás mentve.");
+  }
+}
 function cashView(){
   if(!S.cashDraft) loadCashDraft();
   const c = S.cashDraft, prev = prevCash(S.cashDate), r = cashCalc(c, prev), saved = S.cash.find(x=>x.date===S.cashDate);
@@ -1002,28 +1065,20 @@ function cashView(){
   <section class="card">
     <label class="field"><span>Nap</span><input id="cashDate" type="date" max="${today()}" data-f="cashDate" data-act-change="cashDate" value="${esc(S.cashDate)}"></label>
     ${saved?`<div class="small muted">Rögzítette: ${esc(staffName(saved.by))}, ${tsLabel(saved.at)}</div>`:""}
-    <div class="grid2"><label class="field"><span>Záró egyenleg (készpénz)</span><input id="cClose" type="text" pattern="[0-9]*" autocomplete="off" inputmode="numeric" data-f="cashDraft.close" data-rr="1" value="${esc(c.close)}"></label>
-    <label class="field"><span>Bankkártyás forgalom</span><input id="cCard" type="text" pattern="[0-9]*" autocomplete="off" inputmode="numeric" data-f="cashDraft.card" data-rr="1" value="${esc(c.card)}"></label></div>
-    <span class="label">Kiadások</span>
-    ${c.exp.map((e,i)=>`<div class="row"><input id="ce${i}n" class="grow" style="flex:2" placeholder="Megnevezés, pl. tej – Spar" data-f="cashDraft.exp.${i}.name" value="${esc(e.name)}"><input id="ce${i}a" style="flex:1" type="text" pattern="[0-9]*" autocomplete="off" inputmode="numeric" placeholder="Ft" data-f="cashDraft.exp.${i}.amt" data-rr="1" value="${esc(e.amt)}"><button class="btn sm ghost" data-act="expDel" data-i="${i}" aria-label="Kiadás törlése">✕</button></div>`).join("")}
-    <button class="btn sm" data-act="expAdd">+ Kiadás</button>
-    <span class="label">Pénzkivét</span>
-    ${c.wd.map((e,i)=>`<div class="row"><input id="cw${i}n" class="grow" style="flex:2" placeholder="pl. bankba befizetés" data-f="cashDraft.wd.${i}.note" value="${esc(e.note||"")}"><input id="cw${i}a" style="flex:1" type="text" pattern="[0-9]*" autocomplete="off" inputmode="numeric" placeholder="Ft" data-f="cashDraft.wd.${i}.amt" data-rr="1" value="${esc(e.amt)}"><button class="btn sm ghost" data-act="wdDel" data-i="${i}" aria-label="Pénzkivét törlése">✕</button></div><div class="small muted">${e.by?`Kivette: ${esc(staffName(e.by))}`:`Kivevő: ${esc(staffName(S.me))}`}</div>`).join("")}
-    <button class="btn sm" data-act="wdAdd">+ Pénzkivét</button>
-    <hr>
-    <table class="tbl"><tbody>
+    <table class="tbl cashtbl"><tbody>
       <tr><td>Előző záró egyenleg</td><td class="r">${prev?`${ft(prev.close)} <span class="small muted">(${fmtDay(prev.date).split(",")[0]})</span>`:"nincs adat"}</td></tr>
-      <tr><td>Kiadások összesen</td><td class="r">${ft(r.exp)}</td></tr>
-      <tr><td>Pénzkivét összesen</td><td class="r">${ft(r.wd)}</td></tr>
+      ${cashRow("close", "Záró egyenleg (készpénz)", c.close===""||c.close==null ? null : ft(c.close))}
+      ${cashRow("exp", "Kiadások összesen", ft(r.exp), c.exp.length ? c.exp.length + " tétel" : "")}
+      ${cashRow("wd", "Pénzkivét összesen", ft(r.wd), c.wd.length ? c.wd.length + " tétel" : "")}
       <tr><td>Készpénzes forgalom</td><td class="r">${r.cashT==null?"—":ft(r.cashT)}</td></tr>
-      <tr><td>Bankkártyás forgalom</td><td class="r">${ft(c.card)}</td></tr>
+      ${cashRow("card", "Bankkártyás forgalom", c.card===""||c.card==null ? null : ft(c.card))}
       <tr><td><b>Teljes napi forgalom</b></td><td class="r"><b>${r.total==null?"—":ft(r.total)}</b></td></tr>
     </tbody></table>
+    <div class="small muted">Koppints a ✎ jelű sorra az összeg beírásához. Az OK azonnal ment.</div>
     ${!prev?`<div class="small muted">Az első nap után számol: a készpénzes forgalomhoz az előző napi záró egyenleg kell.</div>`:""}
-    <button class="btn pri" data-act="cashSave">${saved?"Módosítás mentése":"Zárás mentése"}</button>
   </section>
   ${cashWeekView()}
-  </div>`;
+  </div>${cashPopView()}`;
 }
 
 const ST_LABEL = {kesz:["Elkészítve","ok"], atadva:["Elkészítve","ok"], lemondva:["Lemondva","d"]};
@@ -1119,9 +1174,9 @@ function reqsView(){
 function shiftsOfMe(){ const out=[]; for(let i=0;i<30;i++){ const d = ymd(addDays(new Date(),i)); if(shiftOf(d).some(e=>e.staffId===S.me) && !S.reqs.some(r=>r.date===d&&r.staffId===S.me&&r.status==="nyitott")) out.push(d); } return out; }
 
 function staffEditor(){
-  return `<section class="card"><h3>Kollégák</h3><div class="list">${S.cfg.staff.map(s=>`<div class="li"><span class="grow"><b>${esc(s.name)}</b>${s.active===false?' <span class="pill">inaktív</span>':""}${s.admin?' <span class="badge">admin</span>':""}</span>
-  <button class="btn sm ghost" data-act="staffToggle" data-id="${esc(s.id)}">${s.active===false?"Aktivál":"Inaktivál"}</button>
-  ${isOwnerish()?`<button class="btn sm ghost" data-act="staffAdmin" data-id="${esc(s.id)}">${s.admin?"Admin el":"Admin"}</button>`:""}</div>`).join("")||'<div class="empty">Még senki.</div>'}</div>
+  return `<section class="card"><h3>Kollégák</h3><div class="list">${S.cfg.staff.map(s=>`<div class="li"><span class="grow"><b>${esc(s.name)}</b>${s.active===false?' <span class="pill">inaktív</span>':""}${roleOf(s)!=="staff"?` <span class="badge">${roleName(roleOf(s))}</span>`:""}${needsPin(s)?`<br><span class="small muted">${s.pinHash?"jelszó beállítva":"jelszó még nincs (első belépéskor adja meg)"}</span>`:""}</span>
+  ${BACKEND==="fb" && isOwnerish()?`<select id="role_${esc(s.id)}" data-role="${esc(s.id)}" aria-label="Jogosultság" style="max-width:150px">${ROLES.map(([k,l])=>`<option value="${k}" ${roleOf(s)===k?"selected":""}>${l}</option>`).join("")}</select>${needsPin(s)&&s.pinHash?`<button class="btn sm ghost" data-act="staffPinReset" data-id="${esc(s.id)}">Jelszó törlése</button>`:""}`:(isOwnerish()?`<button class="btn sm ghost" data-act="staffAdmin" data-id="${esc(s.id)}">${s.admin?"Admin el":"Admin"}</button>`:"")}
+  <button class="btn sm ghost" data-act="staffToggle" data-id="${esc(s.id)}">${s.active===false?"Aktivál":"Inaktivál"}</button></div>`).join("")||'<div class="empty">Még senki.</div>'}</div>
   <div class="row"><input id="newStaff" class="grow" placeholder="Név" data-f="f.newStaff" value="${esc(S.f.newStaff||"")}"><button class="btn pri" data-act="staffAdd">Hozzáad</button></div></section>`;
 }
 function closedCal(){
@@ -1139,6 +1194,7 @@ function closedCal(){
 }
 function settingsView(){
   const m = meStaff();
+  if(!isAdmin() && BACKEND==="fb") return header("Beállítások") + `<div class="stack">${back}<section class="card"><h3>Beállítások</h3><p class="muted">A beállításokat csak az adminisztrátorok érik el. Ha adminisztrátor vagy, válts a saját nevedre (jobb felső sarok), és lépj be a jelszavaddal.</p></section></div>`;
   if(!isAdmin()) return header("Beállítások") + `<div class="stack">${back}<section class="card"><h3>Admin belépés</h3>
     ${m && m.admin ? (S.cfg.adminPin ? `<label class="field"><span>Admin PIN</span><input id="pinIn" type="password" inputmode="numeric" data-f="f.pinIn" value="${esc(S.f.pinIn||"")}"></label><button class="btn pri" data-act="pinUnlock">Belépés</button>` : `<div class="empty">Tamásnak előbb be kell állítania az admin PIN-t.</div>`)
     : `<p class="muted">A beállításokat csak a két adminisztrátor módosíthatja.</p>`}</section></div>`;
@@ -1148,7 +1204,7 @@ function settingsView(){
   <section class="card"><h3>Hűtők</h3><div class="list">${fr.map(f=>`<div class="li"><span class="grow"><b>${esc(f.name)}</b><br><span class="small muted">${f.min} – ${f.max} °C</span></span><button class="btn sm ghost" data-act="fridgeDel" data-id="${esc(f.id)}">Törlés</button></div>`).join("")||'<div class="empty">Még nincs hűtő.</div>'}</div>
   <div class="grid3"><label class="field"><span>Név</span><input id="frName" data-f="f.frName" value="${esc(S.f.frName||"")}"></label><label class="field"><span>Min °C</span><input id="frMin" type="number" step="1" data-f="f.frMin" value="${esc(S.f.frMin??"0")}"></label><label class="field"><span>Max °C</span><input id="frMax" type="number" step="1" data-f="f.frMax" value="${esc(S.f.frMax??"5")}"></label></div>
   <button class="btn" data-act="fridgeAdd">Hűtő hozzáadása</button></section>
-  ${isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
+  ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted"><b>Dolgozó:</b> napi munka, jelszó nélkül. <b>Adminisztrátor:</b> beállítások és kasszazárás, jelszóval. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat, jelszóval. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre koppintva lehet.</p></section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
    :`<button class="btn ghost" data-act="adminLogout">Kilépés az admin módból</button>`}
   <section class="card"><h3>Über brutális all-time rekord</h3>
     <p class="small muted">A legjobb napi forgalom valaha. Ha egy zárás túllépi, az app magától frissíti és gratulál.</p>
@@ -1164,6 +1220,7 @@ function settingsView(){
 /* ---------- actions ---------- */
 const cfgRef = "config/main";
 async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
+const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","goLeltar","cashPopClose","goShift","invClose"]);
 const A = {
   nav(d){ S.tab = d.tab; S.sub = null; S.personCal = null; window.scrollTo(0,0); render(); },
   goSub(d){ S.tab = "more"; S.sub = d.sub || null; if(d.sub==="cash") S.cashDraft=null; window.scrollTo(0,0); render(); if(d.sub==="msgs") markRead(); },
@@ -1177,8 +1234,22 @@ const A = {
   goLeltar(){ S.tab="stock"; S.invTab="leltar"; render(); },
   async fbLogin(){ const em = (S.f.lgEm ?? (window.FB_EMAIL||"")).trim(), pw = S.f.lgPw || ""; if(!em || !pw) return toast("Add meg az e-mailt és a jelszót.");
     S.loginErr = ""; try{ await firebase.auth().signInWithEmailAndPassword(em, pw); delete S.f.lgPw; }catch(e){ S.loginErr = /wrong-password|invalid-credential|user-not-found|invalid-login/.test(e.code||"") ? "Hibás e-mail vagy jelszó." : e.code==="auth/network-request-failed" ? "Nincs internetkapcsolat." : "Belépés nem sikerült ("+(e.code||e.message)+")."; render(); } },
-  pickMe(d){ S.me = d.id; ls.set("bufe.me", d.id); S.adminUnlocked = false; ls.del("bufe.admin"); render(); },
-  switchMe(){ S.me = ""; ls.del("bufe.me"); render(); },
+  pickMe(d){ const st = S.cfg.staff.find(x=>x.id===d.id);
+    if(BACKEND==="fb" && needsPin(st)){ S.pinFor = d.id; delete S.f.pinIn2; delete S.f.pinA; delete S.f.pinB; render(); setTimeout(()=>{ const el = $("#pinIn2") || $("#pinA"); el && el.focus(); }, 0); return; }
+    S.me = d.id; ls.set("bufe.me", d.id); S.adminUnlocked = false; ls.del("bufe.admin"); S.unlockedId = ""; ls.del("bufe.unlock"); render(); },
+  pinBack(){ S.pinFor = null; S.me = ""; ls.del("bufe.me"); render(); },
+  async pinEnter(){ const s = S.cfg.staff.find(x=>x.id===S.pinFor); if(!s) return; const h = await pinHash(s.id, S.f.pinIn2||"");
+    if(h !== s.pinHash) return toast("Hibás jelszó.");
+    S.me = s.id; ls.set("bufe.me", s.id); S.unlockedId = s.id; ls.set("bufe.unlock", s.id); S.pinFor = null; delete S.f.pinIn2; render(); },
+  async pinCreate(){ const s = S.cfg.staff.find(x=>x.id===S.pinFor); if(!s) return; const a = S.f.pinA||"", b = S.f.pinB||"";
+    if(a.length < 4) return toast("A jelszó legalább 4 karakter legyen."); if(a !== b) return toast("A két jelszó nem egyezik.");
+    const h = await pinHash(s.id, a); await saveCfg({staff: S.cfg.staff.map(x => x.id===s.id ? {...x, pinHash:h} : x)});
+    S.me = s.id; ls.set("bufe.me", s.id); S.unlockedId = s.id; ls.set("bufe.unlock", s.id); S.pinFor = null; delete S.f.pinA; delete S.f.pinB; render(); toast("Jelszó beállítva."); },
+  async staffRole(d, el){ const r = el.value, s = S.cfg.staff.find(x=>x.id===d.id); if(!s) return;
+    if(roleOf(s)==="owner" && r!=="owner" && S.cfg.staff.filter(x=>roleOf(x)==="owner").length<=1) { render(); return toast("Legalább egy Admin (főfiók) kell."); }
+    await saveCfg({staff: S.cfg.staff.map(x => x.id===d.id ? {...x, role:r, admin:(r==="admin"||r==="owner")} : x)}); toast(`${s.name}: ${roleName(r)}`); },
+  async staffPinReset(d){ const s = S.cfg.staff.find(x=>x.id===d.id); if(!s) return; await saveCfg({staff: S.cfg.staff.map(x => { if(x.id!==d.id) return x; const y = {...x}; delete y.pinHash; return y; })}); toast(`${s.name}: jelszó törölve, a következő belépéskor újat kell megadni.`); },
+  switchMe(){ S.me = ""; ls.del("bufe.me"); S.unlockedId = ""; ls.del("bufe.unlock"); S.pinFor = null; render(); },
   dismiss(d){ S.notices.splice(+d.i,1); render(); },
   sound(){ unlockSound(); beep(); render(); toast(S.soundOn?"Hang bekapcsolva":"A hang ezen az eszközön nem érhető el"); },
   async wake(){ try{ if(S.wake){ await S.wake.release(); S.wake=null; } else { S.wake = await navigator.wakeLock.request("screen"); S.wake.addEventListener("release", ()=>{ S.wake=null; render(); }); } }catch(e){ toast("A képernyő ébren tartása itt nem érhető el."); } render(); },
@@ -1306,28 +1377,19 @@ const A = {
     if(e.min!==undefined) patch.min = num(e.min); if(e.partial!==undefined) patch.partial=!!e.partial; if(e.wasteable!==undefined) patch.wasteable=!!e.wasteable; if(e.krem!==undefined) patch.krem=!!e.krem;
     if(!Object.keys(patch).length){ S.openItem = null; render(); return toast("Nincs változás."); } Object.assign(it, patch); delete S.f["e_"+d.id]; S.openItem = null; render(); await write("items/"+d.id, r=>r.update(patch)); toast("Mentve."); },
   async itemDel(d){ if(S.f.delConfirm!==d.id){ S.f.delConfirm=d.id; return render(); } S.f.delConfirm=null; S.items = S.items.filter(i=>i.id!==d.id); S.openItem=null; render(); await write("items/"+d.id, r=>r.delete()); toast("Törölve."); },
+  cashPop(d){ const c = S.cashDraft; S.cashPop = {k:d.k, val: (d.k==="close"||d.k==="card") ? String(c[d.k]??"") : "", note:""}; render(); setTimeout(()=>{ const el = $("#cpVal"); if(el){ el.focus(); el.select && el.select(); } }, 30); },
+  cashPopClose(){ S.cashPop = null; render(); },
+  async cashPopDel(d){ const p = S.cashPop; if(!p) return; const arr = p.k==="exp" ? S.cashDraft.exp : S.cashDraft.wd; arr.splice(+d.i, 1); render(); await saveCashDraft(); },
+  async cashPopOk(){ const p = S.cashPop, c = S.cashDraft; if(!p) return; const raw = String(p.val||"").replace(/\s/g,"");
+    if(p.k==="close" || p.k==="card"){ if(raw!=="" && !/^\d+$/.test(raw)) return toast("Csak számot írj be."); c[p.k] = raw; }
+    else { if(raw==="") { S.cashPop = null; return render(); } if(!/^\d+$/.test(raw)) return toast("Csak számot írj be.");
+      if(p.k==="exp") c.exp.push({name:(p.note||"").trim()||"Kiadás", amt:num(raw)}); else c.wd.push({note:(p.note||"").trim(), amt:num(raw), by:S.me}); }
+    S.cashPop = null; render(); await saveCashDraft(); },
   expAdd(){ S.cashDraft.exp.push({name:"",amt:""}); render(); },
   expDel(d){ S.cashDraft.exp.splice(+d.i,1); render(); },
   wdAdd(){ S.cashDraft.wd.push({note:"",amt:"",by:S.me}); render(); },
   wdDel(d){ S.cashDraft.wd.splice(+d.i,1); render(); },
-  async cashSave(){ const c = S.cashDraft;
-    if(c.close==="" || c.close==null) return toast("Add meg a záró egyenleget.");
-    const exp = c.exp.filter(e=> e.name.trim() || num(e.amt)); if(exp.some(e=>!e.name.trim())) return toast("Minden kiadásnál add meg a megnevezést.");
-    const wd = c.wd.filter(e=> num(e.amt)).map(e=>({note:(e.note||"").trim(), amt:num(e.amt), by:e.by||S.me}));
-    const doc = {date:S.cashDate, close:num(c.close), card:num(c.card), exp:exp.map(e=>({name:e.name.trim(), amt:num(e.amt)})), wd, ...by()};
-    const i = S.cash.findIndex(x=>x.date===S.cashDate); if(i>=0) S.cash[i]=doc; else S.cash.push(doc); render();
-    await write("cash/"+S.cashDate, r=>r.set(doc));
-    const tot = cashTotal(doc), base = (S.cfg.allTime && +S.cfg.allTime.amount) || 0;
-    if(tot != null && tot > base && !allCashTotals().some(x=> x.d!==doc.date && x.t >= tot)){
-      celebrate("all", tot);
-      await saveCfg({allTime:{amount:tot, date:doc.date, by:S.me, at:Date.now()}}).catch(()=>{});
-    } else {
-      const bs = cashBadges(doc.date), name = {year:"ÉVES TOP", quarter:"NEGYEDÉVES TOP", month:"HAVI TOP"};
-      const best = ["year","quarter","month"].find(k=>bs.includes(k));
-      const pd = parseYmd(doc.date), wsd = addDays(pd, -((pd.getDay()+6)%7)), fri = ymd(addDays(wsd,4)), wkDays = [...Array(7)].map((_,i)=>ymd(addDays(wsd,i)));
-      const wkBest = today() >= fri && tot != null && allCashTotals().filter(x=>wkDays.includes(x.d) && x.d!==doc.date).every(x=> x.t < tot);
-      if(best) celebrate(best, tot, doc.date); else if(wkBest) celebrate("week", tot, doc.date); else toast("Kasszazárás mentve.");
-    } },
+  async cashSave(){ return saveCashDraft(); },
   async tempSave(){ const fr = S.cfg.fridges||[], rec = S.temps.find(t=>t.date===S.tempDate), values = Object.assign({}, rec&&rec.values);
     fr.forEach(f=>{ const v = S.tempDraft[f.id]; if(v!==undefined && v!=="") values[f.id] = num(v); });
     if(!Object.keys(values).length) return toast("Írj be legalább egy hőfokot.");
@@ -1409,7 +1471,7 @@ document.addEventListener("click", e => {
   unlockSound();
   if(e.target.closest("select,input,textarea,label,.drag")) return;
   const el = e.target.closest("[data-act]"); if(!el) return;
-  const fn = A[el.dataset.act]; if(fn){ e.preventDefault(); Promise.resolve(fn(el.dataset, el)).catch(()=>{}); }
+  const fn = A[el.dataset.act]; if(fn){ e.preventDefault(); if(isReadonly() && !RO_OK.has(el.dataset.act)) return toast("Csak olvasási jogod van, itt nem módosíthatsz."); Promise.resolve(fn(el.dataset, el)).catch(()=>{}); }
 });
 async function onFz(el){
   const k = el.dataset.fz, delta = Math.round(num(el.value)); if(!delta) return;
@@ -1438,10 +1500,12 @@ async function onQty(el){
 }
 function onField(e){
   const el = e.target;
+  if(isReadonly() && el.dataset && (el.dataset.qty || el.dataset.waste || el.dataset.fz || el.dataset.invq || el.dataset.imp || el.dataset.role)){ if(e.type==="change"){ toast("Csak olvasási jogod van, itt nem módosíthatsz."); render(); } return; }
   if(el.dataset && el.dataset.qty){ if(e.type==="change") onQty(el).catch(()=>{}); return; }
   if(el.dataset && el.dataset.waste){ if(e.type==="change" && el.value!=="") A.wasteSave({id:el.dataset.waste, q:el.value}).catch(()=>{}); return; }
   if(el.dataset && el.dataset.imp){ if(e.type==="change" && el.files && el.files[0]) importData(el.files[0]).catch(err=>{ S.impMsg = "Hiba: " + (err.message||err); render(); }); return; }
   if(el.dataset && el.dataset.invq){ if(e.type==="change" && el.value!=="" && S.inv){ const it = S.items.find(x=>x.id===el.dataset.invq), q = num(el.value); S.inv.i++; S.inv.n++; render(); if(it){ countItem(it, q).catch(()=>{}); toast(`${it.name}: ${fmtQty(q,it)}`); } } return; }
+  if(el.dataset && el.dataset.role){ if(e.type==="change") A.staffRole({id:el.dataset.role}, el).catch(()=>{}); return; }
   if(el.dataset && el.dataset.fz){ if(e.type==="change") onFz(el).catch(()=>{}); return; }
   const f = el.dataset && el.dataset.f; if(!f) return;
   const v = el.type==="checkbox" ? el.checked : el.value;
@@ -1598,7 +1662,7 @@ document.addEventListener("pointerup", endDrag);
 document.addEventListener("pointercancel", endDrag);
 
 /* ---------- data wiring ---------- */
-let firstShift = true, WEB_BACK = false;
+let firstShift = true, WEB_BACK = false, ensuredOwner = false;
 function syncHistory(){ if(!WEB_BACK) return; try{ const away = !(S.tab === "home" && !S.sub); const st = history.state && history.state.bufe; if(away && st !== 2) history.pushState({bufe:2}, ""); }catch(e){} }
 /* Android back button: go to the home screen instead of leaving the app; on home, just minimise */
 function goHome(){ S.tab = "home"; S.sub = null; S.personCal = null; S.openItem = null; S.shiftForm = null; window.scrollTo(0,0); render(); }
@@ -1618,7 +1682,8 @@ function onBack(){
 })();
 function wire(){
   const err = () => {};
-  db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null}; } S.dbOk = true; render(); }, err);
+  db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null};
+    if(BACKEND==="fb" && !ensuredOwner && S.cfg.staff.length && !S.cfg.staff.some(x=>roleOf(x)==="owner")){ ensuredOwner = true; saveCfg({staff:[...S.cfg.staff, {id:"admin", name:"Admin", role:"owner", admin:true, active:true}]}).catch(()=>{}); } } S.dbOk = true; render(); }, err);
   db.collection("items").onSnapshot(q => { S.items = q.docs.map(x=>({id:x.id, ...x.data()})); render(); }, err);
   db.doc("freezer/main").onSnapshot(s => { S.freezer = s.exists ? {...s.data()} : {}; render(); }, err);
   db.collection("bakery").orderBy("date","desc").limit(70).onSnapshot(q => { S.bakery = q.docs.map(x=>x.data()); render(); }, err);
