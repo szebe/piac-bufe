@@ -338,7 +338,7 @@ const ENDS = ["11:00","11:30","12:00","12:30"];
 const S = {
   ready:false, dbOk:null, isOwner:false,
   cfg:{staff:[], fridges:[], openDays:[], closedDays:[], adminPin:""},
-  calMonth:null, bakeryOpen:false, bk:{}, bo:{}, bakeOrdOpen:false, close:null, sortMode: ls.get("bufe.sort") || "abc",
+  calMonth:null, bakeryOpen:false, bk:{}, bo:{}, bakeOrdOpen:false, close:null, sortMode: (m => m==="custom" ? "recent" : m)(ls.get("bufe.sort") || "abc"),
   items:[], moves:[], orders:[], shifts:{}, cash:[], temps:[], msgs:[], reqs:[], freezer:{}, bakery:[], wasteLog:[],
   me: ls.get("bufe.me") || "", adminUnlocked: ls.get("bufe.admin") === "1",
   tab: "home", sub: null, f:{}, weekOff:0, invTab:"stock", openItem:null, editItem:null,
@@ -828,25 +828,27 @@ function qtyOptions(it){
   return vals.map(v=>`<option value="${v}" ${v===cur?"selected":""}>${fmtN(v)} ${U(it)}</option>`).join("");
 }
 function lastChange(it){ let t = it.changedAt || 0; for(const m of S.moves){ if(m.itemId===it.id){ t = Math.max(t, m.at||0); break; } } return t || it.createdAt || 0; }
+function pinnedIds(){ return (S.cfg.pinned||[]).filter(id => S.items.some(i => i.id===id)).slice(0,3); }
 function sortedItems(){
   const abc = (a,b)=> a.name.localeCompare(b.name,"hu");
-  if(S.sortMode==="recent") return [...S.items].sort((a,b)=> (lastChange(b)-lastChange(a)) || abc(a,b));
-  if(S.sortMode==="custom"){ const ord = S.cfg.itemOrder||[]; const ix = id => { const i = ord.indexOf(id); return i<0 ? 1e9 : i; }; return [...S.items].sort((a,b)=> (ix(a.id)-ix(b.id)) || abc(a,b)); }
+  if(S.sortMode==="recent"){ const pin = pinnedIds(); const pi = id => { const i = pin.indexOf(id); return i<0 ? 99 : i; };
+    return [...S.items].sort((a,b)=> (pi(a.id)-pi(b.id)) || (lastChange(b)-lastChange(a)) || abc(a,b)); }
   return [...S.items].sort(abc);
 }
 function itemsView(){
   if(!S.items.length) return `<div class="card"><div class="empty">Még nincs alapanyag felvéve.${isAdmin()?" Lent hozzáadhatsz.":" Az admin tud alapanyagot felvenni."}</div></div>${isAdmin()?itemAdmin():""}`;
-  const items = sortedItems(), mode = S.sortMode, canDrag = mode==="custom";
-  return `<div class="seg sortseg" role="radiogroup" aria-label="Sorrend">${[["recent","Legutóbbi"],["abc","ABC"],["custom","Egyéni"]].map(([k,l])=>`<button class="${mode===k?"on":""}" data-act="sortMode" data-m="${k}" role="radio" aria-checked="${mode===k}">${l}</button>`).join("")}</div>
+  const items = sortedItems(), mode = S.sortMode, canDrag = false, pins = pinnedIds();
+  return `<div class="seg sortseg" role="radiogroup" aria-label="Sorrend">${[["recent","Legutóbbi"],["abc","ABC"]].map(([k,l])=>`<button class="${mode===k?"on":""}" data-act="sortMode" data-m="${k}" role="radio" aria-checked="${mode===k}">${l}</button>`).join("")}</div>
   ${canDrag?`<div class="small muted">Fogd meg a ⠿ jelet, és húzd a tételt a helyére.</div>`:""}
   <section class="card"><div class="list" id="itemList">${items.map(it=>{
     const low = it.min>0 && (it.stock||0) < it.min, open = S.openItem===it.id;
     return `<div class="item ${open?"open":""}" data-iid="${esc(it.id)}" ${open?"":`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="false"`}>
-      <div class="head" ${open?`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="true" style="cursor:pointer"`:""}>${canDrag && !open?`<span class="drag" aria-label="Áthelyezés" title="Húzd a helyére">⠿</span>`:""}<span class="grow"><b>${esc(it.name)}</b>${it.krem?' <span class="pill">krém</span>':""}${it.partial?' <span class="pill">vasárnapi</span>':""}<br><span class="small muted">${it.min?`minimum: ${fmtN(it.min)} ${U(it)}`:"nincs minimum"}</span></span>
+      <div class="head" ${open?`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="true" style="cursor:pointer"`:""}>${canDrag && !open?`<span class="drag" aria-label="Áthelyezés" title="Húzd a helyére">⠿</span>`:""}<span class="grow">${mode==="recent" && pins.includes(it.id)?'<span aria-label="Kitűzve" title="Kitűzve">📌 </span>':""}<b>${esc(it.name)}</b>${it.krem?' <span class="pill">krém</span>':""}${it.partial?' <span class="pill">vasárnapi</span>':""}<br><span class="small muted">${it.min?`minimum: ${fmtN(it.min)} ${U(it)}`:"nincs minimum"}</span></span>
       <span class="num" style="text-align:right"><b>${fmtN(it.stock||0)} ${U(it)}</b><br>${low?'<span class="pill w">rendelni kell</span>':""}</span><span class="chev" aria-hidden="true">›</span></div>
       ${open?`<label class="qsel"><span>Készleten: ${fmtN(it.stock||0)} ${U(it)}</span><span aria-hidden="true">▾</span><select id="qs_${esc(it.id)}" data-qty="${esc(it.id)}" aria-label="Készleten lévő darabszám módosítása">${qtyOptions(it)}</select></label>
         <label class="qsel wsel"><span>Selejt: válassz mennyiséget</span><span aria-hidden="true">▾</span><select id="ws_${esc(it.id)}" data-waste="${esc(it.id)}" aria-label="Selejtezett darabszám"><option value="" selected>–</option>${wasteOptions(it)}</select></label>
         <div class="small muted">A kiválasztott mennyiséget azonnal selejtként könyveli le, és ennyivel csökkenti a készletet. A Selejt fülön visszakövethető.</div>
+        <button class="btn ${pins.includes(it.id)?"":"ghost"}" style="width:100%" data-act="pinToggle" data-id="${esc(it.id)}">${pins.includes(it.id) ? "📌 Kitűzés levétele" : `📌 Kitűzés az első helyekre (${pins.length}/3)`}</button>
         ${isAdmin()?`<hr>${itemForm(it)}`:""}`:""}
     </div>`;}).join("")}</div></section>${isAdmin()?itemAdmin():""}`;
 }
@@ -1228,6 +1230,11 @@ const A = {
     const edits = [...((old&&old.edits)||[]), ...(Object.keys(before).length?[{by:S.me, at:Date.now(), before}]:[])].slice(-20);
     S.f.bkEdit=null; S.bk={}; await bakeMerge(d.date, {arrived, edits}); toast("Mentve."); },
   wasteStep(d){ const now = new Date(), c = S.wasteMonth || {y:now.getFullYear(), m:now.getMonth()}; const x = new Date(c.y, c.m + (+d.d), 1); S.wasteMonth = {y:x.getFullYear(), m:x.getMonth()}; subWaste(); render(); },
+  async pinToggle(d){ let pins = pinnedIds(); const it = S.items.find(i=>i.id===d.id); if(!it) return;
+    if(pins.includes(d.id)) pins = pins.filter(x=>x!==d.id);
+    else { if(pins.length >= 3) return toast("Már 3 tétel ki van tűzve. Előbb vegyél le egyet."); pins = [...pins, d.id]; }
+    const added = pins.includes(d.id); S.cfg.pinned = pins; S.openItem = null; render();
+    await saveCfg({pinned: pins}).catch(()=>{}); toast(added ? `${it.name} kitűzve. A Legutóbbi nézetben elöl jelenik meg.` : `${it.name}: kitűzés levéve.`); },
   sortMode(d){ S.sortMode = d.m; ls.set("bufe.sort", d.m); S.openItem = null; render(); },
   celebDemo(d){ celebrate(d.l, d.l==="all" ? 251000 : 185000, today(), true); },
   async atSave(){ const v = Math.round(num(S.f.atAmt)); if(!(v>0)) return toast("Adj meg egy összeget forintban."); delete S.f.atAmt; await saveCfg({allTime:{amount:v, date:null, by:S.me, at:Date.now()}}); toast(`All-time rekord beállítva: ${ft(v)}`); },
@@ -1553,7 +1560,7 @@ document.addEventListener("pointercancel", endDrag);
 let firstShift = true;
 function wire(){
   const err = () => {};
-  db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], allTime:d.allTime||null}; } S.dbOk = true; render(); }, err);
+  db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null}; } S.dbOk = true; render(); }, err);
   db.collection("items").onSnapshot(q => { S.items = q.docs.map(x=>({id:x.id, ...x.data()})); render(); }, err);
   db.doc("freezer/main").onSnapshot(s => { S.freezer = s.exists ? {...s.data()} : {}; render(); }, err);
   db.collection("bakery").orderBy("date","desc").limit(70).onSnapshot(q => { S.bakery = q.docs.map(x=>x.data()); render(); }, err);
