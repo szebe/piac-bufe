@@ -1023,11 +1023,12 @@ function allCashTotals(){ return S.cash.map(c=>({d:c.date, t:cashTotal(c)})).fil
 function periodBest(filterFn){ const xs = allCashTotals().filter(x=>filterFn(x.d)).sort((a,b)=> b.t-a.t); return xs[0] || null; }
 function qOf(d){ return Math.floor((+d.slice(5,7)-1)/3); }
 function allTimeInfo(){ const base = (S.cfg.allTime && +S.cfg.allTime.amount) || 0; const best = periodBest(()=>true); return { base, best: best && best.t > base ? best : null, amount: Math.max(base, best?best.t:0) }; }
+function yearBase(y){ const yt = S.cfg.yearTop; if(yt && yt.year === y) return +yt.amount || 0; if(y === "2026") return (S.cfg.allTime && +S.cfg.allTime.amount) || 0; return 0; }
 function cashBadges(date){
   const t = today(), out = [];
   const at = allTimeInfo(); if((at.best && at.best.d === date) || (!at.best && S.cfg.allTime && S.cfg.allTime.date === date)) out.push("all");
   const y = date.slice(0,4), curY = t.slice(0,4) === y;
-  if(!curY || +t.slice(5,7) >= 2){ const b = periodBest(d=>d.slice(0,4)===y); if(b && b.d===date) out.push("year"); }
+  if(!curY || +t.slice(5,7) >= 2){ const b = periodBest(d=>d.slice(0,4)===y), yt = S.cfg.yearTop; if(b && b.d===date && (b.t > yearBase(y) || (yt && yt.year===y && yt.date===date))) out.push("year"); }
   const q = qOf(date), curQ = curY && qOf(t)===q;
   if(!curQ || (+t.slice(5,7)-1)%3 >= 1){ const b = periodBest(d=>d.slice(0,4)===y && qOf(d)===q); if(b && b.d===date) out.push("quarter"); }
   const mk = date.slice(0,7), curM = t.slice(0,7)===mk;
@@ -1077,11 +1078,14 @@ async function saveCashDraft(){
   await write("cash/"+S.cashDate, r=>r.set(doc));
   const tot = cashTotal(doc), base = (S.cfg.allTime && +S.cfg.allTime.amount) || 0;
   if(tot == null || tot === oldTot){ toast("Mentve."); return; }
+  const yy = doc.date.slice(0,4), yNew = tot > yearBase(yy) && !allCashTotals().some(x => x.d!==doc.date && x.d.slice(0,4)===yy && x.t >= tot);
+  const bsBefore = cashBadges(doc.date);   // badges computed against the previous yearly record
+  if(yNew) await saveCfg({yearTop:{year:yy, amount:tot, date:doc.date, by:S.me, at:Date.now()}}).catch(()=>{});
   if(tot > base && !allCashTotals().some(x=> x.d!==doc.date && x.t >= tot)){
     celebrate("all", tot);
     await saveCfg({allTime:{amount:tot, date:doc.date, by:S.me, at:Date.now()}}).catch(()=>{});
   } else {
-    const bs = cashBadges(doc.date);
+    const bs = bsBefore;
     const best = ["year","quarter","month"].find(k=>bs.includes(k));
     const pd = parseYmd(doc.date), wsd = addDays(pd, -((pd.getDay()+6)%7)), fri = ymd(addDays(wsd,4)), wkDays = [...Array(7)].map((_,i)=>ymd(addDays(wsd,i)));
     const wkBest = today() >= fri && allCashTotals().filter(x=>wkDays.includes(x.d) && x.d!==doc.date).every(x=> x.t < tot);
@@ -1237,6 +1241,10 @@ function settingsView(){
   <button class="btn" data-act="fridgeAdd">Hűtő hozzáadása</button></section>
   ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted"><b>Dolgozó:</b> napi munka, jelszó nélkül. <b>Adminisztrátor:</b> beállítások és kasszazárás, jelszóval. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat, jelszóval. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre koppintva lehet.</p>${Object.keys(trustMap()).length?`<button class="btn ghost" style="width:100%" data-act="forgetLogins">Megjegyzett belépések törlése ezen a telefonon</button>`:""}</section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
    :`<button class="btn ghost" data-act="adminLogout">Kilépés az admin módból</button>`}
+  <section class="card"><h3>Éves rekord (${today().slice(0,4)})</h3>
+    <p class="small muted">Az idei legjobb napi forgalom. Január 1-jén nulláról indul, januárban csak gyűjt, február 1-től ünnepel, ha valamelyik nap megdönti.</p>
+    <div class="small">Jelenleg: <b>${ft(yearBase(today().slice(0,4)))}</b>${S.cfg.yearTop && S.cfg.yearTop.year===today().slice(0,4) && S.cfg.yearTop.date ? ` (${fmtDay(S.cfg.yearTop.date)})` : " (kézzel beállítva)"}</div>
+    <div class="row"><input id="ytAmt" class="grow" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Új összeg, Ft" data-f="f.ytAmt" value="${esc(S.f.ytAmt||"")}"><button class="btn" data-act="ytSave">Mentés</button></div></section>
   <section class="card"><h3>Über brutális all-time rekord</h3>
     <p class="small muted">A legjobb napi forgalom valaha. Ha egy zárás túllépi, az app magától frissíti és gratulál.</p>
     <div class="small">Jelenleg: <b>${ft(allTimeInfo().amount)}</b>${S.cfg.allTime && S.cfg.allTime.date ? ` (${fmtDay(S.cfg.allTime.date)})` : S.cfg.allTime ? " (kézzel beállítva)" : ""}</div>
@@ -1379,6 +1387,7 @@ const A = {
   movesFilter(d){ S.movesFilter = d.v || ""; render(); },
   sortMode(d){ S.sortMode = d.m; ls.set("bufe.sort", d.m); S.openItem = null; render(); },
   celebDemo(d){ celebrate(d.l, d.l==="all" ? 251000 : 185000, today(), true); },
+  async ytSave(){ const v = Math.round(num(S.f.ytAmt)); if(!(v>0)) return toast("Adj meg egy összeget forintban."); delete S.f.ytAmt; await saveCfg({yearTop:{year:today().slice(0,4), amount:v, date:null, by:S.me, at:Date.now()}}); toast(`Éves rekord beállítva: ${ft(v)}`); },
   async atSave(){ const v = Math.round(num(S.f.atAmt)); if(!(v>0)) return toast("Adj meg egy összeget forintban."); delete S.f.atAmt; await saveCfg({allTime:{amount:v, date:null, by:S.me, at:Date.now()}}); toast(`All-time rekord beállítva: ${ft(v)}`); },
   cashWeek(d){ S.cashWeek = Math.min(0, (S.cashWeek||0) + (+d.d)); render(); },
   async stockStep(d){ const it = S.items.find(i=>i.id===d.id); if(!it) return; const old = it.stock||0, q = Math.round((old + (+d.d))*100)/100;
@@ -1716,7 +1725,7 @@ function onBack(){
 })();
 function wire(){
   const err = () => {};
-  db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null};
+  db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null, yearTop:d.yearTop||null};
     if(BACKEND==="fb" && !ensuredOwner && S.cfg.staff.length && !S.cfg.staff.some(x=>roleOf(x)==="owner")){ ensuredOwner = true; saveCfg({staff:[...S.cfg.staff, {id:"admin", name:"Admin", role:"owner", admin:true, active:true}]}).catch(()=>{}); } } S.dbOk = true; render(); }, err);
   db.collection("items").onSnapshot(q => { S.items = q.docs.map(x=>({id:x.id, ...x.data()})); render(); }, err);
   db.doc("freezer/main").onSnapshot(s => { S.freezer = s.exists ? {...s.data()} : {}; render(); }, err);
