@@ -1,0 +1,23 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:1000}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=tamas]'); await p.waitForTimeout(300);
+await p.click('[data-act=nav][data-tab=stock]'); await p.waitForTimeout(300);
+console.log('row text:', await p.evaluate(()=>document.querySelector('.item[data-iid=i1]').innerText.replace(/\s+/g,' ')));
+await p.click('.item[data-iid=i1]'); await p.waitForTimeout(200);
+await p.selectOption('#qs_i1','7'); await p.waitForTimeout(600);
+console.log('toast:', await p.evaluate(()=>document.querySelector('.toast')?.innerText));
+const mv = await p.evaluate(()=>[...__store.entries()].filter(([k])=>k.startsWith('moves/')).map(x=>x[1]));
+console.log('moves:', JSON.stringify(mv));
+await p.click('.item[data-iid=i1]'); await p.waitForTimeout(200);
+console.log('panel:', await p.evaluate(()=>document.querySelector('.item[data-iid=i1]').innerText.replace(/\s+/g,' ').slice(-200)));
+// back: browser back should go home
+await p.goBack(); await p.waitForTimeout(300);
+console.log('after back tab:', await p.evaluate(()=>S.tab), 'url still:', p.url().endsWith('mock.html'));
+await p.click('[data-act=nav][data-tab=stock]'); await p.waitForTimeout(200);
+await p.evaluate(()=>{ S.sub=null; render(); });
+await p.evaluate(()=>{ S.tab='stock'; S.sub=null; render(); });
+console.log('moves view:', await p.evaluate(()=>{ S.stockTab='moves'; return 1; }));
+await b.close(); })();

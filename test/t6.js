@@ -1,0 +1,15 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:1000}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=tamas]'); await p.waitForTimeout(300);
+await p.click('[data-act=nav][data-tab=stock]'); await p.waitForTimeout(300);
+await p.click('.item[data-iid=i1]'); await p.waitForTimeout(200); await p.selectOption('#qs_i1','7'); await p.waitForTimeout(500);
+await p.click('.item[data-iid=i1]'); await p.waitForTimeout(200);
+const t = await p.evaluate(()=>document.querySelector('.item[data-iid=i1]').innerText);
+console.log(t.split('\n').filter(l=>/Minimum|Beérkez|\+3/.test(l)).join(' / '));
+await p.evaluate(()=>{ const btn=[...document.querySelectorAll('button')].find(b=>/Mozgások/.test(b.innerText)); btn&&btn.click(); }); await p.waitForTimeout(300);
+await p.click('[data-act=movesFilter][data-v=be]'); await p.waitForTimeout(300);
+console.log('moves:', await p.evaluate(()=>document.querySelector('.list')?.innerText.replace(/\s+/g,' ')));
+await p.screenshot({path:'moves.png'}); await b.close(); })();

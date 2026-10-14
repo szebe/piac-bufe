@@ -562,6 +562,7 @@ const IC = {
 /* ---------- render ---------- */
 function render(){
   if(dragState){ pendingRender = true; return; }
+  try{ syncHistory(); }catch(e){}
   const ae = document.activeElement, aid = ae && ae.id, sel = ae && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null;
   const sy = window.scrollY;
   $("#app").innerHTML = view();
@@ -843,11 +844,13 @@ function itemsView(){
   <section class="card"><div class="list" id="itemList">${items.map(it=>{
     const low = it.min>0 && (it.stock||0) < it.min, open = S.openItem===it.id;
     return `<div class="item ${open?"open":""}" data-iid="${esc(it.id)}" ${open?"":`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="false"`}>
-      <div class="head" ${open?`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="true" style="cursor:pointer"`:""}>${canDrag && !open?`<span class="drag" aria-label="Áthelyezés" title="Húzd a helyére">⠿</span>`:""}<span class="grow">${mode==="recent" && pins.includes(it.id)?'<span aria-label="Kitűzve" title="Kitűzve">📌 </span>':""}<b>${esc(it.name)}</b>${it.krem?' <span class="pill">krém</span>':""}${it.partial?' <span class="pill">vasárnapi</span>':""}<br><span class="small muted">${it.min?`minimum: ${fmtN(it.min)} ${U(it)}`:"nincs minimum"}</span></span>
+      <div class="head" ${open?`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="true" style="cursor:pointer"`:""}>${canDrag && !open?`<span class="drag" aria-label="Áthelyezés" title="Húzd a helyére">⠿</span>`:""}<span class="grow">${mode==="recent" && pins.includes(it.id)?'<span aria-label="Kitűzve" title="Kitűzve">📌 </span>':""}<b>${esc(it.name)}</b>${it.krem?' <span class="pill">krém</span>':""}${it.partial?' <span class="pill">vasárnapi</span>':""}</span>
       <span class="num" style="text-align:right"><b>${fmtN(it.stock||0)} ${U(it)}</b><br>${low?'<span class="pill w">rendelni kell</span>':""}</span><span class="chev" aria-hidden="true">›</span></div>
       ${open?`<label class="qsel"><span>Készleten: ${fmtN(it.stock||0)} ${U(it)}</span><span aria-hidden="true">▾</span><select id="qs_${esc(it.id)}" data-qty="${esc(it.id)}" aria-label="Készleten lévő darabszám módosítása">${qtyOptions(it)}</select></label>
         <label class="qsel wsel"><span>Selejt: válassz mennyiséget</span><span aria-hidden="true">▾</span><select id="ws_${esc(it.id)}" data-waste="${esc(it.id)}" aria-label="Selejtezett darabszám"><option value="" selected>–</option>${wasteOptions(it)}</select></label>
         <div class="small muted">A kiválasztott mennyiséget azonnal selejtként könyveli le, és ennyivel csökkenti a készletet. A Selejt fülön visszakövethető.</div>
+        <div class="small">${it.min?`Minimum: <b>${fmtN(it.min)} ${U(it)}</b>`:"Nincs minimum beállítva."}</div>
+        <div class="small"><b>Beérkezések:</b> ${(it.inLog||[]).length ? (it.inLog||[]).map(e=>`<br>${tsLabel(e.at)} · <b>+${fmtN(e.qty)} ${U(it)}</b> · ${esc(staffName(e.by))}`).join("") : "még nincs rögzítve (ha a Készleten értéket növeled, beérkezésként kerül ide)."}</div>
         <button class="btn ${pins.includes(it.id)?"":"ghost"}" style="width:100%" data-act="pinToggle" data-id="${esc(it.id)}">${pins.includes(it.id) ? "📌 Kitűzés levétele" : `📌 Kitűzés az első helyekre (${pins.length}/3)`}</button>
         ${isAdmin()?`<hr>${itemForm(it)}`:""}`:""}
     </div>`;}).join("")}</div></section>${isAdmin()?itemAdmin():""}`;
@@ -896,10 +899,11 @@ function wasteLogView(){
     ${rows.map(x=>`<tr><td>${tsLabel(x.at)}</td><td>${esc(staffName(x.by))}</td><td>${esc(nm(x))}</td><td class="r"><b>${fmtN(x.qty)}</b></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">Ebben a hónapban nem volt selejt.</div>`}</section>`;
 }
 function movesView(){
-  const m = S.moves.slice(0,60);
+  const m = S.moves.filter(x => S.movesFilter!=="be" || x.type==="be").slice(0,60);
   const nm = id => (S.items.find(i=>i.id===id)||{}).name || "törölt tétel";
   const it = id => S.items.find(i=>i.id===id) || {};
-  return `<section class="card">${m.length?`<div class="list">${m.map(x=>`<div class="li"><span class="grow"><b>${esc(nm(x.itemId))}</b> <span class="pill ${x.type==="be"?"ok":x.type==="selejt"?"d":""}">${x.type==="be"?"beérkezés":x.type==="selejt"?"selejt":x.type==="modositas"?"módosítás":"leltár"}</span><br><span class="small muted">${esc(staffName(x.by))}, ${tsLabel(x.at)}${x.reason?` · ${esc(x.reason)}`:""}${x.type==="leltar"&&x.usage!=null?` · felhasználás: ${fmtQty(x.usage,it(x.itemId))}`:""}</span></span><b class="num">${x.type==="be"?"+":x.type==="selejt"?"−":"="}${fmtN(x.qty)} ${U(S.items.find(i=>i.id===x.itemId))}${x.type==="modositas"?` <span class="small muted">(${x.delta>0?"+":""}${fmtN(x.delta)})</span>`:""}</b></div>`).join("")}</div>`:`<div class="empty">Még nincs rögzített mozgás.</div>`}</section>`;
+  return `<div class="seg" role="radiogroup" aria-label="Szűrés">${[["","Minden mozgás"],["be","Csak beérkezés"]].map(([k,l])=>`<button class="${(S.movesFilter||"")===k?"on":""}" data-act="movesFilter" data-v="${k}" role="radio" aria-checked="${(S.movesFilter||"")===k}">${l}</button>`).join("")}</div>
+  <section class="card">${m.length?`<div class="list">${m.map(x=>`<div class="li"><span class="grow"><b>${esc(nm(x.itemId))}</b> <span class="pill ${x.type==="be"?"ok":x.type==="selejt"?"d":""}">${x.type==="be"?"beérkezés":x.type==="selejt"?"selejt":x.type==="modositas"?"módosítás":"leltár"}</span><br><span class="small muted">${esc(staffName(x.by))}, ${tsLabel(x.at)}${x.reason?` · ${esc(x.reason)}`:""}${x.type==="leltar"&&x.usage!=null?` · felhasználás: ${fmtQty(x.usage,it(x.itemId))}`:""}</span></span><b class="num">${x.type==="be"?"+":x.type==="selejt"?"−":"="}${fmtN(x.qty)} ${U(S.items.find(i=>i.id===x.itemId))}${x.type==="modositas"?` <span class="small muted">(${x.delta>0?"+":""}${fmtN(x.delta)})</span>`:""}${x.type==="be"&&x.after!=null?`<br><span class="small muted">utána ${fmtN(x.after)}</span>`:""}</b></div>`).join("")}</div>`:`<div class="empty">${S.movesFilter==="be"?"Még nincs rögzített beérkezés.":"Még nincs rögzített mozgás."}</div>`}</section>`;
 }
 
 /* ----- more ----- */
@@ -1235,6 +1239,7 @@ const A = {
     else { if(pins.length >= 3) return toast("Már 3 tétel ki van tűzve. Előbb vegyél le egyet."); pins = [...pins, d.id]; }
     const added = pins.includes(d.id); S.cfg.pinned = pins; S.openItem = null; render();
     await saveCfg({pinned: pins}).catch(()=>{}); toast(added ? `${it.name} kitűzve. A Legutóbbi nézetben elöl jelenik meg.` : `${it.name}: kitűzés levéve.`); },
+  movesFilter(d){ S.movesFilter = d.v || ""; render(); },
   sortMode(d){ S.sortMode = d.m; ls.set("bufe.sort", d.m); S.openItem = null; render(); },
   celebDemo(d){ celebrate(d.l, d.l==="all" ? 251000 : 185000, today(), true); },
   async atSave(){ const v = Math.round(num(S.f.atAmt)); if(!(v>0)) return toast("Adj meg egy összeget forintban."); delete S.f.atAmt; await saveCfg({allTime:{amount:v, date:null, by:S.me, at:Date.now()}}); toast(`All-time rekord beállítva: ${ft(v)}`); },
@@ -1392,9 +1397,12 @@ async function onFz(el){
 async function onQty(el){
   const it = S.items.find(i=>i.id===el.dataset.qty); if(!it) return;
   const q = num(el.value), old = it.stock||0, delta = Math.round((q-old)*100)/100; if(!delta) return;
-  const patch = {stock:q}; if(delta>0) patch.inSince = (it.inSince||0) + delta;
+  const now = Date.now(), patch = {stock:q};
+  if(delta>0){ patch.inSince = (it.inSince||0) + delta; const e = {at:now, qty:delta, by:S.me}; patch.lastIn = e; patch.inLog = [e, ...(it.inLog||[])].slice(0,5); }
   Object.assign(it, patch); S.openItem = null; render();
-  await write("items/"+it.id, r => r.update({...patch, changedAt:Date.now()})); await addMove({itemId:it.id, type:"modositas", qty:q, delta}); toast(`${it.name}: ${fmtN(q)} ${U(it)}`);
+  await write("items/"+it.id, r => r.update({...patch, changedAt:now}));
+  if(delta>0){ await addMove({itemId:it.id, type:"be", qty:delta, after:q, name:it.name}); toast(`Beérkezés rögzítve: ${it.name} +${fmtN(delta)} ${U(it)} (most ${fmtN(q)})`); }
+  else { await addMove({itemId:it.id, type:"modositas", qty:q, delta}); toast(`${it.name}: ${fmtN(q)} ${U(it)}`); }
 }
 function onField(e){
   const el = e.target;
@@ -1557,7 +1565,23 @@ document.addEventListener("pointerup", endDrag);
 document.addEventListener("pointercancel", endDrag);
 
 /* ---------- data wiring ---------- */
-let firstShift = true;
+let firstShift = true, WEB_BACK = false;
+function syncHistory(){ if(!WEB_BACK) return; try{ const away = !(S.tab === "home" && !S.sub); const st = history.state && history.state.bufe; if(away && st !== 2) history.pushState({bufe:2}, ""); }catch(e){} }
+/* Android back button: go to the home screen instead of leaving the app; on home, just minimise */
+function goHome(){ S.tab = "home"; S.sub = null; S.personCal = null; S.openItem = null; S.shiftForm = null; window.scrollTo(0,0); render(); }
+function onBack(){
+  if(S.close || S.alarmFor) return;                 // alarm / closing wizard stay until handled
+  const atHome = S.tab === "home" && !S.sub;
+  if(!atHome){ goHome(); return; }
+  try{ window.Capacitor.Plugins.App.minimizeApp(); }catch(e){}
+}
+(function setupBack(){
+  const C = window.Capacitor;
+  if(C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.App){ try{ C.Plugins.App.addListener("backButton", onBack); }catch(e){} return; }
+  // web / installed web app: browser back also returns to home
+  WEB_BACK = true;
+  try{ history.replaceState({bufe:1}, ""); window.addEventListener("popstate", () => { if(!(S.tab === "home" && !S.sub)) goHome(); }); }catch(e){}
+})();
 function wire(){
   const err = () => {};
   db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null}; } S.dbOk = true; render(); }, err);
