@@ -280,6 +280,19 @@ textarea{min-height:70px;resize:vertical}
 body.ro [data-act=homeExp],body.ro [data-act=msgNew],body.ro [data-act=newOrder],body.ro [data-act=invStart],body.ro [data-act=shiftAdd],body.ro [data-act=pinToggle],body.ro .msgok,body.ro .msgnew,body.ro .newitem,body.ro .wsel{display:none!important}
 body.ro select[data-qty],body.ro select[data-fz],body.ro select[data-invq]{pointer-events:none}
 body.ro .qsel span[aria-hidden]{visibility:hidden}
+.ucal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px}
+.uh{text-align:center;font-size:.75rem;font-weight:700;color:var(--muted)}
+.uc{min-height:70px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:3px 2px;display:flex;flex-direction:column;align-items:stretch;gap:2px;font:inherit;color:var(--fg);text-align:center;cursor:pointer;min-width:0}
+.uc.blank{border:none;background:none;cursor:default}
+.uc .dn{font-weight:700;font-size:.85rem}
+.uc.me{background:var(--danger-soft);border:2px solid var(--danger)}
+.uc.td{outline:3px solid var(--accent);outline-offset:-3px}
+.uc.x{background:var(--surface2);color:var(--muted)}
+.uc.past{opacity:.45;cursor:default}
+.uz{font-size:.6rem}
+.unm{display:block;background:var(--danger);color:#fff;border-radius:6px;font-size:.62rem;font-weight:700;padding:1px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.unm.my{background:#7e1712}
+.unwarn{color:var(--danger);font-weight:700}
 .wsel{border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
 .waste{display:grid;grid-template-columns:56px 1fr 56px;gap:8px}
 .waste .st{min-height:52px;font-size:1.5rem;font-weight:800;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--fg)}
@@ -377,6 +390,8 @@ const isReadonly = () => BACKEND==="fb" && roleOf(meStaff())==="readonly";
 const canCash = () => S.isOwner || BACKEND!=="fb" || (["owner","admin","readonly"].includes(roleOf(meStaff())) && unlocked());
 const isOwnerish = () => S.isOwner || (BACKEND==="fb" && roleOf(meStaff())==="owner" && unlocked());
 const activeStaff = () => S.cfg.staff.filter(s => s.active !== false);
+const unavailOn = (id, d) => ((S.unavail||{})[id]||[]).includes(d);
+const shiftStaffOn = d => shiftStaff().filter(s => !unavailOn(s.id, d));
 const shiftStaff = () => activeStaff().filter(s => !["owner","readonly"].includes(roleOf(s))).sort((a,b) => (a.id==="tamas") - (b.id==="tamas"));
 
 let db = null, BACKEND = "";
@@ -841,6 +856,8 @@ function dayCard(d){
   const hist = S.shiftHist && S.shiftHist.date === d ? S.shiftHist : null;
   const dd = parseYmd(d);
   const meta = [];
+  const clash = es.filter(e => unavailOn(e.staffId, d)).map(e => staffName(e.staffId));
+  if(clash.length && !closed) meta.push(`<span class="unwarn">⚠ ${esc(clash.join(", "))} jelezte, hogy nem ér rá – cseréld!</span>`);
   if(closed) meta.push(`<span>${esc(closedLabel(d))}</span>`);
   else if(hol) meta.push(`<span>${esc(hol)} · nyitva</span>`);
   if(doc && doc.at) meta.push(`<span>Mód.: ${esc(staffName(doc.by))}, ${tsLabel(doc.at)}</span>`);
@@ -850,7 +867,7 @@ function dayCard(d){
     <div class="daydate ${closed?"cl":""}"><span class="dnum">${MONTHS[dd.getMonth()].slice(0,3)}. ${dd.getDate()}.</span><span class="dname">${DAYS[dd.getDay()]}</span>${d===today()?'<span class="today">ma</span>':""}${closed?'<span class="zar">Zárva</span>':(!form?`<button class="dadd" data-act="shiftAdd" data-date="${d}" aria-label="Beosztás hozzáadása ${fmtDay(d)}">+</button>`:"")}</div>
     ${!closed ? `<div class="dbody">${es.length ? es.map((e,i)=>`<button class="schip sbtn" data-act="shiftEdit" data-date="${d}" data-i="${i}"><b>${esc(staffName(e.staffId))}</b> <span class="num">${e.start}–${e.end}</span></button>`).join("") : `<span class="nobody">nincs beosztva</span>`}</div>` : ""}
     ${meta.length?`<div class="dmeta">${meta.join("")}</div>`:""}
-    ${form ? `<div class="dform"><div class="sfgrid"><label class="field"><span>Kolléga</span><select id="sfStaff" data-f="shiftForm.staffId">${shiftStaff().map(s=>`<option value="${esc(s.id)}" ${s.id===form.staffId?"selected":""}>${esc(s.name)}</option>`).join("")}</select></label>
+    ${form ? `<div class="dform"><div class="sfgrid"><label class="field"><span>Kolléga</span><select id="sfStaff" data-f="shiftForm.staffId">${[...shiftStaffOn(form.date), ...shiftStaff().filter(s=>s.id===form.staffId && unavailOn(s.id, form.date))].map(s=>`<option value="${esc(s.id)}" ${s.id===form.staffId?"selected":""}>${esc(s.name)}</option>`).join("")}</select></label>
       <label class="field"><span>Kezdés</span><select id="sfStart" data-f="shiftForm.start">${STARTS.map(t=>`<option ${t===form.start?"selected":""}>${t}</option>`).join("")}</select></label>
       <label class="field"><span>Vége</span><select id="sfEnd" data-f="shiftForm.end">${ENDS.map(t=>`<option ${t===form.end?"selected":""}>${t}</option>`).join("")}</select></label>
       <button class="sfplus" data-act="shiftSaveAdd" aria-label="Mentés és újabb kolléga felvétele erre a napra" title="Mentés és újabb kolléga">+</button></div>
@@ -1032,7 +1049,7 @@ function moreView(){
     <button data-act="goSub" data-sub="bakery"><span class="grow">Pékáru érkezés<small>Naponta beérkezett kifli, zsemle, kenyér</small></span>›</button>
     <button data-act="goSub" data-sub="temp"><span class="grow">Hőmérsékletnapló<small>Hűtők hőfoka nyitáskor</small></span>›</button>
     <button data-act="goSub" data-sub="msgs"><span class="grow">Üzenőfal<small>${um?`${um} olvasatlan`:"Közlemények"}</small></span>${um?`<span class="pill d">${um}</span>`:""}›</button>
-    <button data-act="goSub" data-sub="reqs"><span class="grow">Szabadság és csere<small>${rq?`${rq} nyitott kérés`:"Ha egy napra nem érsz rá"}</small></span>${rq?`<span class="pill w">${rq}</span>`:""}›</button>
+    <button data-act="goSub" data-sub="reqs"><span class="grow">Nem érek rá<small>${rq?`${rq} átvehető műszak`:"Naptár: mely napokon nem tudsz dolgozni"}</small></span>${rq?`<span class="pill w">${rq}</span>`:""}›</button>
     <button data-act="goSub" data-sub="settings"><span class="grow">Beállítások<small>${isAdmin()?"Kollégák, hűtők, zárva tartás":"Admin belépés"}</small></span>›</button>
   </div>`;
 }
@@ -1219,16 +1236,36 @@ function msgsView(){
   ${log.length?`<section class="card"><h3>Napló</h3><div class="list">${log.slice(0,40).map(l=>`<div class="li"><span class="grow small">${esc(l.txt)}</span><span class="small muted">${tsLabel(l.at)}</span></div>`).join("")}</div></section>`:""}
   </div>`;
 }
+function unavailCal(){
+  const now = new Date(), c = S.unMonth || {y:now.getFullYear(), m:now.getMonth()};
+  const first = new Date(c.y, c.m, 1), lead = (first.getDay()+6)%7, n = new Date(c.y, c.m+1, 0).getDate(), td = today();
+  const others = shiftStaff().filter(s => s.id !== S.me);
+  let cells = ""; for(let i=0;i<lead;i++) cells += `<div class="uc blank"></div>`;
+  for(let dn=1; dn<=n; dn++){
+    const ds = `${c.y}-${pad(c.m+1)}-${pad(dn)}`, mine = unavailOn(S.me, ds), cl = isClosed(ds), past = ds < td;
+    const names = others.filter(s => unavailOn(s.id, ds)).map(s => `<span class="unm">${esc(s.name)}</span>`).join("");
+    cells += `<button class="uc ${mine?"me":""} ${cl?"x":""} ${ds===td?"td":""} ${past?"past":""}" ${past?"disabled":`data-act="unToggle" data-date="${ds}"`} aria-pressed="${mine}" aria-label="${fmtDay(ds)}${mine?", nem érek rá":""}"><span class="dn">${dn}</span>${cl?'<span class="uz">zárva</span>':""}${mine?'<span class="unm my">Én</span>':""}${names}</button>`;
+  }
+  const mk = `${c.y}-${pad(c.m+1)}`;
+  const rows = [...others, ...(meStaff()?[meStaff()]:[])].map(s => ({s, days:((S.unavail||{})[s.id]||[]).filter(d=>d.startsWith(mk)).sort()})).filter(x=>x.days.length);
+  return `<section class="card"><h3>Ezeken a napokon nem érek rá</h3>
+  <p class="small muted">Koppints azokra a napokra, amikor nem tudsz műszakot vállalni. Újra koppintva visszavonod. A pirosak mindenkinek látszanak a nevekkel, és ezeken a napokon a Műszak beosztásnál nem választható az illető.</p>
+  <div class="row"><button class="btn sm" data-act="unStep" data-d="-1" aria-label="Előző hónap">‹</button><b class="grow" style="text-align:center">${c.y}. ${MONTHS[c.m]}</b><button class="btn sm" data-act="unStep" data-d="1" aria-label="Következő hónap">›</button></div>
+  <div class="ucal">${["H","K","Sze","Cs","P","Szo","V"].map(h=>`<div class="uh">${h}</div>`).join("")}${cells}</div>
+  ${rows.length ? `<div class="list" style="margin-top:10px">${rows.map(x=>`<div class="li"><b style="width:76px">${x.s.id===S.me?"Én":esc(x.s.name)}</b><span class="grow small">${x.days.map(d=>fmtDay(d).split(",")[0]).join(", ")}</span></div>`).join("")}</div>` : `<div class="small muted" style="margin-top:8px">Ebben a hónapban még senki nem jelölt napot.</div>`}
+  </section>`;
+}
 function reqsView(){
   const mine = shiftsOfMe();
   const list = [...S.reqs].sort((a,b)=> a.date<b.date?-1:1).filter(r=> r.date >= ymd(addDays(new Date(),-14)));
-  return header("Szabadság és csere") + `<div class="stack">${back}
-  <section class="card"><h3>Nem érek rá</h3>
+  return header("Nem érek rá") + `<div class="stack">${back}
+  ${unavailCal()}
+  <section class="card"><h3>Műszakcsere – átadom a műszakom</h3>
   ${mine.length?`<label class="field"><span>Melyik műszakod?</span><select id="rqDate" data-f="f.rqDate"><option value="">Válassz…</option>${mine.map(d=>`<option value="${d}" ${S.f.rqDate===d?"selected":""}>${fmtDay(d)}</option>`).join("")}</select></label>
   <label class="field"><span>Megjegyzés</span><input id="rqNote" data-f="f.rqNote" value="${esc(S.f.rqNote||"")}"></label>
-  <button class="btn pri" data-act="reqAdd">Kérés feladása</button>`:`<div class="empty">A következő 30 napban nincs beosztott műszakod.</div>`}
+  <button class="btn pri" data-act="reqAdd">Felajánlom átvételre</button>`:`<div class="empty">A következő 30 napban nincs beosztott műszakod.</div>`}
   </section>
-  ${list.length?`<section class="card"><h3>Kérések</h3><div class="list">${list.map(r=>{ const e = shiftOf(r.date).find(x=>x.staffId===r.staffId) || r.entry || {}; return `<div class="li"><span class="grow"><b>${esc(staffName(r.staffId))}</b> · ${fmtDay(r.date)}<br><span class="small muted">${e.start||""}–${e.end||""}${r.note?` · ${esc(r.note)}`:""}</span><br>
+  ${list.length?`<section class="card"><h3>Átvehető és átadott műszakok</h3><div class="list">${list.map(r=>{ const e = shiftOf(r.date).find(x=>x.staffId===r.staffId) || r.entry || {}; return `<div class="li"><span class="grow"><b>${esc(staffName(r.staffId))}</b> · ${fmtDay(r.date)}<br><span class="small muted">${e.start||""}–${e.end||""}${r.note?` · ${esc(r.note)}`:""}</span><br>
   ${r.status==="atvett"?`<span class="pill ok">Átvette: ${esc(staffName(r.takenBy))}</span>`:r.status==="visszavont"?'<span class="pill">Visszavonva</span>':'<span class="pill w">Átvehető</span>'}</span>
   ${r.status==="nyitott"&&r.staffId!==S.me&&r.date>=today()?`<button class="btn sm pri" data-act="reqTake" data-id="${esc(r.id)}">Átveszem</button>`:""}
   ${r.status==="nyitott"&&r.staffId===S.me?`<button class="btn sm ghost" data-act="reqCancel" data-id="${esc(r.id)}">Visszavon</button>`:""}</div>`; }).join("")}</div></section>`:""}
@@ -1288,7 +1325,7 @@ function settingsView(){
 const cfgRef = "config/main";
 async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
 const RO_FIELDS = new Set(["cashDate","tempDate","f.pinIn2","f.pinA","f.pinB","f.pinTrust","f.lgEm","f.lgPw"]);
-const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
+const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
 const A = {
   nav(d){ S.tab = d.tab; S.sub = null; S.personCal = null; window.scrollTo(0,0); render(); },
   goSub(d){ S.tab = "more"; S.sub = d.sub || null; if(d.sub==="cash") S.cashDraft=null; window.scrollTo(0,0); render(); if(d.sub==="msgs") markRead(); },
@@ -1359,7 +1396,7 @@ const A = {
   personCalClose(){ S.personCal = null; render(); },
   personMonth(d){ const pc = S.personCal; const x = new Date(pc.y, pc.m + (+d.d), 1); pc.y = x.getFullYear(); pc.m = x.getMonth(); render(); },
   week(d){ S.weekOff = d.d==="0" ? 0 : S.weekOff + (+d.d); S.shiftForm=null; render(); },
-  shiftAdd(d){ S.shiftForm = { date:d.date, staffId: shiftStaff().some(x=>x.id===S.me) ? S.me : ((shiftStaff()[0]||{}).id||""), start:"06:00", end:"11:00", i:null }; S.shiftHist=null; render(); },
+  shiftAdd(d){ S.shiftForm = { date:d.date, staffId: shiftStaffOn(d.date).some(x=>x.id===S.me) ? S.me : ((shiftStaffOn(d.date)[0]||{}).id||""), start:"06:00", end:"11:00", i:null }; S.shiftHist=null; render(); },
   shiftEdit(d){ const e = shiftOf(d.date)[+d.i]; S.shiftForm = { date:d.date, staffId:e.staffId, start:e.start, end:e.end, i:+d.i }; S.shiftHist=null; render(); },
   shiftCancel(){ S.shiftForm=null; render(); },
   async shiftSave(){ const f = S.shiftForm, es = [...shiftOf(f.date)]; const e = {staffId:f.staffId, start:f.start, end:f.end};
@@ -1368,7 +1405,7 @@ const A = {
   async shiftSaveAdd(){ const f = S.shiftForm, es = [...shiftOf(f.date)]; const e = {staffId:f.staffId, start:f.start, end:f.end};
     if(es.some((x,i)=> x.staffId===f.staffId && i!==f.i)) return toast(`${staffName(f.staffId)} már be van osztva erre a napra.`);
     if(f.i==null) es.push(e); else es[f.i] = e; es.sort((a,b)=> a.start<b.start?-1:1);
-    const next = shiftStaff().find(st => !es.some(x=>x.staffId===st.id));
+    const next = shiftStaffOn(f.date).find(st => !es.some(x=>x.staffId===st.id));
     S.shiftForm = next ? { date:f.date, staffId:next.id, start:f.start, end:f.end, i:null } : null;
     if(!next) toast("Mindenki be van osztva erre a napra.");
     await setShift(f.date, es); if(next) setTimeout(()=>{ const el=$("#sfStaff"); el && el.focus(); },0); },
@@ -1491,6 +1528,13 @@ const A = {
     const edits = [...(m.edits||[]), {by:S.me, at:Date.now(), before:m.text, after:t}].slice(-30);
     Object.assign(m, {text:t, edits}); S.f.msgEdit=null; delete S.f.msgEditText; render();
     await write("messages/"+d.id, r=>r.update({text:t, edits})); toast("Üzenet módosítva."); },
+  unStep(d){ const now = new Date(), c = S.unMonth || {y:now.getFullYear(), m:now.getMonth()}; const x = new Date(c.y, c.m + (+d.d), 1); S.unMonth = {y:x.getFullYear(), m:x.getMonth()}; render(); },
+  async unToggle(d){ const id = S.me; if(!id) return; const cur = ((S.unavail||{})[id]||[]).filter(x => x >= ymd(addDays(new Date(),-60)));
+    const on = cur.includes(d.date); const days = on ? cur.filter(x=>x!==d.date) : [...cur, d.date].sort();
+    S.unavail = Object.assign({}, S.unavail, {[id]: days}); render();
+    const busy = !on && shiftOf(d.date).some(e => e.staffId === id);
+    await write("unavail/main", async r => { const sn = await r.get(); const base = sn.exists ? sn.data() : {}; await r.set(Object.assign({}, base, {[id]: days})); });
+    toast(on ? `${fmtDay(d.date)}: visszavonva.` : busy ? `${fmtDay(d.date)}: jelölve. Erre a napra be vagy osztva – szólj a beosztónak, vagy ajánld fel átvételre lent!` : `${fmtDay(d.date)}: nem érsz rá – jelölve.`); },
   async reqAdd(){ const date=S.f.rqDate; if(!date) return toast("Válaszd ki a napot."); const entry = shiftOf(date).find(e=>e.staffId===S.me); const id=uid(), r={id, date, staffId:S.me, entry, note:(S.f.rqNote||"").trim(), status:"nyitott", ...by()};
     S.reqs=[...S.reqs,r]; delete S.f.rqDate; delete S.f.rqNote; render(); await write("requests/"+id, x=>x.set(r)); toast("Kérés feladva, a többiek látják."); },
   async reqTake(d){ const r = S.reqs.find(x=>x.id===d.id); if(!r || r.status!=="nyitott") return;
@@ -1762,6 +1806,7 @@ function wire(){
   db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null, yearTop:d.yearTop||null};
     if(BACKEND==="fb" && !ensuredOwner && S.cfg.staff.length && !S.cfg.staff.some(x=>roleOf(x)==="owner")){ ensuredOwner = true; saveCfg({staff:[...S.cfg.staff, {id:"admin", name:"Admin", role:"owner", admin:true, active:true}]}).catch(()=>{}); } } S.dbOk = true; render(); }, err);
   db.collection("items").onSnapshot(q => { S.items = q.docs.map(x=>({id:x.id, ...x.data()})); render(); }, err);
+  db.doc("unavail/main").onSnapshot(s => { S.unavail = s.exists ? (s.data()||{}) : {}; render(); }, err);
   db.doc("freezer/main").onSnapshot(s => { S.freezer = s.exists ? {...s.data()} : {}; render(); }, err);
   db.collection("bakery").orderBy("date","desc").limit(70).onSnapshot(q => { S.bakery = q.docs.map(x=>x.data()); render(); }, err);
   db.collection("orders").where("date",">=",ymd(addDays(new Date(),-60))).orderBy("date","desc").onSnapshot(q => { S.orders = q.docs.map(x=>({id:x.id, ...x.data()})); alarmTick(); render(); }, err);
