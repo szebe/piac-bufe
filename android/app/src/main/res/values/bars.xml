@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Status/navigation bar colours = app background (light theme) -->
+    <color name="barBg">#F3F5F1</color>
+    <color name="navBg">#FFFFFF</color>
+    <bool name="lightBars">true</bool>
+</resources>
