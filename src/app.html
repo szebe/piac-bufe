@@ -617,7 +617,7 @@ function renderAlarm(){
 
 /* ---------- derived ---------- */
 function shiftOf(date){ return (S.shifts[date] && S.shifts[date].entries) || []; }
-function bonusOf(ds){ const wd = parseYmd(ds).getDay(), n = shiftOf(ds).length; let b = 0; if((wd === 5 || wd === 0) && n >= 2) b += 1; if(wd === 6 || wd === 0) b += 1; return b; }
+function bonusOf(ds){ const wd = parseYmd(ds).getDay(), n = shiftOf(ds).length; let b = 0; if((wd === 5 || wd === 6 || wd === 0) && n >= 1 && n <= 2) b += 1; if(wd === 6 || wd === 0) b += 1; return b; }
 const bonusTag = ds => { const b = bonusOf(ds); return b ? ` <span class="bon" title="Plusz fizetett óra">+${b}</span>` : ""; };
 function hoursOf(e){ const t = s => (+s.slice(0,2)) + (+s.slice(3,5))/60; return Math.max(0, t(e.end) - t(e.start)); }
 function weekStart(off){ const d = new Date(); const wd = (d.getDay()+6)%7; d.setHours(0,0,0,0); return addDays(d, -wd + off*7); }
@@ -921,7 +921,7 @@ function shiftView(){
     ${(()=>{ const n = openReqs().filter(r=>r.staffId!==S.me && !unavailOn(S.me, r.date)).length, mine = ((S.unavail||{})[S.me]||[]).filter(d=>d>=today()).length;
       return `<section class="unbox ${S.unOpen?"open":""}" id="unbox"><button class="unhead" data-act="unOpen" aria-expanded="${!!S.unOpen}"><span class="grow">EZEKEN A NAPOKON NEM ÉREK RÁ</span>${n?`<span class="pill w">${n} átvehető</span>`:""}${mine?`<span class="pill d">${mine} napom</span>`:""}<span aria-hidden="true">${S.unOpen?"▴":"▾"}</span></button>${S.unOpen ? `<div class="unbody stack">${reqsBody()}</div>` : ""}</section>`; })()}
     <section class="card"><h3>Óraösszesítő</h3><div class="scroll"><table class="tbl"><thead><tr><th>Kolléga</th><th class="r">Ez a hét</th><th class="r">${MONTHS[mRef.getMonth()]}</th></tr></thead><tbody>
-    ${ids.map(id=>`<tr><td><button class="namebtn" data-act="personCal" data-id="${esc(id)}">${esc(staffName(id))}</button></td><td class="r">${fmtN(totals[id]||0)} ó${tb[id]?`<br><span class="small bonc">ebből +${fmtN(tb[id])}</span>`:""}</td><td class="r">${fmtN(mt[id]||0)} ó${mb[id]?`<br><span class="small bonc">ebből +${fmtN(mb[id])}</span>`:""}</td></tr>`).join("")}</tbody></table><div class="small muted" style="margin-top:6px"><span class="bon">+1</span> plusz fizetett óra: pénteken és vasárnap, ha legalább 2-en vannak, fejenként +1; szombaton és vasárnap mindenkinek +1 (vasárnap 2 főnél így +2).</div></div></section>
+    ${ids.map(id=>`<tr><td><button class="namebtn" data-act="personCal" data-id="${esc(id)}">${esc(staffName(id))}</button></td><td class="r">${fmtN(totals[id]||0)} ó${tb[id]?`<br><span class="small bonc">ebből +${fmtN(tb[id])}</span>`:""}</td><td class="r">${fmtN(mt[id]||0)} ó${mb[id]?`<br><span class="small bonc">ebből +${fmtN(mb[id])}</span>`:""}</td></tr>`).join("")}</tbody></table><div class="small muted" style="margin-top:6px"><span class="bon">+1</span> plusz fizetett óra: pénteken, szombaton és vasárnap, ha legfeljebb 2-en vannak, fejenként +1; ezen felül szombaton és vasárnap mindenkinek +1.</div></div></section>
   </div>`;
 }
 function dayCard(d){
