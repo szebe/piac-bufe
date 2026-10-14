@@ -268,6 +268,10 @@ textarea{min-height:70px;resize:vertical}
 .cashtbl tr.tap{cursor:pointer}
 .cashtbl tr.tap td{padding-top:12px;padding-bottom:12px}
 .cashtbl tr.tap:active{background:var(--surface2)}
+.newitem{background:var(--ni-bg);border:2px dashed var(--ni-line);margin-top:22px}
+.newitem h3{color:var(--ni-ink)}
+:root{--ni-bg:#eaf1fb;--ni-line:#7fa6d9;--ni-ink:#1f4f8a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ni-bg:#16233a;--ni-line:#3d6aa8;--ni-ink:#a9c8f0}}
 .wsel{border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
 .waste{display:grid;grid-template-columns:56px 1fr 56px;gap:8px}
 .waste .st{min-height:52px;font-size:1.5rem;font-weight:800;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--fg)}
@@ -345,7 +349,7 @@ const S = {
   cfg:{staff:[], fridges:[], openDays:[], closedDays:[], adminPin:""},
   calMonth:null, bakeryOpen:false, bk:{}, bo:{}, bakeOrdOpen:false, close:null, sortMode: (m => m==="custom" ? "recent" : m)(ls.get("bufe.sort") || "abc"),
   items:[], moves:[], orders:[], shifts:{}, cash:[], temps:[], msgs:[], reqs:[], freezer:{}, bakery:[], wasteLog:[],
-  me: ls.get("bufe.me") || "", adminUnlocked: ls.get("bufe.admin") === "1", unlockedId: ls.get("bufe.unlock") || "", pinFor: null, cashPop: null,
+  me: ls.get("bufe.me") || "", adminUnlocked: ls.get("bufe.admin") === "1", unlockedId: "", pinFor: null, cashPop: null,
   tab: "home", sub: null, f:{}, weekOff:0, invTab:"stock", openItem:null, editItem:null,
   cashDate: today(), cashDraft:null, tempDate: today(), tempDraft:{},
   shiftForm:null, shiftHist:null, notices:[], snooze:{}, alarmFor:null, soundOn:false, wake:null,
@@ -357,7 +361,9 @@ const ROLES = [["staff","Dolgozó"],["admin","Adminisztrátor"],["readonly","Csa
 const roleOf = s => (s && (s.role || (s.admin ? "admin" : "staff"))) || "staff";
 const roleName = r => (ROLES.find(x=>x[0]===r)||ROLES[0])[1];
 const needsPin = s => !!s && roleOf(s) !== "staff";
-const unlocked = () => !!S.me && S.unlockedId === S.me;
+function trustMap(){ try{ return JSON.parse(ls.get("bufe.trust") || "{}"); }catch(e){ return {}; } }
+const trusted = id => { const st = S.cfg.staff.find(x=>x.id===id); return !!st && !!st.pinHash && trustMap()[id] === st.pinHash; };
+const unlocked = () => !!S.me && (S.unlockedId === S.me || trusted(S.me));
 const isAdmin = () => S.isOwner || (BACKEND!=="fb" ? !!meStaff()?.admin && (!S.cfg.adminPin || !!S.adminUnlocked) : (["owner","admin"].includes(roleOf(meStaff())) && unlocked()));
 const isReadonly = () => BACKEND==="fb" && roleOf(meStaff())==="readonly";
 const canCash = () => S.isOwner || BACKEND!=="fb" || (["owner","admin","readonly"].includes(roleOf(meStaff())) && unlocked());
@@ -511,7 +517,7 @@ function renderAlarm(){
     $("#overlay").innerHTML = `<div class="alarm" role="alertdialog" aria-labelledby="alT"><div class="box">
       <span class="label">Leltár</span>
       <div class="big">10:50</div>
-      <h2 id="alT">Melegszendvics-krém leltár</h2>
+      <h2 id="alT">Krémleltár</h2>
       <div class="muted">Hátra: ${left.map(i=>esc(i.name)).join(", ")}</div>
       <div class="note w">5 percenként jelez, amíg a leltár el nem készül.</div>
       <button class="btn pri" data-act="goKremLeltar">Leltár most</button>
@@ -621,6 +627,7 @@ function view(){
 
 function importCard(){ return `<section class="card"><h3>Adatok importálása</h3><p class="small muted">Egyszeri átköltöztetés: válaszd ki a kapott <b>bufe-adatok.json</b> fájlt. A meglévő azonos tételeket felülírja.</p>
     <input id="impFile" type="file" accept=".json,application/json" data-imp="1">${S.impMsg?`<div class="note" style="margin-top:8px">${esc(S.impMsg)}</div>`:""}</section>`; }
+function rememberLogin(id, h){ const m = trustMap(); if(S.f.pinTrust) m[id] = h; else delete m[id]; ls.set("bufe.trust", JSON.stringify(m)); delete S.f.pinTrust; }
 async function pinHash(id, pin){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("bufe:" + id + ":" + pin)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
 function pinView(){
   const s = S.cfg.staff.find(x=>x.id===S.pinFor); if(!s){ S.pinFor = null; return pickView(); }
@@ -629,8 +636,11 @@ function pinView(){
     ${setNew ? `<p class="small">Ennek a fióknak még nincs jelszava. Adj meg egyet (legalább 4 karakter), ezzel fogsz belépni.</p>
       <label class="field"><span>Új jelszó</span><input id="pinA" type="password" autocomplete="new-password" data-f="f.pinA" value=""></label>
       <label class="field"><span>Új jelszó még egyszer</span><input id="pinB" type="password" autocomplete="new-password" data-f="f.pinB" value=""></label>
+      <label class="chk"><input id="pinTrust" type="checkbox" data-f="f.pinTrust" ${S.f.pinTrust?"checked":""}> Ez a saját telefonom – jegyezze meg a belépést</label>
       <button class="btn pri" style="width:100%" data-act="pinCreate">Jelszó beállítása és belépés</button>`
     : `<label class="field"><span>Jelszó</span><input id="pinIn2" type="password" autocomplete="current-password" data-f="f.pinIn2" value=""></label>
+      <label class="chk"><input id="pinTrust" type="checkbox" data-f="f.pinTrust" ${S.f.pinTrust?"checked":""}> Ez a saját telefonom – jegyezze meg a belépést</label>
+      <div class="small muted">Közös (bolti) telefonon ne pipáld be. Ha nincs bepipálva, az app bezárásakor vagy névváltáskor újra kéri a jelszót.</div>
       <button class="btn pri" style="width:100%" data-act="pinEnter">Belépés</button>`}
     <button class="btn ghost" style="width:100%;margin-top:8px" data-act="pinBack">Másik név</button></section></div>`;
 }
@@ -874,7 +884,7 @@ function itemsView(){
   <section class="card"><div class="list" id="itemList">${items.map(it=>{
     const low = it.min>0 && (it.stock||0) < it.min, open = S.openItem===it.id;
     return `<div class="item ${open?"open":""}" data-iid="${esc(it.id)}" ${open?"":`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="false"`}>
-      <div class="head" ${open?`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="true" style="cursor:pointer"`:""}>${canDrag && !open?`<span class="drag" aria-label="Áthelyezés" title="Húzd a helyére">⠿</span>`:""}<span class="grow">${mode==="recent" && pins.includes(it.id)?'<span aria-label="Kitűzve" title="Kitűzve">📌 </span>':""}<b>${esc(it.name)}</b>${it.krem?' <span class="pill">krém</span>':""}${it.partial?' <span class="pill">vasárnapi</span>':""}</span>
+      <div class="head" ${open?`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="true" style="cursor:pointer"`:""}>${canDrag && !open?`<span class="drag" aria-label="Áthelyezés" title="Húzd a helyére">⠿</span>`:""}<span class="grow">${mode==="recent" && pins.includes(it.id)?'<span aria-label="Kitűzve" title="Kitűzve">📌 </span>':""}<b>${esc(it.name)}</b>${it.partial?' <span class="pill">csütörtöki</span>':""}</span>
       <span class="num" style="text-align:right"><b>${fmtN(it.stock||0)} ${U(it)}</b><br>${low?'<span class="pill w">rendelni kell</span>':""}</span><span class="chev" aria-hidden="true">›</span></div>
       ${open?`<label class="qsel"><span>Készleten: ${fmtN(it.stock||0)} ${U(it)}</span><span aria-hidden="true">▾</span><select id="qs_${esc(it.id)}" data-qty="${esc(it.id)}" aria-label="Készleten lévő darabszám módosítása">${qtyOptions(it)}</select></label>
         ${it.wasteable?`<label class="qsel wsel"><span>Selejt: válassz mennyiséget</span><span aria-hidden="true">▾</span><select id="ws_${esc(it.id)}" data-waste="${esc(it.id)}" aria-label="Selejtezett darabszám"><option value="" selected>–</option>${wasteOptions(it)}</select></label>
@@ -895,18 +905,18 @@ function itemForm(it){
   <label class="field"><span>Minimumszint (${g("unit")||"db"})</span><input id="${p}min" type="number" min="0" step="1" data-f="f.${p}min" value="${esc(g("min")||0)}"></label>
   <label class="chk"><input id="${p}partial" type="checkbox" data-f="f.${p}partial" ${g("partial")?"checked":""}> Csütörtöki részleges leltárba</label>
   <label class="chk"><input id="${p}waste" type="checkbox" data-f="f.${p}wasteable" ${g("wasteable")?"checked":""}> Selejtezhető (megjelenik a Selejt választó)</label>
-  <label class="chk"><input id="${p}krem" type="checkbox" data-f="f.${p}krem" ${g("krem")?"checked":""}> Melegszendvics-krém (csütörtöki leltár, csak egész doboz)</label>
+  <label class="chk"><input id="${p}krem" type="checkbox" data-f="f.${p}krem" ${g("krem")?"checked":""}> Krémriasztás 10:50-kor hétfőn és csütörtökön (csak egész doboz)</label>
   <div class="row"><button class="btn grow" data-act="itemUpdate" data-id="${esc(it.id)}">Beállítások mentése</button><button class="btn dng" data-act="itemDel" data-id="${esc(it.id)}">${S.f.delConfirm===it.id?"Biztosan törlöd?":"Törlés"}</button></div>`;
 }
 function itemAdmin(){
-  return `<section class="card"><h3>Új alapanyag</h3>
+  return `<section class="card newitem"><h3>＋ Új alapanyag felvétele</h3><p class="small muted" style="margin-top:-4px">Ez nem a meglévő készlet, hanem új tétel hozzáadása a listához.</p>
   <div class="grid2"><label class="field"><span>Név</span><input id="niName" data-f="f.niName" value="${esc(S.f.niName||"")}"></label>
   <label class="field"><span>Mértékegység</span><select id="niUnit" data-f="f.niUnit">${UNITS.map(u=>`<option value="${u}" ${(S.f.niUnit||"db")===u?"selected":""}>${u}</option>`).join("")}</select></label></div>
   ${(S.f.niUnit||"db")==="db"?`<label class="field"><span>1 karton = db (0 = nincs)</span><input id="niPc" type="number" min="0" step="1" data-f="f.niPc" value="${esc(S.f.niPc||"")}"></label>`:""}
   <label class="field"><span>Minimumszint (${S.f.niUnit||"db"})</span><input id="niMin" type="number" min="0" step="1" data-f="f.niMin" value="${esc(S.f.niMin||"")}"></label>
   <label class="chk"><input id="niPart" type="checkbox" data-f="f.niPart" ${S.f.niPart?"checked":""}> Csütörtöki részleges leltárba</label>
   <label class="chk"><input id="niWaste" type="checkbox" data-f="f.niWaste" ${S.f.niWaste?"checked":""}> Selejtezhető</label>
-  <label class="chk"><input id="niKrem" type="checkbox" data-f="f.niKrem" ${S.f.niKrem?"checked":""}> Melegszendvics-krém</label>
+  <label class="chk"><input id="niKrem" type="checkbox" data-f="f.niKrem" ${S.f.niKrem?"checked":""}> Krémriasztás 10:50-kor</label>
   <button class="btn pri" data-act="itemAdd">Hozzáadás</button></section>`;
 }
 function leltarView(lt){
@@ -1204,7 +1214,7 @@ function settingsView(){
   <section class="card"><h3>Hűtők</h3><div class="list">${fr.map(f=>`<div class="li"><span class="grow"><b>${esc(f.name)}</b><br><span class="small muted">${f.min} – ${f.max} °C</span></span><button class="btn sm ghost" data-act="fridgeDel" data-id="${esc(f.id)}">Törlés</button></div>`).join("")||'<div class="empty">Még nincs hűtő.</div>'}</div>
   <div class="grid3"><label class="field"><span>Név</span><input id="frName" data-f="f.frName" value="${esc(S.f.frName||"")}"></label><label class="field"><span>Min °C</span><input id="frMin" type="number" step="1" data-f="f.frMin" value="${esc(S.f.frMin??"0")}"></label><label class="field"><span>Max °C</span><input id="frMax" type="number" step="1" data-f="f.frMax" value="${esc(S.f.frMax??"5")}"></label></div>
   <button class="btn" data-act="fridgeAdd">Hűtő hozzáadása</button></section>
-  ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted"><b>Dolgozó:</b> napi munka, jelszó nélkül. <b>Adminisztrátor:</b> beállítások és kasszazárás, jelszóval. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat, jelszóval. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre koppintva lehet.</p></section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
+  ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted"><b>Dolgozó:</b> napi munka, jelszó nélkül. <b>Adminisztrátor:</b> beállítások és kasszazárás, jelszóval. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat, jelszóval. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre koppintva lehet.</p>${Object.keys(trustMap()).length?`<button class="btn ghost" style="width:100%" data-act="forgetLogins">Megjegyzett belépések törlése ezen a telefonon</button>`:""}</section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
    :`<button class="btn ghost" data-act="adminLogout">Kilépés az admin módból</button>`}
   <section class="card"><h3>Über brutális all-time rekord</h3>
     <p class="small muted">A legjobb napi forgalom valaha. Ha egy zárás túllépi, az app magától frissíti és gratulál.</p>
@@ -1220,7 +1230,7 @@ function settingsView(){
 /* ---------- actions ---------- */
 const cfgRef = "config/main";
 async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
-const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","goLeltar","cashPopClose","goShift","invClose"]);
+const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","goLeltar","cashPopClose","goShift","invClose","forgetLogins"]);
 const A = {
   nav(d){ S.tab = d.tab; S.sub = null; S.personCal = null; window.scrollTo(0,0); render(); },
   goSub(d){ S.tab = "more"; S.sub = d.sub || null; if(d.sub==="cash") S.cashDraft=null; window.scrollTo(0,0); render(); if(d.sub==="msgs") markRead(); },
@@ -1235,21 +1245,23 @@ const A = {
   async fbLogin(){ const em = (S.f.lgEm ?? (window.FB_EMAIL||"")).trim(), pw = S.f.lgPw || ""; if(!em || !pw) return toast("Add meg az e-mailt és a jelszót.");
     S.loginErr = ""; try{ await firebase.auth().signInWithEmailAndPassword(em, pw); delete S.f.lgPw; }catch(e){ S.loginErr = /wrong-password|invalid-credential|user-not-found|invalid-login/.test(e.code||"") ? "Hibás e-mail vagy jelszó." : e.code==="auth/network-request-failed" ? "Nincs internetkapcsolat." : "Belépés nem sikerült ("+(e.code||e.message)+")."; render(); } },
   pickMe(d){ const st = S.cfg.staff.find(x=>x.id===d.id);
+    if(BACKEND==="fb" && needsPin(st) && trusted(d.id)){ S.me = d.id; ls.set("bufe.me", d.id); S.unlockedId = d.id; render(); return; }
     if(BACKEND==="fb" && needsPin(st)){ S.pinFor = d.id; delete S.f.pinIn2; delete S.f.pinA; delete S.f.pinB; render(); setTimeout(()=>{ const el = $("#pinIn2") || $("#pinA"); el && el.focus(); }, 0); return; }
-    S.me = d.id; ls.set("bufe.me", d.id); S.adminUnlocked = false; ls.del("bufe.admin"); S.unlockedId = ""; ls.del("bufe.unlock"); render(); },
+    S.me = d.id; ls.set("bufe.me", d.id); S.adminUnlocked = false; ls.del("bufe.admin"); S.unlockedId = ""; render(); },
   pinBack(){ S.pinFor = null; S.me = ""; ls.del("bufe.me"); render(); },
   async pinEnter(){ const s = S.cfg.staff.find(x=>x.id===S.pinFor); if(!s) return; const h = await pinHash(s.id, S.f.pinIn2||"");
     if(h !== s.pinHash) return toast("Hibás jelszó.");
-    S.me = s.id; ls.set("bufe.me", s.id); S.unlockedId = s.id; ls.set("bufe.unlock", s.id); S.pinFor = null; delete S.f.pinIn2; render(); },
+    rememberLogin(s.id, h); S.me = s.id; ls.set("bufe.me", s.id); S.unlockedId = s.id; S.pinFor = null; delete S.f.pinIn2; render(); },
   async pinCreate(){ const s = S.cfg.staff.find(x=>x.id===S.pinFor); if(!s) return; const a = S.f.pinA||"", b = S.f.pinB||"";
     if(a.length < 4) return toast("A jelszó legalább 4 karakter legyen."); if(a !== b) return toast("A két jelszó nem egyezik.");
     const h = await pinHash(s.id, a); await saveCfg({staff: S.cfg.staff.map(x => x.id===s.id ? {...x, pinHash:h} : x)});
-    S.me = s.id; ls.set("bufe.me", s.id); S.unlockedId = s.id; ls.set("bufe.unlock", s.id); S.pinFor = null; delete S.f.pinA; delete S.f.pinB; render(); toast("Jelszó beállítva."); },
+    rememberLogin(s.id, h); S.me = s.id; ls.set("bufe.me", s.id); S.unlockedId = s.id; S.pinFor = null; delete S.f.pinA; delete S.f.pinB; render(); toast("Jelszó beállítva."); },
   async staffRole(d, el){ const r = el.value, s = S.cfg.staff.find(x=>x.id===d.id); if(!s) return;
     if(roleOf(s)==="owner" && r!=="owner" && S.cfg.staff.filter(x=>roleOf(x)==="owner").length<=1) { render(); return toast("Legalább egy Admin (főfiók) kell."); }
     await saveCfg({staff: S.cfg.staff.map(x => x.id===d.id ? {...x, role:r, admin:(r==="admin"||r==="owner")} : x)}); toast(`${s.name}: ${roleName(r)}`); },
   async staffPinReset(d){ const s = S.cfg.staff.find(x=>x.id===d.id); if(!s) return; await saveCfg({staff: S.cfg.staff.map(x => { if(x.id!==d.id) return x; const y = {...x}; delete y.pinHash; return y; })}); toast(`${s.name}: jelszó törölve, a következő belépéskor újat kell megadni.`); },
-  switchMe(){ S.me = ""; ls.del("bufe.me"); S.unlockedId = ""; ls.del("bufe.unlock"); S.pinFor = null; render(); },
+  switchMe(){ S.me = ""; ls.del("bufe.me"); S.unlockedId = ""; S.pinFor = null; render(); },
+  forgetLogins(){ ls.del("bufe.trust"); S.unlockedId = S.me; render(); toast("A megjegyzett belépések törölve ezen a telefonon."); },
   dismiss(d){ S.notices.splice(+d.i,1); render(); },
   sound(){ unlockSound(); beep(); render(); toast(S.soundOn?"Hang bekapcsolva":"A hang ezen az eszközön nem érhető el"); },
   async wake(){ try{ if(S.wake){ await S.wake.release(); S.wake=null; } else { S.wake = await navigator.wakeLock.request("screen"); S.wake.addEventListener("release", ()=>{ S.wake=null; render(); }); } }catch(e){ toast("A képernyő ébren tartása itt nem érhető el."); } render(); },
