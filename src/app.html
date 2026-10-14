@@ -377,7 +377,7 @@ const isReadonly = () => BACKEND==="fb" && roleOf(meStaff())==="readonly";
 const canCash = () => S.isOwner || BACKEND!=="fb" || (["owner","admin","readonly"].includes(roleOf(meStaff())) && unlocked());
 const isOwnerish = () => S.isOwner || (BACKEND==="fb" && roleOf(meStaff())==="owner" && unlocked());
 const activeStaff = () => S.cfg.staff.filter(s => s.active !== false);
-const shiftStaff = () => activeStaff().filter(s => !["owner","readonly"].includes(roleOf(s)));
+const shiftStaff = () => activeStaff().filter(s => !["owner","readonly"].includes(roleOf(s))).sort((a,b) => (a.id==="tamas") - (b.id==="tamas"));
 
 let db = null, BACKEND = "";
 /* Firebase backend (standalone app): wraps Firestore so update() deep-merges like the artifact db */
