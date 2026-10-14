@@ -1,0 +1,13 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:390,height:780}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mock.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore(); const c=__store.get('config/main'); c.staff.push({id:'v',name:'Könyvelő',active:true,role:'readonly'}); await fs.doc('config/main').set(c);
+  const d=k=>ymd(addDays(new Date(),-k)); const cl=[0,120000,260000,390000,470000,600000,730000,880000]; for(let k=7;k>=0;k--) await fs.doc('cash/'+d(k)).set({date:d(k),close:cl[7-k],card:15000,exp:k===0?[{name:'tej',amt:2500}]:[],wd:[]});
+  await fs.doc('shifts/'+today()).set({date:today(),entries:[{staffId:'b',start:'06:00',end:'11:00'},{staffId:'tamas',start:'07:00',end:'11:00'}]}); await fs.doc('freezer/main').set({kenyer:6,kifli:5,zsemle:4}); });
+await p.click('[data-act=pickMe][data-id=b]'); await p.waitForTimeout(500);
+console.log('seeded:', await p.evaluate(()=>['hus-suritmeny','gomba-suritmeny'].map(k=>__store.get('items/'+k)?.name)));
+await p.evaluate(()=>A.switchMe()); await p.click('[data-act=pickMe][data-id=v]'); await p.fill('#pinA','5555'); await p.fill('#pinB','5555'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(500);
+const h = await p.evaluate(()=>({doc:document.documentElement.scrollHeight, vh:innerHeight, tabs:document.querySelector('.tabs').offsetHeight}));
+console.log(JSON.stringify(h)); await p.screenshot({path:'rohome.png', fullPage:true}); await b.close(); })();

@@ -298,6 +298,14 @@ body.ro .qsel span[aria-hidden]{visibility:hidden}
 .unm{display:block;background:var(--danger);color:#fff;border-radius:6px;font-size:.62rem;font-weight:700;padding:1px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .unm.my{background:#7e1712}
 .unwarn{color:var(--danger);font-weight:700}
+.rohome{gap:8px}
+.rohome .fzbox .fzsel{padding:4px}
+.rohome .fzsel .bk{width:44px;height:28px}
+.rohome .fz .n{font-size:1.4rem}
+.rohome .card{padding:10px 12px}
+.rohome .tbl td{padding:3px 2px;font-size:.88rem}
+.rohome .shiftbar{padding:6px 10px}
+.rohome .li{padding:5px 0}
 .wsel{border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
 .waste{display:grid;grid-template-columns:56px 1fr 56px;gap:8px}
 .waste .st{min-height:52px;font-size:1.5rem;font-weight:800;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--fg)}
@@ -781,7 +789,37 @@ function sevenDayCard(){
   return `<section class="card"><h3>Napi forgalom – elmúlt 7 nap</h3><table class="tbl"><tbody>${rows.join("")}</tbody></table>
     <div class="row" style="border-top:2px solid var(--fg);margin-top:6px;padding-top:8px"><b class="grow">Összesen</b><b>${ft(sum)}</b></div><div class="small muted">készpénz + kártya együtt</div></section>`;
 }
+let seeded = false;
+function seedItems(){
+  if(seeded || BACKEND!=="fb" || !S.items.length || !S.me || isReadonly()) return; seeded = true;
+  [["hus-suritmeny","Hús sűrítmény"],["gomba-suritmeny","Gomba sűrítmény"]].forEach(([id,name]) => {
+    if(S.items.some(i => i.id===id || i.name.toLowerCase()===name.toLowerCase())) return;
+    const it = {id, name, unit:"db", perCarton:0, min:0, monday:true, monthly:true, partial:false, wasteable:false, krem:false, stock:0, inSince:0, wasteSince:0, lastCount:null, createdAt:Date.now()};
+    write("items/"+id, r=>r.set(it)).catch(()=>{});
+  });
+}
+function freezerSection(){ const fz = S.freezer || {}; return `<section aria-label="Fagyasztó" class="fzbox"><div class="fzhead fzh2"><span class="fzl"><span class="fzflake" aria-hidden="true">${FLAKE}</span>FAGYASZTÓ</span><span class="fzdt">${fmtDay(today())}</span></div>
+    <div class="freezer">${FREEZER.map(([k,l])=>{ const cur = fz[k]||0; return `<label class="fz fzsel" title="${l}">${FLAKE}${BAKE_ICON[k]}<span class="sr">${l}</span><span class="n">${cur}</span><select id="fz_${k}" data-fz="${k}" aria-label="${l}: mennyit teszel be (+) vagy veszel ki (−) a fagyasztóból">${fzDeltaOptions(k, cur)}</select></label>`; }).join("")}</div></section>`; }
+function shiftBars(){ return (new Date().getHours() >= 12 ? [["Holnapi műszak", ymd(addDays(new Date(),1)), "sb-today"], ["Holnaputáni műszak", ymd(addDays(new Date(),2)), "sb-tmrw"]] : [["Mai műszak", today(), "sb-today"], ["Holnapi műszak", ymd(addDays(new Date(),1)), "sb-tmrw"]]).map(([lbl, d, cls])=>{ const sh = shiftOf(d); return `<section class="shiftbar ${cls}" data-act="goShift" data-date="${d}" role="button" tabindex="0" aria-label="${lbl} megnyitása a Műszak menüben"><span class="label">${lbl}</span>
+      ${isClosed(d) ? `<span class="small">Zárva: ${esc(closedLabel(d))}</span>` : sh.length ? sh.map(e=>`<span class="schip"><b>${esc(staffName(e.staffId))}</b> <span class="num">${e.start}–${e.end}</span></span>`).join("") : `<span class="small muted">nincs beosztva senki</span>`}
+    </section>`; }).join(""); }
+function readonlyHome(){
+  const tc = S.cash.find(x=>x.date===today()), ex = (tc && tc.exp) || [], sum = ex.reduce((a,e)=>a+num(e.amt),0);
+  const rows = []; let tot = 0;
+  for(let i = 0; i < 7; i++){ const d = ymd(addDays(new Date(), -i)), c = S.cash.find(x=>x.date===d), t = c ? cashTotal(c) : null; if(t != null) tot += t;
+    rows.push(`<tr><td>${DAYS[parseYmd(d).getDay()].replace(/^./,x=>x.toUpperCase())}, ${fmtDay(d).split(",")[0]}</td><td class="r"><b>${t==null ? (isClosed(d) ? '<span class="muted">zárva</span>' : '<span class="muted">—</span>') : ft(t)}</b></td></tr>`); }
+  const watch = ["hus-suritmeny","gomba-suritmeny"].map(id => S.items.find(i=>i.id===id)).filter(Boolean);
+  return header() + `<div class="stack rohome">
+    ${freezerSection()}
+    ${shiftBars()}
+    <section class="card"><div class="row"><h3 class="grow" style="margin:0">Forgalom – 7 nap</h3><b>${ft(tot)}</b></div><table class="tbl"><tbody>${rows.join("")}</tbody></table></section>
+    <section class="card"><div class="row"><b class="grow">Mai kiadások</b><span>${ex.length ? `${ex.length} tétel · <b>${ft(sum)}</b>` : '<span class="muted">nincs</span>'}</span></div></section>
+    ${watch.length ? `<section class="card"><b>Leltár</b><div class="list">${watch.map(it=>`<div class="li"><span class="grow">${esc(it.name)}<br><span class="small muted">${it.lastCountDate ? "számolva: " + fmtDay(it.lastCountDate).split(",")[0] : "még nem volt leltározva"}</span></span><b>${fmtQty(it.stock||0, it)}</b></div>`).join("")}</div></section>` : ""}
+  </div>`;
+}
 function homeViewInner(){
+  seedItems();
+  if(isReadonly()) return readonlyHome();
   const fz = S.freezer || {};
   const notes = [];
   const due = dueOrders();
@@ -802,12 +840,10 @@ function homeViewInner(){
   const shift = shiftOf(today());
   return header() + `<div class="stack">
     ${lp ? `<section class="card invcta"><div class="label">Ma leltárnap</div><h3 style="margin:2px 0 4px">${esc(lt.name)}</h3><div class="small">${lt.items.length} tételből <b>${lp}</b> van hátra.</div><button class="btn pri" style="width:100%;margin-top:10px;font-size:1.1rem" data-act="invStart">Leltár indítása</button></section>` : ""}
-    <section aria-label="Fagyasztó" class="fzbox"><div class="fzhead fzh2"><span class="fzl"><span class="fzflake" aria-hidden="true">${FLAKE}</span>FAGYASZTÓ</span><span class="fzdt">${fmtDay(today())}</span></div>
-    <div class="freezer">${FREEZER.map(([k,l])=>{ const cur = fz[k]||0; return `<label class="fz fzsel" title="${l}">${FLAKE}${BAKE_ICON[k]}<span class="sr">${l}</span><span class="n">${cur}</span><select id="fz_${k}" data-fz="${k}" aria-label="${l}: mennyit teszel be (+) vagy veszel ki (−) a fagyasztóból">${fzDeltaOptions(k, cur)}</select></label>`; }).join("")}</div></section>
+    ${freezerSection()}
     ${bakeryBox()}
     ${(()=>{ const tc = S.cash.find(x=>x.date===today()), ex = (tc && tc.exp) || [], sum = ex.reduce((a,e)=>a+num(e.amt),0);
       return `<section class="card"><div class="row"><span class="grow"><b>Mai kiadások</b><br><span class="small muted">${ex.length ? `${ex.length} tétel · ${ft(sum)}` : "még nincs"}</span></span><button class="btn sm pri" data-act="homeExp">+ Kiadás</button></div></section>`; })()}
-    ${isReadonly() ? sevenDayCard() : ""}
     ${(()=>{ if(isReadonly()) return ""; const pend = liveMsgs().filter(m=>!Object.keys(m.okBy||{}).length); if(!pend.length) return ""; return `<div class="msgwrap"><button class="msgnew" data-act="msgNew" aria-label="Új üzenet írása">+</button><div class="msgcol">${pend.map(m=>`<div class="msgrow"><button class="msgcard" data-act="msgOpen" data-id="${esc(m.id)}"><span class="meta">${esc(staffName(m.by))}, ${m.showFrom?fmtDay(m.showFrom).split(",")[0]:tsLabel(m.at)}</span><span class="txt">${esc(m.text)}</span></button><button class="msgok" data-act="msgOk" data-id="${esc(m.id)}" aria-label="Elolvastam, levétel a főoldalról">OK</button></div>`).join("")}</div></div>`; })()}
     ${isReadonly() || liveMsgs().some(m=>!Object.keys(m.okBy||{}).length) ? "" : `<section class="card"><div class="row"><button class="namebtn grow" style="text-decoration:none;color:var(--fg);font:600 1.05rem var(--display)" data-act="goSub" data-sub="msgs">Üzenőfal</button><button class="btn sm pri" data-act="msgNew">+ Új</button></div></section>`}
     ${notes.join("")}
@@ -817,9 +853,7 @@ function homeViewInner(){
       ${tOrders.length ? `<div class="list">${tOrders.map(o=>orderRow(o,true)).join("")}</div>` : ""}
       ${future?`<div class="small muted">További ${future} előrendelés a következő napokra.</div>`:""}
     </section>` : ""}
-    ${(new Date().getHours() >= 12 ? [["Holnapi műszak", ymd(addDays(new Date(),1)), "sb-today"], ["Holnaputáni műszak", ymd(addDays(new Date(),2)), "sb-tmrw"]] : [["Mai műszak", today(), "sb-today"], ["Holnapi műszak", ymd(addDays(new Date(),1)), "sb-tmrw"]]).map(([lbl, d, cls])=>{ const sh = shiftOf(d); return `<section class="shiftbar ${cls}" data-act="goShift" data-date="${d}" role="button" tabindex="0" aria-label="${lbl} megnyitása a Műszak menüben"><span class="label">${lbl}</span>
-      ${isClosed(d) ? `<span class="small">Zárva: ${esc(closedLabel(d))}</span>` : sh.length ? sh.map(e=>`<span class="schip"><b>${esc(staffName(e.staffId))}</b> <span class="num">${e.start}–${e.end}</span></span>`).join("") : `<span class="small muted">nincs beosztva senki</span>`}
-    </section>`; }).join("")}
+    ${shiftBars()}
     <section class="card"><div class="row"><span class="grow small muted">Ha a telefon képernyője ébren marad, az emlékeztető biztosan megszólal.</span><button class="btn sm" data-act="wake">${S.wake?"Ébren tartva ✓":"Ébren tartás"}</button></div></section>
     ${(()=>{ const d = bakeDoc(today()); return d && d.remaining && d.sold ? `<section class="shiftbar bakebar"><span class="label">Ma fogyott</span><span class="small">${bakeLine(d.sold)}</span></section>` : ""; })()}
   </div>`;
@@ -1840,7 +1874,7 @@ function wire(){
   const err = () => {};
   db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null, yearTop:d.yearTop||null};
     if(BACKEND==="fb" && !ensuredOwner && S.cfg.staff.length && !S.cfg.staff.some(x=>roleOf(x)==="owner")){ ensuredOwner = true; saveCfg({staff:[...S.cfg.staff, {id:"admin", name:"Admin", role:"owner", admin:true, active:true}]}).catch(()=>{}); } } S.dbOk = true; render(); }, err);
-  db.collection("items").onSnapshot(q => { S.items = q.docs.map(x=>({id:x.id, ...x.data()})); render(); }, err);
+  db.collection("items").onSnapshot(q => { S.items = q.docs.map(x=>({id:x.id, ...x.data()})); render(); seedItems(); }, err);
   db.doc("unavail/main").onSnapshot(s => { S.unavail = s.exists ? (s.data()||{}) : {}; render(); }, err);
   db.doc("freezer/main").onSnapshot(s => { S.freezer = s.exists ? {...s.data()} : {}; render(); }, err);
   db.collection("bakery").orderBy("date","desc").limit(70).onSnapshot(q => { S.bakery = q.docs.map(x=>x.data()); render(); }, err);
