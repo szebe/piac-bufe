@@ -1,0 +1,22 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:1500}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore();
+ await fs.doc('items/a1').set({id:'a1',name:'Kóla',unit:'db',perCarton:24,stock:30,partial:true,monday:true});
+ await fs.doc('items/a2').set({id:'a2',name:'Ásványvíz',unit:'db',perCarton:12,stock:20,partial:true,monday:true});
+ await fs.doc('items/a3').set({id:'a3',name:'Margarin',unit:'db',perCarton:0,stock:5,partial:true,monday:true}); });
+await p.click('[data-act=pickMe][data-id=tamas]'); await p.fill('#pinA','1111'); await p.fill('#pinB','1111'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(400);
+await p.evaluate(()=>{ for(const s of [...document.querySelectorAll('.alarm button, #alarm button')]) {} });
+await p.evaluate(()=>{ S.alarmFor=null; S.snooze[INV_ID()]=Date.now()+1e7; S.snooze[CASH_ID()]=Date.now()+1e7; S.tab='stock'; S.invTab='leltar'; render(); });
+await p.waitForTimeout(200);
+const ids = await p.evaluate(()=>[...document.querySelectorAll('input[id^=lt_]')].map(e=>e.id)); console.log(ids);
+await p.fill('#lt_a1K','2'); await p.fill('#lt_a1D','3'); await p.fill('#lt_a3D','4');
+// go add item
+await p.click('[data-act=invTab][data-t=stock]'); await p.click('[data-act=niToggle]'); await p.fill('#niName','Fanta'); await p.fill('#niPc','24');
+await p.click('[data-act=itemAdd]'); await p.waitForTimeout(400);
+await p.click('[data-act=invTab][data-t=leltar]'); await p.waitForTimeout(200);
+console.log(await p.evaluate(()=>[...document.querySelectorAll('input[id^=lt_]')].map(e=>e.id+'='+e.value).join(' ')));
+console.log(await p.evaluate(()=>S.items.map(i=>i.name+':'+i.stock+'/'+i.perCarton).join(' ')));
+await b.close(); })();

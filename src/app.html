@@ -664,7 +664,7 @@ const IC = {
 function render(){
   if(dragState){ pendingRender = true; return; }
   try{ syncHistory(); document.body.classList.toggle("ro", isReadonly()); }catch(e){}
-  const ae = document.activeElement, aid = ae && ae.id, sel = ae && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null;
+  const ae = document.activeElement, aid = ae && ae.tagName !== "SELECT" && ae.id, sel = ae && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null;
   const sy = window.scrollY;
   $("#app").innerHTML = view();
   $("#tabs").innerHTML = (S.me && meStaff()) ? tabsView() : "";
@@ -1076,7 +1076,8 @@ function invView(){
     <div class="invbig">${esc(it.name)}</div>
     <div>A rendszer szerint: <b>${fmtQty(it.stock||0, it)}</b></div>
     <button class="btn pri" style="width:100%;margin-top:14px;padding:16px;font-size:1.15rem" data-act="invOk">OK, ennyi van</button>
-    <label class="qsel" style="margin-top:12px"><span>Más a mennyiség? Válaszd ki</span><span aria-hidden="true">▾</span><select id="invq" data-invq="${esc(it.id)}" aria-label="Tényleges mennyiség"><option value="" selected>–</option>${qtyOptions(it).replace(/ selected/g,"")}</select></label>
+    ${inv.zero===it.id?`<div class="note d" style="margin-top:12px;flex-wrap:wrap"><span class="grow"><b>0 ${esc(U(it))}</b>-t választottál, de a rendszer szerint ${fmtQty(it.stock||0, it)} van. Biztosan elfogyott?</span><div class="row" style="width:100%"><button class="btn dng grow" data-act="invZeroOk">Igen, 0</button><button class="btn grow" data-act="invZeroNo">Mégse</button></div></div>`:""}
+    <label class="qsel" style="margin-top:12px"><span>Más a mennyiség? Válaszd ki</span><span aria-hidden="true">▾</span><select id="invq_${esc(it.id)}" data-invq="${esc(it.id)}" aria-label="Tényleges mennyiség"><option value="" selected>–</option>${qtyOptions(it).replace(/ selected/g,"")}</select></label>
     <div class="row" style="margin-top:12px"><button class="btn ghost grow" data-act="invSkip">Kihagyom</button><button class="btn ghost grow" data-act="invClose">Szünet</button></div>
   </section></div>`;
 }
@@ -1393,11 +1394,13 @@ const A = {
     const ids = lt.items.filter(i => i.lastCountDate !== today()).sort((a,b)=>a.name.localeCompare(b.name,"hu")).map(i => i.id);
     if(!ids.length) return toast("Minden tétel meg van számolva mára.");
     S.inv = {name: lt.name, ids, i:0, n:0, skipped:0}; window.scrollTo(0,0); render(); },
-  async invOk(){ const inv = S.inv; if(!inv) return; const it = S.items.find(x => x.id === inv.ids[inv.i]); inv.i++; inv.n++; render(); if(it) await countItem(it, num(it.stock||0)).catch(()=>{}); },
+  async invOk(){ const inv = S.inv; if(!inv) return; inv.zero = null; const it = S.items.find(x => x.id === inv.ids[inv.i]); inv.i++; inv.n++; render(); if(it) await countItem(it, num(it.stock||0)).catch(()=>{}); },
   cashOfferGo(){ S.snooze[CASH_ID()] = Date.now() + 60*60000; S.alarmFor = null; renderAlarm(); S.cashDate = today(); S.cashDraft = null; A.goSub({sub:"cash"}); },
   cashOfferLater(){ S.snooze[CASH_ID()] = Date.now() + 15*60000; lastBeep[CASH_ID()] = 0; S.alarmFor = null; render(); },
   invAlarmStart(){ S.snooze[INV_ID()] = Date.now() + 15*60000; lastBeep[INV_ID()] = 0; S.alarmFor = null; renderAlarm(); A.invStart(); },
-  invSkip(){ if(!S.inv) return; S.inv.i++; S.inv.skipped++; render(); },
+  async invZeroOk(){ const inv = S.inv; if(!inv || !inv.zero) return; const it = S.items.find(x => x.id === inv.zero); inv.zero = null; if(!it || inv.ids[inv.i] !== it.id) return render(); inv.i++; inv.n++; render(); await countItem(it, 0).catch(()=>{}); toast(`${it.name}: 0`); },
+  invZeroNo(){ if(S.inv){ S.inv.zero = null; render(); } },
+  invSkip(){ if(!S.inv) return; S.inv.zero = null; S.inv.i++; S.inv.skipped++; render(); },
   invClose(){ S.inv = null; S.tab = "home"; S.sub = null; window.scrollTo(0,0); render(); },
   goLeltar(){ S.tab="stock"; S.invTab="leltar"; render(); },
   async fbLogin(){ const em = (S.f.lgEm ?? (window.FB_EMAIL||"")).trim(), pw = S.f.lgPw || ""; if(!em || !pw) return toast("Add meg az e-mailt és a jelszót.");
@@ -1681,7 +1684,9 @@ function onField(e){
   if(el.dataset && el.dataset.qty){ if(e.type==="change") onQty(el).catch(()=>{}); return; }
   if(el.dataset && el.dataset.waste){ if(e.type==="change" && el.value!=="") A.wasteSave({id:el.dataset.waste, q:el.value}).catch(()=>{}); return; }
   if(el.dataset && el.dataset.imp){ if(e.type==="change" && el.files && el.files[0]) importData(el.files[0]).catch(err=>{ S.impMsg = "Hiba: " + (err.message||err); render(); }); return; }
-  if(el.dataset && el.dataset.invq){ if(e.type==="change" && el.value!=="" && S.inv){ const it = S.items.find(x=>x.id===el.dataset.invq), q = num(el.value); S.inv.i++; S.inv.n++; render(); if(it){ countItem(it, q).catch(()=>{}); toast(`${it.name}: ${fmtQty(q,it)}`); } } return; }
+  if(el.dataset && el.dataset.invq){ if(e.type==="change" && el.value!=="" && S.inv && el.dataset.invq === S.inv.ids[S.inv.i]){ const it = S.items.find(x=>x.id===el.dataset.invq), q = num(el.value); el.blur && el.blur();
+      if(it && q === 0 && (it.stock||0) > 0){ S.inv.zero = it.id; render(); return; }
+      S.inv.zero = null; S.inv.i++; S.inv.n++; render(); if(it){ countItem(it, q).catch(()=>{}); toast(`${it.name}: ${fmtQty(q,it)}`); } } return; }
   if(el.dataset && el.dataset.role){ if(e.type==="change") A.staffRole({id:el.dataset.role}, el).catch(()=>{}); return; }
   if(el.dataset && el.dataset.fz){ if(e.type==="change") onFz(el).catch(()=>{}); return; }
   const f = el.dataset && el.dataset.f; if(!f) return;
