@@ -841,8 +841,8 @@ function homeViewInner(){
   if(unc.length) notes.push(`<div class="note d"><span class="grow">Nincs beosztva senki: ${unc.map(s=>fmtDay(s).split(",")[0]).join(", ")}</span><button class="btn sm" data-act="nav" data-tab="shift">Műszak</button></div>`);
   const um = unreadMsgs();
 
-  const orq = shiftStaff().some(x=>x.id===S.me) ? openReqs().filter(r=>r.staffId!==S.me && !unavailOn(S.me, r.date)) : [];
-  if(orq.length) notes.push(`<div class="note i"><span class="grow">${orq.length} műszak átvehető</span><button class="btn sm" data-act="goUnavail">Megnézem</button></div>`);
+  const solo = []; for(let i = 0; i < 7; i++){ const d = ymd(addDays(new Date(), i)); if(!isClosed(d) && shiftOf(d).length === 1) solo.push(d); }
+  if(solo.length) notes.push(`<div class="note d"><span class="grow">⚠ Csak 1 fő beosztva: ${solo.map(d=>`${fmtDay(d).split(",")[0]} (${esc(staffName(shiftOf(d)[0].staffId))})`).join(", ")}</span><button class="btn sm" data-act="nav" data-tab="shift">Műszak</button></div>`);
   S.notices.forEach((n,i)=> notes.push(`<div class="note i"><span class="grow">${esc(n)}</span><button class="btn sm ghost" data-act="dismiss" data-i="${i}">OK</button></div>`));
   const tOrders = S.orders.filter(o=> o.date===today() && o.status==="nyitott").sort((a,b)=>a.time<b.time?-1:1);
   const future = S.orders.filter(o=> o.date>today() && o.status==="nyitott").length;
@@ -919,7 +919,7 @@ function shiftView(){
     <div class="row"><button class="btn sm" data-act="week" data-d="-1" aria-label="Előző hét">‹</button><b class="grow" style="text-align:center">${fmtDay(days[0]).split(",")[0]} – ${fmtDay(days[6]).split(",")[0]}</b><button class="btn sm" data-act="week" data-d="1" aria-label="Következő hét">›</button></div>
     ${S.weekOff?`<button class="btn sm ghost" data-act="week" data-d="0">Vissza az aktuális hétre</button>`:""}
     <div class="stack" style="gap:6px">${days.map(dayCard).join("")}</div>
-    ${(()=>{ const n = openReqs().filter(r=>r.staffId!==S.me && !unavailOn(S.me, r.date)).length, mine = ((S.unavail||{})[S.me]||[]).filter(d=>d>=today()).length;
+    ${(()=>{ const n = 0, mine = ((S.unavail||{})[S.me]||[]).filter(d=>d>=today()).length;
       return `<section class="unbox ${S.unOpen?"open":""}" id="unbox"><button class="unhead" data-act="unOpen" aria-expanded="${!!S.unOpen}"><span class="grow">EZEKEN A NAPOKON NEM ÉREK RÁ</span>${n?`<span class="pill w">${n} átvehető</span>`:""}${mine?`<span class="pill d">${mine} napom</span>`:""}<span aria-hidden="true">${S.unOpen?"▴":"▾"}</span></button>${S.unOpen ? `<div class="unbody stack">${reqsBody()}</div>` : ""}</section>`; })()}
     <section class="card"><h3>Óraösszesítő</h3><div class="scroll"><table class="tbl"><thead><tr><th>Kolléga</th><th class="r">Ez a hét</th><th class="r">${MONTHS[mRef.getMonth()]}</th></tr></thead><tbody>
     ${ids.map(id=>`<tr><td><button class="namebtn" data-act="personCal" data-id="${esc(id)}">${esc(staffName(id))}</button></td><td class="r">${fmtN(totals[id]||0)} ó${tb[id]?`<br><span class="small bonc">ebből +${fmtN(tb[id])}</span>`:""}</td><td class="r">${fmtN(mt[id]||0)} ó${mb[id]?`<br><span class="small bonc">ebből +${fmtN(mb[id])}</span>`:""}</td></tr>`).join("")}</tbody></table><div class="small muted" style="margin-top:6px"><span class="bon">+1</span> plusz fizetett óra: pénteken, szombaton és vasárnap, ha legfeljebb 2-en vannak, fejenként +1; ezen felül szombaton és vasárnap mindenkinek +1.</div></div></section>
@@ -1330,20 +1330,7 @@ function unavailCal(){
   ${rows.length ? `<div class="list" style="margin-top:10px">${rows.map(x=>`<div class="li"><b style="width:76px">${x.s.id===S.me?"Én":esc(x.s.name)}</b><span class="grow small">${x.days.map(d=>fmtDay(d).split(",")[0]).join(", ")}</span></div>`).join("")}</div>` : `<div class="small muted" style="margin-top:8px">Ebben a hónapban még senki nem jelölt napot.</div>`}
   </section>`;
 }
-function reqsBody(){
-  const mine = shiftsOfMe();
-  const list = [...S.reqs].sort((a,b)=> a.date<b.date?-1:1).filter(r=> r.date >= ymd(addDays(new Date(),-14)));
-  return `${unavailCal()}
-  <section class="card"><h3>Műszakcsere – átadom a műszakom</h3>
-  ${mine.length?`<label class="field"><span>Melyik műszakod?</span><select id="rqDate" data-f="f.rqDate"><option value="">Válassz…</option>${mine.map(d=>`<option value="${d}" ${S.f.rqDate===d?"selected":""}>${fmtDay(d)}</option>`).join("")}</select></label>
-  <label class="field"><span>Megjegyzés</span><input id="rqNote" data-f="f.rqNote" value="${esc(S.f.rqNote||"")}"></label>
-  <button class="btn pri" data-act="reqAdd">Felajánlom átvételre</button>`:`<div class="empty">A következő 30 napban nincs beosztott műszakod.</div>`}
-  </section>
-  ${list.length?`<section class="card"><h3>Átvehető és átadott műszakok</h3><div class="list">${list.map(r=>{ const e = shiftOf(r.date).find(x=>x.staffId===r.staffId) || r.entry || {}; return `<div class="li"><span class="grow"><b>${esc(staffName(r.staffId))}</b> · ${fmtDay(r.date)}<br><span class="small muted">${e.start||""}–${e.end||""}${r.note?` · ${esc(r.note)}`:""}</span><br>
-  ${r.status==="atvett"?`<span class="pill ok">Átvette: ${esc(staffName(r.takenBy))}</span>`:r.status==="visszavont"?'<span class="pill">Visszavonva</span>':'<span class="pill w">Átvehető</span>'}</span>
-  ${r.status==="nyitott"&&r.staffId!==S.me&&r.date>=today()&&shiftStaff().some(x=>x.id===S.me)?`<button class="btn sm pri" data-act="reqTake" data-id="${esc(r.id)}">Átveszem</button>`:""}
-  ${r.status==="nyitott"&&r.staffId===S.me?`<button class="btn sm ghost" data-act="reqCancel" data-id="${esc(r.id)}">Visszavon</button>`:""}</div>`; }).join("")}</div></section>`:""}`;
-}
+function reqsBody(){ return unavailCal(); }
 function shiftsOfMe(){ const out=[]; for(let i=0;i<30;i++){ const d = ymd(addDays(new Date(),i)); if(shiftOf(d).some(e=>e.staffId===S.me) && !S.reqs.some(r=>r.date===d&&r.staffId===S.me&&r.status==="nyitott")) out.push(d); } return out; }
 
 function staffEditor(){
@@ -1613,16 +1600,6 @@ const A = {
     const busy = !on && shiftOf(d.date).some(e => e.staffId === id);
     await write("unavail/main", async r => { const sn = await r.get(); const base = sn.exists ? sn.data() : {}; await r.set(Object.assign({}, base, {[id]: days})); });
     toast(on ? `${fmtDay(d.date)}: visszavonva.` : busy ? `${fmtDay(d.date)}: jelölve. Erre a napra be vagy osztva – szólj a beosztónak, vagy ajánld fel átvételre lent!` : `${fmtDay(d.date)}: nem érsz rá – jelölve.`); },
-  async reqAdd(){ const date=S.f.rqDate; if(!date) return toast("Válaszd ki a napot."); const entry = shiftOf(date).find(e=>e.staffId===S.me); const id=uid(), r={id, date, staffId:S.me, entry, note:(S.f.rqNote||"").trim(), status:"nyitott", ...by()};
-    S.reqs=[...S.reqs,r]; delete S.f.rqDate; delete S.f.rqNote; render(); await write("requests/"+id, x=>x.set(r)); toast("Kérés feladva, a többiek látják."); },
-  async reqTake(d){ const r = S.reqs.find(x=>x.id===d.id); if(!r || r.status!=="nyitott") return;
-    if(unavailOn(S.me, r.date)) return toast("Erre a napra jelölted, hogy nem érsz rá. Előbb vond vissza a naptárban.");
-    const es = shiftOf(r.date).map(e=> e.staffId===r.staffId ? {...e, staffId:S.me} : e);
-    if(shiftOf(r.date).some(e=>e.staffId===S.me)) return toast("Erre a napra már be vagy osztva.");
-    if(!es.some(e=>e.staffId===S.me)) es.push({...(r.entry||{start:"06:00",end:"11:00"}), staffId:S.me});
-    r.status="atvett"; r.takenBy=S.me; render();
-    await write("requests/"+r.id, x=>x.update({status:"atvett", takenBy:S.me, takenAt:Date.now()})); await setShift(r.date, es); toast("Átvetted a műszakot."); },
-  async reqCancel(d){ const r=S.reqs.find(x=>x.id===d.id); r.status="visszavont"; render(); await write("requests/"+d.id, x=>x.update({status:"visszavont"})); },
   async staffAdd(){ const n=(S.f.newStaff||"").trim(); if(!n) return toast("Add meg a nevet."); if(S.cfg.staff.some(s=>s.name.toLowerCase()===n.toLowerCase())) return toast("Ilyen nevű kolléga már van.");
     delete S.f.newStaff; await saveCfg({staff:[...S.cfg.staff, {id:uid(), name:n, active:true, admin:false}]}); },
   async staffToggle(d){ await saveCfg({staff:S.cfg.staff.map(s=> s.id===d.id ? {...s, active:s.active===false} : s)}); },
@@ -1896,9 +1873,6 @@ function wire(){
   db.collection("cash").orderBy("date","desc").limit(400).onSnapshot(q => { S.cash = q.docs.map(x=>x.data()); render(); }, err);
   db.collection("temps").orderBy("date","desc").limit(62).onSnapshot(q => { S.temps = q.docs.map(x=>x.data()); render(); }, err);
   db.collection("messages").orderBy("at","desc").limit(40).onSnapshot(q => { S.msgs = q.docs.map(x=>({id:x.id, ...x.data()})); render(); if(S.sub==="msgs") markRead(); }, err);
-  db.collection("requests").orderBy("date","desc").limit(40).onSnapshot(q => { const prev = new Map(S.reqs.map(r=>[r.id, r.status])); S.reqs = q.docs.map(x=>({id:x.id, ...x.data()}));
-    if(reqsLoaded) S.reqs.forEach(r => { if(r.staffId===S.me && r.status==="atvett" && prev.get(r.id)==="nyitott" && r.takenBy!==S.me) S.notices.push(`${staffName(r.takenBy)} átvette a ${fmtDay(r.date)} műszakodat.`); });
-    reqsLoaded = true; render(); }, err);
   if(BACKEND==="fb") subWaste();
   else db.collection("moves").where("type","==","selejt").orderBy("at","desc").limit(1000).onSnapshot(q => { S.wasteLog = q.docs.map(x=>({id:x.id, ...x.data()})); if(S.tab==="stock") render(); }, err);
   db.collection("moves").orderBy("at","desc").limit(60).onSnapshot(q => { S.moves = q.docs.map(x=>({id:x.id, ...x.data()})); if(S.tab==="stock") render(); }, err);

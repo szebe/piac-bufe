@@ -1,0 +1,15 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:400,height:1500}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore(); const E=(id,a,b)=>({staffId:id,start:a,end:b});
+ await fs.doc('shifts/2026-10-16').set({date:'2026-10-16',entries:[E('b','06:00','11:00'),E('tamas','07:00','11:00')]});
+ await fs.doc('shifts/2026-10-17').set({date:'2026-10-17',entries:[E('b','06:00','11:00')]}); });
+await p.click('[data-act=pickMe][data-id=b]'); await p.fill('#pinA','2222'); await p.fill('#pinB','2222'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(400);
+console.log('notes:', await p.evaluate(()=>[...document.querySelectorAll('.note')].map(e=>e.innerText.replace(/\s+/g,' ')).join(' | ')));
+await p.click('[data-act=nav][data-tab=shift]'); await p.waitForTimeout(300);
+console.log('unbox:', await p.evaluate(()=>{const u=document.querySelector('#unbox'); return u?u.innerText.replace(/\s+/g,' ').slice(0,200):'none'}));
+console.log('swap left:', await p.evaluate(()=>/átvehető|csere/i.test(document.body.innerText)));
+await p.screenshot({path:'/tmp/claude-0/-home-claude/e9bfa389-a662-5a2b-a20d-7977b9feea75/scratchpad/solo.png', fullPage:true});
+await b.close(); })();
