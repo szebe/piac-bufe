@@ -774,18 +774,19 @@ function bakeSelects(prefix, src, max){ return `<div class="grid3">${BAKERY.map(
 function bakeryBox(){
   if(isClosed(today()) || isReadonly()) return "";
   const d = bakeDoc(today());
-  if(!hasArrived(d)){
-    const y = bakeDoc(ymd(addDays(new Date(),-1))), ord = y && y.ordered;
+  const y = bakeDoc(ymd(addDays(new Date(),-1))), ord = y && y.ordered;
+  const noneComing = !!ord && BAKERY.every(([k]) => !num(ord[k]||0));
+  if(!hasArrived(d) && !noneComing){
     return `<section class="bake todo"><button data-act="bakeToggle" aria-expanded="${S.bakeryOpen}"><span class="grow">Ma érkezett pékáru: még nincs beírva</span><span>${S.bakeryOpen?"▴":"▾"}</span></button>
     ${S.bakeryOpen?`<div class="body">${ord?`<div class="small">Tegnap rendelve: ${bakeLine(ord)}</div>`:""}${bakeSelects("bk", S.bk, 300)}<div class="small">Ha mindhármat kiválasztottad, automatikusan ment, és a pékáru bekerül a büfé készletébe.</div></div>`:""}</section>`;
   }
   let out = "";
-  if(!d.ordered){
+  if(!(d && d.ordered)){
     out += `<section class="bake todo"><button data-act="bakeOrdToggle" aria-expanded="${!!S.bakeOrdOpen}"><span class="grow">Holnapra rendelt pékáru: még nincs beírva</span><span>${S.bakeOrdOpen?"▴":"▾"}</span></button>
     ${S.bakeOrdOpen?`<div class="body">${bakeSelects("bo", S.bo, 300)}<div class="small">Ha mindhármat kiválasztottad, automatikusan ment.</div></div>`:""}</section>`;
   }
-  if(!d.remaining){
-    out += `<section class="shiftbar bakebar"><span class="label">Pékáru a büfében</span><span class="small">${bakeLine(bakeStock(today()))}</span>${d.ordered?`<span class="small muted">· holnapra rendelve: ${BAKERY.map(([k])=>d.ordered[k]||0).join(" / ")}</span>`:""}</section>`;
+  if(!(d && d.remaining)){
+    out += `<section class="shiftbar bakebar"><span class="label">Pékáru a büfében</span><span class="small">${bakeLine(bakeStock(today()))}</span>${d && d.ordered?`<span class="small muted">· holnapra rendelve: ${BAKERY.map(([k])=>d.ordered[k]||0).join(" / ")}</span>`:""}</section>`;
   }
   return out;
 }
