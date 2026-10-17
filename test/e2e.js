@@ -82,7 +82,6 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   const p2 = await (await b.newContext()).newPage({viewport: {width: 400, height: 850}});
   await p2.route("**/firebase-config.js", r => r.fulfill({contentType: "text/javascript", body: cfgJs}));
   await p2.goto("http://127.0.0.1:5173/"); await p2.waitForSelector("#lgPw");
-  await p2.waitForTimeout(1500); if(!(await p2.$("[data-act=lgMode][data-m=reg]"))) console.log("::error::P2 " + (await p2.evaluate(() => document.body.innerHTML)).replace(/\n/g," | ").slice(0,1500));
   await p2.click("[data-act=lgMode][data-m=reg]"); await p2.fill("#lgEm", "bobe@example.com"); await p2.fill("#lgPw", "bobe-123456"); await p2.fill("#lgPw2", "bobe-123456"); await p2.click("[data-act=fbRegister]");
   await p2.waitForSelector("[data-act=fbVerified]", {timeout: 10000}); ok(true, "registration → verify screen");
   await p2.click("[data-act=fbVerified]"); await p2.waitForSelector(".note.d", {timeout: 5000}); ok(/Még nincs/.test(await p2.textContent(".note.d")), "unverified cannot continue");
@@ -96,7 +95,7 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   await p3.click("[data-act=lgMode][data-m=forgot]"); await p3.fill("#lgEm", "bobe@example.com"); await p3.click("[data-act=fbReset]"); await p3.waitForSelector(".note.ok", {timeout: 10000});
   ok((await oob()).some(o => o.email === "bobe@example.com" && o.requestType === "PASSWORD_RESET"), "password reset email sent");
   // verified but not listed → no access
-  await p3.click("[data-act=lgMode][data-m=reg]"); await p3.fill("#lgEm", "kulso@example.com"); await p3.fill("#lgPw", "kulso-123456"); await p3.fill("#lgPw2", "kulso-123456"); await p3.click("[data-act=fbRegister]");
+  await p3.click("[data-act=lgMode][data-m=in]"); await p3.click("[data-act=lgMode][data-m=reg]"); await p3.fill("#lgEm", "kulso@example.com"); await p3.fill("#lgPw", "kulso-123456"); await p3.fill("#lgPw2", "kulso-123456"); await p3.click("[data-act=fbRegister]");
   await p3.waitForSelector("[data-act=fbVerified]", {timeout: 10000}); await verifyAll(); await p3.click("[data-act=fbVerified]");
   await p3.waitForSelector("[data-act=fbRetry]", {timeout: 15000}); ok(true, "unlisted account sees 'no access'");
   ok(await p2.evaluate(() => !isAdmin()), "Böbe is not admin");
