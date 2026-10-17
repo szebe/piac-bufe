@@ -15,7 +15,7 @@ async function list(c){ const r = await fetch(docUrl(c) + "?pageSize=300", {head
 async function signIn(email, password){ const r = await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({email, password, returnSecureToken: true})}); return r.json(); }
 async function oob(){ const r = await fetch(`${AUTH}/emulator/v1/projects/${PROJECT}/oobCodes`); return (await r.json()).oobCodes || []; }
 const usedOob = new Set();
-async function verifyAll(){ for(const o of await oob()){ if(o.requestType === "VERIFY_EMAIL" && !usedOob.has(o.oobCode)){ usedOob.add(o.oobCode); await fetch(o.oobLink); } } }
+async function verifyAll(){ for(const o of await oob()){ if(o.requestType === "VERIFY_EMAIL" && !usedOob.has(o.oobCode)){ usedOob.add(o.oobCode); await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:update?key=fake`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({oobCode: o.oobCode})}); } } }
 async function signUp(email, password){ const r = await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({email, password, returnSecureToken: true})}); return r.json(); }
 
 (async () => {
@@ -78,7 +78,7 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   ok((await get("cash/2026-10-01")) !== null, "import wrote cash doc");
   ok(await p.evaluate(() => CELEB_AUDIO.week === "data:audio/mpeg;base64,AAAA"), "celebration audio loaded from Firestore");
   // second device sees same data (realtime)
-  const p2 = await b.newPage({viewport: {width: 400, height: 850}});
+  const p2 = await (await b.newContext()).newPage({viewport: {width: 400, height: 850}});
   await p2.route("**/firebase-config.js", r => r.fulfill({contentType: "text/javascript", body: cfgJs}));
   await p2.goto("http://127.0.0.1:5173/"); await p2.waitForSelector("#lgPw");
   await p2.click("[data-act=lgMode][data-m=reg]"); await p2.fill("#lgEm", "bobe@example.com"); await p2.fill("#lgPw", "bobe-123456"); await p2.fill("#lgPw2", "bobe-123456"); await p2.click("[data-act=fbRegister]");
@@ -88,7 +88,7 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   await verifyAll(); await p2.click("[data-act=fbVerified]");
   await p2.waitForFunction(() => S.dbOk && S.me === "b", null, {timeout: 15000}); ok(true, "Böbe logged in with own account after verifying");
   // forgot password
-  const p3 = await b.newPage({viewport: {width: 400, height: 850}});
+  const p3 = await (await b.newContext()).newPage({viewport: {width: 400, height: 850}});
   await p3.route("**/firebase-config.js", r => r.fulfill({contentType: "text/javascript", body: cfgJs}));
   await p3.goto("http://127.0.0.1:5173/"); await p3.waitForSelector("#lgPw");
   await p3.click("[data-act=lgMode][data-m=forgot]"); await p3.fill("#lgEm", "bobe@example.com"); await p3.click("[data-act=fbReset]"); await p3.waitForSelector(".note.ok", {timeout: 10000});
