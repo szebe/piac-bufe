@@ -4,7 +4,7 @@ const http = require("http"), fs = require("fs"), path = require("path");
 const PROJECT = "demo-bufe", FS = "http://127.0.0.1:8080", AUTH = "http://127.0.0.1:9099";
 const EMAIL = (fs.readFileSync(path.join(__dirname, "../firestore.rules"), "utf8").match(/token\.email == "([^"]+)"/) || [])[1];
 const PASS = "teszt-jelszo-123";
-let failed = 0; const ok = (c, m) => { console.log((c ? "✔ " : "✘ ") + m); if (!c) failed++; };
+let failed = 0; const ok = (c, m) => { console.log((c ? "✔ " : "✘ ") + m); if (!c){ failed++; if(process.env.CI) console.log("::error::" + String(m).replace(/\n/g," ").slice(0,400)); } };
 const toFs = v => v === null ? {nullValue: null} : typeof v === "boolean" ? {booleanValue: v} : typeof v === "number" ? (Number.isInteger(v) ? {integerValue: String(v)} : {doubleValue: v}) : typeof v === "string" ? {stringValue: v} : Array.isArray(v) ? {arrayValue: {values: v.map(toFs)}} : {mapValue: {fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, toFs(x)]))}};
 const fromFs = f => "nullValue" in f ? null : "booleanValue" in f ? f.booleanValue : "integerValue" in f ? +f.integerValue : "doubleValue" in f ? f.doubleValue : "stringValue" in f ? f.stringValue : "arrayValue" in f ? (f.arrayValue.values || []).map(fromFs) : Object.fromEntries(Object.entries(f.mapValue.fields || {}).map(([k, x]) => [k, fromFs(x)]));
 const docUrl = p => `${FS}/v1/projects/${PROJECT}/databases/(default)/documents/${p}`;
@@ -104,4 +104,4 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   ok(errs.length === 0, "no page errors " + errs.join(" | "));
   await b.close(); srv.close();
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASSED"); process.exit(failed ? 1 : 0);
-})().catch(e => { console.error(e); process.exit(1); });
+})().catch(e => { console.error(e); if(process.env.CI) console.log("::error::CRASH " + String(e && (e.stack||e.message) || e).replace(/\n/g," | ").slice(0,900)); process.exit(1); });
