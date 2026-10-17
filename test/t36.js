@@ -1,0 +1,15 @@
+const { chromium } = require(process.env.PW||'playwright');
+const SP='/tmp/claude-0/-home-claude/e9bfa389-a662-5a2b-a20d-7977b9feea75/scratchpad/';
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:390,height:800}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.screenshot({path:SP+'login.png'});
+await p.click('[data-act=lgMode][data-m=reg]'); await p.screenshot({path:SP+'reg.png'});
+await p.click('[data-act=lgMode][data-m=in]');
+await p.fill('#lgEm','piacbufe@szebe.hu'); await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(800);
+console.log('me', await p.evaluate(()=>[S.me, isAdmin()]));
+await p.evaluate(()=>{ S.alarmFor=null; S.tab='more'; S.sub='settings'; render(); }); await p.waitForTimeout(200);
+await p.fill('#em_b','bobe@example.com'); await p.click('[data-act=staffEmail][data-id=b]'); await p.waitForTimeout(300);
+console.log(await p.evaluate(()=>JSON.stringify(window.__store.get('config/main').emails)));
+const el = await p.$('section.card:has(h3:text("Kollégák"))'); await el.screenshot({path:SP+'staff.png'});
+await b.close(); })();

@@ -1369,9 +1369,15 @@ function reqsBody(){ return unavailCal(); }
 function shiftsOfMe(){ const out=[]; for(let i=0;i<30;i++){ const d = ymd(addDays(new Date(),i)); if(shiftOf(d).some(e=>e.staffId===S.me) && !S.reqs.some(r=>r.date===d&&r.staffId===S.me&&r.status==="nyitott")) out.push(d); } return out; }
 
 function staffEditor(){
-  return `<section class="card"><h3>Kollégák</h3><div class="list">${S.cfg.staff.map(s=>`<div class="li"><span class="grow"><b>${esc(s.name)}</b>${s.active===false?' <span class="pill">inaktív</span>':""}${roleOf(s)!=="staff"?` <span class="badge">${roleName(roleOf(s))}</span>`:""}${BACKEND==="fb"?`<br><span class="small ${s.email?"muted":""}">${s.email?esc(s.email):"⚠ nincs e-mail cím – nem tud belépni"}</span>`:""}</span>
-  ${BACKEND==="fb" && isOwnerish()?`<select id="role_${esc(s.id)}" data-role="${esc(s.id)}" aria-label="Jogosultság" style="max-width:150px">${ROLES.map(([k,l])=>`<option value="${k}" ${roleOf(s)===k?"selected":""}>${l}</option>`).join("")}</select><span style="flex-basis:100%;display:flex;gap:6px"><input id="em_${esc(s.id)}" type="email" class="grow" placeholder="e-mail cím a belépéshez" data-f="f.em_${esc(s.id)}" value="${esc(S.f["em_"+s.id] ?? (s.email||""))}"><button class="btn sm" data-act="staffEmail" data-id="${esc(s.id)}">Mentés</button></span>`:(isOwnerish()?`<button class="btn sm ghost" data-act="staffAdmin" data-id="${esc(s.id)}">${s.admin?"Admin el":"Admin"}</button>`:"")}
-  <button class="btn sm ghost" data-act="staffToggle" data-id="${esc(s.id)}">${s.active===false?"Aktivál":"Inaktivál"}</button></div>`).join("")||'<div class="empty">Még senki.</div>'}</div>
+  const fbOwner = BACKEND==="fb" && isOwnerish();
+  return `<section class="card"><h3>Kollégák</h3><div class="list">${S.cfg.staff.map(s=>`<div class="li" style="flex-direction:column;align-items:stretch;gap:8px">
+  <div class="row"><span class="grow"><b>${esc(s.name)}</b>${s.active===false?' <span class="pill">inaktív</span>':""}${roleOf(s)!=="staff"?` <span class="badge">${roleName(roleOf(s))}</span>`:""}</span>
+  <button class="btn sm ghost" data-act="staffToggle" data-id="${esc(s.id)}">${s.active===false?"Aktivál":"Inaktivál"}</button></div>
+  ${BACKEND==="fb"?`<div class="small ${s.email?"muted":""}">${s.email?"Belépés: "+esc(s.email):"⚠ Nincs e-mail cím, így nem tud belépni."}</div>`:""}
+  ${fbOwner?`<div class="row"><select id="role_${esc(s.id)}" data-role="${esc(s.id)}" aria-label="Jogosultság" class="grow">${ROLES.map(([k,l])=>`<option value="${k}" ${roleOf(s)===k?"selected":""}>${l}</option>`).join("")}</select></div>
+  <div class="row"><input id="em_${esc(s.id)}" type="email" class="grow" style="min-width:0" placeholder="e-mail cím a belépéshez" aria-label="${esc(s.name)} e-mail címe" data-f="f.em_${esc(s.id)}" value="${esc(S.f["em_"+s.id] ?? (s.email||""))}"><button class="btn sm" data-act="staffEmail" data-id="${esc(s.id)}">Mentés</button></div>`
+   : (BACKEND!=="fb" && isOwnerish()?`<div class="row"><button class="btn sm ghost" data-act="staffAdmin" data-id="${esc(s.id)}">${s.admin?"Admin el":"Admin"}</button></div>`:"")}
+  </div>`).join("")||'<div class="empty">Még senki.</div>'}</div>
   <div class="row"><input id="newStaff" class="grow" placeholder="Név" data-f="f.newStaff" value="${esc(S.f.newStaff||"")}"><button class="btn pri" data-act="staffAdd">Hozzáad</button></div></section>`;
 }
 function closedCal(){
