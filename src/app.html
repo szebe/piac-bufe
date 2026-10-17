@@ -389,7 +389,7 @@ const S = {
   cfg:{staff:[], fridges:[], openDays:[], closedDays:[], adminPin:""},
   calMonth:null, bakeryOpen:false, bk:{}, bo:{}, bakeOrdOpen:false, close:null, sortMode: (m => m==="custom" ? "recent" : m)(ls.get("bufe.sort") || "abc"),
   items:[], moves:[], orders:[], shifts:{}, cash:[], temps:[], msgs:[], reqs:[], freezer:{}, bakery:[], wasteLog:[],
-  me: ls.get("bufe.me") || "", adminUnlocked: ls.get("bufe.admin") === "1", unlockedId: "", pinFor: null, cashPop: null,
+  me: "", authEmail: "", authMe: "", needVerify: false, noAccess: false, lgMode: "in", adminUnlocked: ls.get("bufe.admin") === "1", unlockedId: "", pinFor: null, cashPop: null,
   tab: "home", sub: null, f:{}, weekOff:0, invTab:"stock", openItem:null, editItem:null,
   cashDate: today(), cashDraft:null, tempDate: today(), tempDraft:{},
   shiftForm:null, shiftHist:null, notices:[], snooze:{}, alarmFor:null, soundOn:false, wake:null,
@@ -403,7 +403,17 @@ const roleName = r => (ROLES.find(x=>x[0]===r)||ROLES[0])[1];
 const needsPin = s => !!s;
 function trustMap(){ try{ return JSON.parse(ls.get("bufe.trust") || "{}"); }catch(e){ return {}; } }
 const trusted = id => { const st = S.cfg.staff.find(x=>x.id===id); return !!st && !!st.pinHash && trustMap()[id] === st.pinHash; };
-const unlocked = () => !!S.me && (S.unlockedId === S.me || trusted(S.me));
+const unlocked = () => !!S.me && (BACKEND==="fb" ? S.authMe === S.me : (S.unlockedId === S.me || trusted(S.me)));
+const SHOP_EMAIL = () => (window.FB_EMAIL || "").toLowerCase();
+const normEm = e => String(e||"").trim().toLowerCase();
+const staffEmails = staff => [...new Set((staff||[]).filter(s => s.active !== false && s.email).map(s => normEm(s.email)))];
+function resolveMe(){
+  if(BACKEND!=="fb" || !S.authEmail) return;
+  const em = S.authEmail, st = S.cfg.staff;
+  const m = st.find(s => s.active !== false && normEm(s.email) === em) || (em === SHOP_EMAIL() ? st.find(s => roleOf(s) === "owner") : null);
+  const id = m ? m.id : "";
+  if(S.me !== id || S.authMe !== id){ S.me = id; S.authMe = id; }
+}
 const isAdmin = () => S.isOwner || (BACKEND!=="fb" ? !!meStaff()?.admin && (!S.cfg.adminPin || !!S.adminUnlocked) : (["owner","admin"].includes(roleOf(meStaff())) && unlocked()));
 const isReadonly = () => BACKEND==="fb" && roleOf(meStaff())==="readonly";
 const canCash = () => S.isOwner || BACKEND!=="fb" || (["owner","admin","readonly"].includes(roleOf(meStaff())) && unlocked());
@@ -698,15 +708,39 @@ function header(sub){
   ${m?`<button class="who" data-act="switchMe" aria-label="Felhasználó váltása">${esc(m.name)} ▾</button>`:""}</div></header>`;
 }
 function loginView(){
-  return header() + `<section class="card"><h3>Bejelentkezés</h3><p class="muted small">A bolt közös fiókjával kell belépni. Ezt telefononként csak egyszer kell megadni.</p>
-  <label class="field"><span>E-mail</span><input id="lgEm" type="email" autocomplete="username" data-f="f.lgEm" value="${esc(S.f.lgEm ?? (window.FB_EMAIL||""))}"></label>
+  const mode = S.lgMode || "in", msg = S.loginErr ? `<div class="note d" style="margin-top:10px">${esc(S.loginErr)}</div>` : S.loginOk ? `<div class="note ok" style="margin-top:10px">${esc(S.loginOk)}</div>` : "";
+  const em = `<label class="field"><span>E-mail címed</span><input id="lgEm" type="email" autocomplete="username" data-f="f.lgEm" value="${esc(S.f.lgEm||"")}"></label>`;
+  const seg = `<div class="seg" role="tablist">${[["in","Belépés"],["reg","Regisztráció"]].map(([k,l])=>`<button class="${mode===k?"on":""}" data-act="lgMode" data-m="${k}" role="tab" aria-selected="${mode===k}">${l}</button>`).join("")}</div>`;
+  if(mode === "forgot") return header() + `<section class="card"><h3>Elfelejtett jelszó</h3><p class="muted small">Add meg az e-mail címed. Küldünk egy levelet, amiben új jelszót állíthatsz be.</p>${em}
+    <button class="btn pri" style="width:100%" data-act="fbReset">Levél küldése</button>${msg}
+    <button class="btn ghost" style="width:100%;margin-top:8px" data-act="lgMode" data-m="in">Vissza a belépéshez</button></section>`;
+  if(mode === "reg") return header() + `<div class="stack">${seg}<section class="card"><h3>Regisztráció</h3><p class="muted small">Azzal az e-mail címmel regisztrálj, amit az adminnak megadtál. Utána kapsz egy megerősítő levelet.</p>${em}
+    <label class="field"><span>Jelszó (legalább 6 karakter)</span><input id="lgPw" type="password" autocomplete="new-password" data-f="f.lgPw" value=""></label>
+    <label class="field"><span>Jelszó még egyszer</span><input id="lgPw2" type="password" autocomplete="new-password" data-f="f.lgPw2" value=""></label>
+    <button class="btn pri" style="width:100%" data-act="fbRegister">Regisztrálok</button>${msg}</section></div>`;
+  return header() + `<div class="stack">${seg}<section class="card"><h3>Bejelentkezés</h3><p class="muted small">A saját e-mail címeddel és jelszavaddal lépj be. A telefon megjegyzi, nem kell minden nap újra.</p>${em}
   <label class="field"><span>Jelszó</span><input id="lgPw" type="password" autocomplete="current-password" data-f="f.lgPw" value=""></label>
-  <button class="btn pri" style="width:100%" data-act="fbLogin">Belépés</button>${S.loginErr?`<div class="note d" style="margin-top:10px">${esc(S.loginErr)}</div>`:""}</section>`;
+  <button class="btn pri" style="width:100%" data-act="fbLogin">Belépés</button>${msg}
+  <button class="btn ghost" style="width:100%;margin-top:8px" data-act="lgMode" data-m="forgot">Elfelejtettem a jelszavam</button></section></div>`;
+}
+function verifyView(){
+  return header() + `<section class="card"><h3>Erősítsd meg az e-mail címed</h3><p>Küldtünk egy levelet ide: <b>${esc(S.authEmail)}</b>. Nyisd meg, és kattints a benne lévő linkre. (Ha nem találod, nézd meg a Spam / Promóciók mappát is.)</p>
+  <button class="btn pri" style="width:100%" data-act="fbVerified">Megerősítettem, tovább</button>
+  <button class="btn" style="width:100%;margin-top:8px" data-act="fbResend">Levél újraküldése</button>
+  <button class="btn ghost" style="width:100%;margin-top:8px" data-act="fbLogout">Kilépés</button>${S.loginErr?`<div class="note d" style="margin-top:10px">${esc(S.loginErr)}</div>`:""}</section>`;
+}
+function noAccessView(){
+  return header() + `<section class="card"><h3>Nincs hozzáférésed</h3><p>A(z) <b>${esc(S.authEmail)}</b> cím még nincs a büfé munkatársai között.</p><p class="muted small">Kérd meg az admint, hogy a Több → Beállítások → Kollégák listában írja be ezt az e-mail címet a nevedhez. Utána nyomd meg az Újra gombot.</p>
+  <button class="btn pri" style="width:100%" data-act="fbRetry">Újra</button>
+  <button class="btn ghost" style="width:100%;margin-top:8px" data-act="fbLogout">Kilépés</button></section>`;
 }
 function view(){
   if(S.needLogin) return loginView();
+  if(BACKEND==="fb" && S.needVerify) return verifyView();
+  if(BACKEND==="fb" && S.noAccess) return noAccessView();
   if(S.dbOk === null) return header() + `<div class="card"><div class="empty">Adatok betöltése…</div></div>`;
   if(S.dbOk === false) return header() + `<div class="card"><h3>Az adatbázis nem érhető el</h3><p class="muted">${BACKEND==="fb" ? "Ellenőrizd az internetkapcsolatot, majd indítsd újra az appot." : "Nyisd meg az appot bejelentkezve a claude.ai-ban. A közös adatokhoz Tamásnak meg kell osztania veled szerkesztési joggal."}</p></div>`;
+  if(BACKEND==="fb" && S.dbOk && (!S.me || !meStaff())) return noAccessView();
   if(S.pinFor) return pinView();
   if(!S.me || !meStaff()) return pickView();
   if(BACKEND==="fb" && needsPin(meStaff()) && !unlocked()){ S.pinFor = S.me; return pinView(); }
@@ -1335,8 +1369,8 @@ function reqsBody(){ return unavailCal(); }
 function shiftsOfMe(){ const out=[]; for(let i=0;i<30;i++){ const d = ymd(addDays(new Date(),i)); if(shiftOf(d).some(e=>e.staffId===S.me) && !S.reqs.some(r=>r.date===d&&r.staffId===S.me&&r.status==="nyitott")) out.push(d); } return out; }
 
 function staffEditor(){
-  return `<section class="card"><h3>Kollégák</h3><div class="list">${S.cfg.staff.map(s=>`<div class="li"><span class="grow"><b>${esc(s.name)}</b>${s.active===false?' <span class="pill">inaktív</span>':""}${roleOf(s)!=="staff"?` <span class="badge">${roleName(roleOf(s))}</span>`:""}${needsPin(s)?`<br><span class="small muted">${s.pinHash?"jelszó beállítva":"jelszó még nincs (első belépéskor adja meg)"}</span>`:""}</span>
-  ${BACKEND==="fb" && isOwnerish()?`<select id="role_${esc(s.id)}" data-role="${esc(s.id)}" aria-label="Jogosultság" style="max-width:150px">${ROLES.map(([k,l])=>`<option value="${k}" ${roleOf(s)===k?"selected":""}>${l}</option>`).join("")}</select>${needsPin(s)&&s.pinHash?`<button class="btn sm ghost" data-act="staffPinReset" data-id="${esc(s.id)}">Jelszó törlése</button>`:""}`:(isOwnerish()?`<button class="btn sm ghost" data-act="staffAdmin" data-id="${esc(s.id)}">${s.admin?"Admin el":"Admin"}</button>`:"")}
+  return `<section class="card"><h3>Kollégák</h3><div class="list">${S.cfg.staff.map(s=>`<div class="li"><span class="grow"><b>${esc(s.name)}</b>${s.active===false?' <span class="pill">inaktív</span>':""}${roleOf(s)!=="staff"?` <span class="badge">${roleName(roleOf(s))}</span>`:""}${BACKEND==="fb"?`<br><span class="small ${s.email?"muted":""}">${s.email?esc(s.email):"⚠ nincs e-mail cím – nem tud belépni"}</span>`:""}</span>
+  ${BACKEND==="fb" && isOwnerish()?`<select id="role_${esc(s.id)}" data-role="${esc(s.id)}" aria-label="Jogosultság" style="max-width:150px">${ROLES.map(([k,l])=>`<option value="${k}" ${roleOf(s)===k?"selected":""}>${l}</option>`).join("")}</select><span style="flex-basis:100%;display:flex;gap:6px"><input id="em_${esc(s.id)}" type="email" class="grow" placeholder="e-mail cím a belépéshez" data-f="f.em_${esc(s.id)}" value="${esc(S.f["em_"+s.id] ?? (s.email||""))}"><button class="btn sm" data-act="staffEmail" data-id="${esc(s.id)}">Mentés</button></span>`:(isOwnerish()?`<button class="btn sm ghost" data-act="staffAdmin" data-id="${esc(s.id)}">${s.admin?"Admin el":"Admin"}</button>`:"")}
   <button class="btn sm ghost" data-act="staffToggle" data-id="${esc(s.id)}">${s.active===false?"Aktivál":"Inaktivál"}</button></div>`).join("")||'<div class="empty">Még senki.</div>'}</div>
   <div class="row"><input id="newStaff" class="grow" placeholder="Név" data-f="f.newStaff" value="${esc(S.f.newStaff||"")}"><button class="btn pri" data-act="staffAdd">Hozzáad</button></div></section>`;
 }
@@ -1365,7 +1399,7 @@ function settingsView(){
   <section class="card"><h3>Hűtők</h3><div class="list">${fr.map(f=>`<div class="li"><span class="grow"><b>${esc(f.name)}</b><br><span class="small muted">${f.min} – ${f.max} °C</span></span><button class="btn sm ghost" data-act="fridgeDel" data-id="${esc(f.id)}">Törlés</button></div>`).join("")||'<div class="empty">Még nincs hűtő.</div>'}</div>
   <div class="grid3"><label class="field"><span>Név</span><input id="frName" data-f="f.frName" value="${esc(S.f.frName||"")}"></label><label class="field"><span>Min °C</span><input id="frMin" type="number" step="1" data-f="f.frMin" value="${esc(S.f.frMin??"0")}"></label><label class="field"><span>Max °C</span><input id="frMax" type="number" step="1" data-f="f.frMax" value="${esc(S.f.frMax??"5")}"></label></div>
   <button class="btn" data-act="fridgeAdd">Hűtő hozzáadása</button></section>
-  ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted"><b>Dolgozó:</b> napi munka. Mindenki saját jelszóval lép be, az első belépéskor ő állítja be. <b>Adminisztrátor:</b> beállítások és kasszazárás, jelszóval. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat, jelszóval. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre koppintva lehet.</p>${Object.keys(trustMap()).length?`<button class="btn ghost" style="width:100%" data-act="forgetLogins">Megjegyzett belépések törlése ezen a telefonon</button>`:""}</section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
+  ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted">Mindenki a saját e-mail címével lép be. Az admin a Kollégák listában beírja a címet, utána a kolléga az appban a Regisztráció fülön saját jelszót választ, és a kapott levélben megerősíti a címét. Elfelejtett jelszót a belépő képernyőn lehet kérni. <b>Dolgozó:</b> napi munka. <b>Adminisztrátor:</b> beállítások és kasszazárás. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre kétszer koppintva lehet.</p>${Object.keys(trustMap()).length?`<button class="btn ghost" style="width:100%" data-act="forgetLogins">Megjegyzett belépések törlése ezen a telefonon</button>`:""}</section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
    :`<button class="btn ghost" data-act="adminLogout">Kilépés az admin módból</button>`}
   <section class="card"><h3>Éves rekord (${today().slice(0,4)})</h3>
     <p class="small muted">Az idei legjobb napi forgalom. Január 1-jén nulláról indul, januárban csak gyűjt, február 1-től ünnepel, ha valamelyik nap megdönti.${today().slice(0,4)==="2026" ? " <b>2026-ban még nincs éves top, az első összehasonlítás 2027. február 1-jén indul.</b>" : ""}</p>
@@ -1384,9 +1418,9 @@ function settingsView(){
 
 /* ---------- actions ---------- */
 const cfgRef = "config/main";
-async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
+async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); next.emails = staffEmails(next.staff); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
 const RO_FIELDS = new Set(["cashDate","tempDate","f.pinIn2","f.pinA","f.pinB","f.pinTrust","f.lgEm","f.lgPw"]);
-const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","unOpen","goUnavail","ologOpen","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
+const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","fbLogout","fbRetry","lgMode","fbVerified","fbResend","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","unOpen","goUnavail","ologOpen","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
 const A = {
   nav(d){ S.tab = d.tab; S.sub = null; S.personCal = null; window.scrollTo(0,0); render(); },
   goSub(d){ S.tab = "more"; S.sub = d.sub || null; if(d.sub==="cash") S.cashDraft=null; window.scrollTo(0,0); render(); if(d.sub==="msgs") markRead(); },
@@ -1403,8 +1437,24 @@ const A = {
   invSkip(){ if(!S.inv) return; S.inv.zero = null; S.inv.i++; S.inv.skipped++; render(); },
   invClose(){ S.inv = null; S.tab = "home"; S.sub = null; window.scrollTo(0,0); render(); },
   goLeltar(){ S.tab="stock"; S.invTab="leltar"; render(); },
-  async fbLogin(){ const em = (S.f.lgEm ?? (window.FB_EMAIL||"")).trim(), pw = S.f.lgPw || ""; if(!em || !pw) return toast("Add meg az e-mailt és a jelszót.");
-    S.loginErr = ""; try{ await firebase.auth().signInWithEmailAndPassword(em, pw); delete S.f.lgPw; }catch(e){ S.loginErr = /wrong-password|invalid-credential|user-not-found|invalid-login/.test(e.code||"") ? "Hibás e-mail vagy jelszó." : e.code==="auth/network-request-failed" ? "Nincs internetkapcsolat." : "Belépés nem sikerült ("+(e.code||e.message)+")."; render(); } },
+  async fbLogin(){ const em = (S.f.lgEm||"").trim(), pw = S.f.lgPw || ""; if(!em || !pw) return toast("Add meg az e-mailt és a jelszót.");
+    S.loginErr = ""; S.loginOk = ""; try{ await firebase.auth().signInWithEmailAndPassword(em, pw); delete S.f.lgPw; }catch(e){ S.loginErr = authMsg(e); render(); } },
+  lgMode(d){ S.lgMode = d.m; S.loginErr = ""; S.loginOk = ""; delete S.f.lgPw; delete S.f.lgPw2; render(); },
+  async fbRegister(){ const em = (S.f.lgEm||"").trim(), a = S.f.lgPw || "", b = S.f.lgPw2 || ""; S.loginErr = ""; S.loginOk = "";
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { S.loginErr = "Adj meg egy érvényes e-mail címet."; return render(); }
+    if(a.length < 6) { S.loginErr = "A jelszó legalább 6 karakter legyen."; return render(); }
+    if(a !== b) { S.loginErr = "A két jelszó nem egyezik."; return render(); }
+    try{ const c = await firebase.auth().createUserWithEmailAndPassword(em, a); delete S.f.lgPw; delete S.f.lgPw2; S.lgMode = "in"; await c.user.sendEmailVerification().catch(()=>{}); }
+    catch(e){ S.loginErr = authMsg(e); render(); } },
+  async fbReset(){ const em = (S.f.lgEm||"").trim(); S.loginErr = ""; S.loginOk = ""; if(!em){ S.loginErr = "Add meg az e-mail címed."; return render(); }
+    try{ await firebase.auth().sendPasswordResetEmail(em); S.loginOk = "Elküldtük a levelet. Kattints a benne lévő linkre, állíts be új jelszót, majd lépj be vele."; }
+    catch(e){ if(e.code === "auth/user-not-found") S.loginOk = "Ha ezzel a címmel van regisztráció, elküldtük a levelet. Ha még nem regisztráltál, válaszd a Regisztráció fület."; else S.loginErr = authMsg(e); } render(); },
+  async fbResend(){ const u = firebase.auth().currentUser; if(!u) return; try{ await u.sendEmailVerification(); toast("Levél újraküldve."); }catch(e){ toast(e.code==="auth/too-many-requests" ? "Túl sok kérés, várj pár percet." : "Nem sikerült elküldeni."); } },
+  async fbVerified(){ const u = firebase.auth().currentUser; if(!u) return; S.loginErr = ""; try{ await u.reload(); }catch(e){}
+    if(!firebase.auth().currentUser.emailVerified){ S.loginErr = "Még nincs megerősítve. Kattints a levélben lévő linkre, aztán próbáld újra."; return render(); }
+    await firebase.auth().currentUser.getIdToken(true).catch(()=>{}); S.needVerify = false; startData(); render(); },
+  fbRetry(){ location.reload(); },
+  async fbLogout(){ try{ await firebase.auth().signOut(); }catch(e){} ls.del("bufe.me"); location.reload(); },
   pickMe(d){ const st = S.cfg.staff.find(x=>x.id===d.id);
     if(BACKEND==="fb" && needsPin(st) && trusted(d.id)){ S.me = d.id; ls.set("bufe.me", d.id); S.unlockedId = d.id; render(); return; }
     if(BACKEND==="fb" && needsPin(st)){ S.pinFor = d.id; delete S.f.pinIn2; delete S.f.pinA; delete S.f.pinB; render(); setTimeout(()=>{ const el = $("#pinIn2") || $("#pinA"); el && el.focus(); }, 0); return; }
@@ -1421,7 +1471,12 @@ const A = {
     if(roleOf(s)==="owner" && r!=="owner" && S.cfg.staff.filter(x=>roleOf(x)==="owner").length<=1) { render(); return toast("Legalább egy Admin (főfiók) kell."); }
     await saveCfg({staff: S.cfg.staff.map(x => x.id===d.id ? {...x, role:r, admin:(r==="admin"||r==="owner")} : x)}); toast(`${s.name}: ${roleName(r)}`); },
   async staffPinReset(d){ const s = S.cfg.staff.find(x=>x.id===d.id); if(!s) return; await saveCfg({staff: S.cfg.staff.map(x => { if(x.id!==d.id) return x; const y = {...x}; delete y.pinHash; return y; })}); toast(`${s.name}: jelszó törölve, a következő belépéskor újat kell megadni.`); },
-  switchMe(){ S.me = ""; ls.del("bufe.me"); S.unlockedId = ""; S.pinFor = null; render(); },
+  switchMe(){ if(BACKEND==="fb"){ if(S.logoutAsk && Date.now() - S.logoutAsk < 4000) return A.fbLogout(); S.logoutAsk = Date.now(); return toast(`${(meStaff()||{}).name||""} – koppints még egyszer a kilépéshez.`); }
+    S.me = ""; ls.del("bufe.me"); S.unlockedId = ""; S.pinFor = null; render(); },
+  async staffEmail(d){ const s = S.cfg.staff.find(x=>x.id===d.id); if(!s) return; const em = normEm(S.f["em_"+d.id] ?? s.email);
+    if(em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return toast("Érvénytelen e-mail cím.");
+    if(em && S.cfg.staff.some(x => x.id!==d.id && normEm(x.email)===em)) return toast("Ez a cím már egy másik kollégánál szerepel.");
+    delete S.f["em_"+d.id]; await saveCfg({staff: S.cfg.staff.map(x => { if(x.id!==d.id) return x; const y = {...x}; if(em) y.email = em; else delete y.email; return y; })}); toast(em ? `${s.name}: ${em} – most már regisztrálhat.` : `${s.name}: e-mail törölve.`); },
   forgetLogins(){ ls.del("bufe.trust"); S.unlockedId = S.me; render(); toast("A megjegyzett belépések törölve ezen a telefonon."); },
   dismiss(d){ S.notices.splice(+d.i,1); render(); },
   sound(){ unlockSound(); beep(); render(); toast(S.soundOn?"Hang bekapcsolva":"A hang ezen az eszközön nem érhető el"); },
@@ -1864,8 +1919,10 @@ function onBack(){
 })();
 function wire(){
   const err = () => {};
-  db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null, yearTop:d.yearTop||null};
-    if(BACKEND==="fb" && !ensuredOwner && S.cfg.staff.length && !S.cfg.staff.some(x=>roleOf(x)==="owner")){ ensuredOwner = true; saveCfg({staff:[...S.cfg.staff, {id:"admin", name:"Admin", role:"owner", admin:true, active:true}]}).catch(()=>{}); } } S.dbOk = true; render(); }, err);
+  const cfgErr = e => { if(BACKEND==="fb" && e && e.code === "permission-denied"){ S.noAccess = true; S.dbOk = true; render(); } };
+  db.doc(cfgRef).onSnapshot(s => { S.noAccess = false; if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null, yearTop:d.yearTop||null, emails:d.emails||[]}; resolveMe();
+    if(BACKEND==="fb" && !ensuredOwner && S.cfg.staff.length && !S.cfg.staff.some(x=>roleOf(x)==="owner")){ ensuredOwner = true; saveCfg({staff:[...S.cfg.staff, {id:"admin", name:"Admin", role:"owner", admin:true, active:true}]}).catch(()=>{}); }
+    if(BACKEND==="fb" && S.authEmail === SHOP_EMAIL() && S.cfg.staff.length && !(S.cfg.emails||[]).length && staffEmails(S.cfg.staff).length) saveCfg({}).catch(()=>{}); } S.dbOk = true; render(); }, cfgErr);
   db.collection("items").onSnapshot(q => { S.items = q.docs.map(x=>({id:x.id, ...x.data()})); render(); seedItems(); }, err);
   db.doc("unavail/main").onSnapshot(s => { S.unavail = s.exists ? (s.data()||{}) : {}; render(); }, err);
   db.doc("freezer/main").onSnapshot(s => { S.freezer = s.exists ? {...s.data()} : {}; render(); }, err);
@@ -1899,6 +1956,9 @@ async function importData(file){
   S.impMsg = `Kész: ${ops.length} bejegyzés importálva.`; loadAudio(); render();
 }
 function loadAudio(){ ["week","month","quarter","year","all"].forEach(k => { if(!CELEB_AUDIO[k]) db.doc("assets/audio_" + k).get().then(s => { if(s.exists && s.data().d) CELEB_AUDIO[k] = s.data().d; }).catch(()=>{}); }); }
+let startData = () => {};
+function authMsg(e){ const c = (e && e.code) || "";
+  return /wrong-password|invalid-credential|user-not-found|invalid-login/.test(c) ? "Hibás e-mail vagy jelszó." : c==="auth/email-already-in-use" ? "Ezzel a címmel már regisztráltak. Lépj be, vagy kérj új jelszót." : c==="auth/invalid-email" ? "Érvénytelen e-mail cím." : c==="auth/weak-password" ? "Túl gyenge jelszó (legalább 6 karakter)." : c==="auth/too-many-requests" ? "Túl sok próbálkozás, várj pár percet." : c==="auth/network-request-failed" ? "Nincs internetkapcsolat." : "Nem sikerült (" + (c || (e && e.message)) + ")."; }
 function bootFirebase(){
   BACKEND = "fb";
   try{ firebase.initializeApp(window.FB_CONFIG); }catch(e){}
@@ -1907,9 +1967,14 @@ function bootFirebase(){
   try{ fs.settings({ignoreUndefinedProperties:true, merge:true}); }catch(e){}
   fs.enablePersistence({synchronizeTabs:true}).catch(()=>{});
   let wired = false;
+  try{ firebase.auth().languageCode = "hu"; }catch(e){}
+  ls.del("bufe.trust"); S.f.lgEm = ls.get("bufe.lastEm") || "";
+  startData = () => { if(wired) return; wired = true; db = fbAdapter(fs); wire(); loadAudio(); setTimeout(()=>{ if(S.dbOk===null){ S.dbOk = true; render(); } }, 8000); };
   firebase.auth().onAuthStateChanged(u => {
-    if(u){ S.needLogin = false; if(!wired){ wired = true; db = fbAdapter(fs); wire(); loadAudio(); setTimeout(()=>{ if(S.dbOk===null){ S.dbOk = true; render(); } }, 8000); } render(); }
-    else { S.needLogin = true; render(); }
+    if(u){ S.needLogin = false; S.authEmail = normEm(u.email); ls.set("bufe.lastEm", S.authEmail);
+      S.needVerify = !u.emailVerified && S.authEmail !== SHOP_EMAIL();
+      if(!S.needVerify) startData(); render(); }
+    else { S.needLogin = true; S.authEmail = ""; S.me = ""; S.authMe = ""; render(); }
   });
 }
 async function boot(){
