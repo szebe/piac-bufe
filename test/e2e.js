@@ -82,7 +82,7 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   const p2 = await (await b.newContext()).newPage({viewport: {width: 400, height: 850}});
   await p2.route("**/firebase-config.js", r => r.fulfill({contentType: "text/javascript", body: cfgJs}));
   await p2.goto("http://127.0.0.1:5173/"); await p2.waitForSelector("#lgPw");
-  if(!(await p2.$("[data-act=lgMode]"))) console.log("::error::P2 " + (await p2.evaluate(() => document.body.innerText)).replace(/\n/g," | ").slice(0,600));
+  await p2.waitForTimeout(1500); if(!(await p2.$("[data-act=lgMode][data-m=reg]"))) console.log("::error::P2 " + (await p2.evaluate(() => document.body.innerHTML)).replace(/\n/g," | ").slice(0,1500));
   await p2.click("[data-act=lgMode][data-m=reg]"); await p2.fill("#lgEm", "bobe@example.com"); await p2.fill("#lgPw", "bobe-123456"); await p2.fill("#lgPw2", "bobe-123456"); await p2.click("[data-act=fbRegister]");
   await p2.waitForSelector("[data-act=fbVerified]", {timeout: 10000}); ok(true, "registration → verify screen");
   await p2.click("[data-act=fbVerified]"); await p2.waitForSelector(".note.d", {timeout: 5000}); ok(/Még nincs/.test(await p2.textContent(".note.d")), "unverified cannot continue");
