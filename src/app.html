@@ -1189,6 +1189,20 @@ function cashPopView(){
     <div class="row"><button class="btn grow" data-act="cashPopClose">Mégse</button><button class="btn pri grow" data-act="cashPopOk">OK</button></div>
   </div></div>`;
 }
+/* ---- Google Táblázat szinkron ---- */
+function driveRow(c){ const r = cashCalc(c, prevCash(c.date)), d = parseYmd(c.date);
+  return { date:c.date, nap:DAYS[d.getDay()], close:c.close, card:c.card, exp:r.exp, expList:(c.exp||[]).map(e=>`${e.name}: ${e.amt}`).join("; "), wd:r.wd, wdList:(c.wd||[]).map(e=>`${e.note||"kivét"}: ${e.amt}${e.by?" ("+staffName(e.by)+")":""}`).join("; "), cashT:r.cashT, total:r.total, by:staffName(c.by), at:c.at ? new Date(c.at).toLocaleString("hu-HU") : "" }; }
+async function drivePush(dates){
+  const dv = S.drive; if(BACKEND!=="fb" || !dv || !dv.url || !dv.key) return null;
+  const rows = S.cash.filter(c => !dates || dates.includes(c.date)).sort((a,b)=> a.date<b.date?-1:1).map(driveRow);
+  if(!rows.length) return 0;
+  const res = await fetch(dv.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({key:dv.key, rows})});
+  const j = await res.json().catch(()=>({}));
+  if(!j.ok) throw new Error(j.error || ("HTTP " + res.status));
+  return rows.length;
+}
+function driveAfterSave(date){ const next = S.cash.filter(c => c.date > date).sort((a,b)=> a.date<b.date?-1:1)[0];
+  drivePush([date, ...(next ? [next.date] : [])]).catch(e => toast("A Google Táblázatba írás nem sikerült (" + (e.message||e) + "). Beállítások → Összes küldése.")); }
 async function saveCashDraft(){
   const c = S.cashDraft; if(!c) return;
   const exp = c.exp.filter(e => num(e.amt)).map(e => ({name:(e.name||"").trim()||"Kiadás", amt:num(e.amt)}));
@@ -1197,6 +1211,7 @@ async function saveCashDraft(){
   const doc = {date:S.cashDate, close: c.close===""||c.close==null ? null : num(c.close), card: c.card===""||c.card==null ? null : num(c.card), exp, wd, ...by()};
   const i = S.cash.findIndex(x=>x.date===S.cashDate); if(i>=0) S.cash[i]=doc; else S.cash.push(doc); render();
   await write("cash/"+S.cashDate, r=>r.set(doc));
+  driveAfterSave(doc.date);
   const tot = cashTotal(doc), base = (S.cfg.allTime && +S.cfg.allTime.amount) || 0;
   if(tot == null || tot === oldTot){ toast("Mentve."); return; }
   const yy = doc.date.slice(0,4), yNew = tot > yearBase(yy) && !allCashTotals().some(x => x.d!==doc.date && x.d.slice(0,4)===yy && x.t >= tot);
@@ -1353,6 +1368,13 @@ function closedCal(){
   <div class="pcal">${["H","K","Sze","Cs","P","Szo","V"].map(h=>`<div class="h">${h}</div>`).join("")}${cells}</div>
   <div class="row small"><span class="pill d">zárva</span><span class="pill ok">ünnep, de nyitva</span></div></section>`;
 }
+function driveCard(){ const dv = S.drive || {};
+  return `<section class="card"><h3>Kasszazárás → Google Táblázat</h3>
+  <p class="small muted">Minden mentett kasszazárás automatikusan bekerül egy Google Táblázatba a Drive-odon (dátum, záró, kártya, kiadások, kivét, forgalom).</p>
+  <label class="field"><span>Webalkalmazás címe (…/exec)</span><input id="drUrl" type="url" data-f="f.drUrl" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(S.f.drUrl ?? dv.url ?? "")}"></label>
+  <label class="field"><span>Kulcs</span><input id="drKey" data-f="f.drKey" value="${esc(S.f.drKey ?? dv.key ?? "")}"></label>
+  <div class="row"><button class="btn grow" data-act="driveSave">Mentés</button><button class="btn pri grow" data-act="driveAll">Összes küldése</button></div>
+  <div class="small ${S.driveMsg && /Hiba/.test(S.driveMsg) ? "" : "muted"}" style="margin-top:6px">${S.driveMsg ? esc(S.driveMsg) : dv.url ? `Bekapcsolva${dv.last ? " · utolsó teljes küldés: " + tsLabel(dv.last) : ""}` : "Nincs beállítva."}</div></section>`; }
 function settingsView(){
   const m = meStaff();
   if(!isAdmin() && BACKEND==="fb") return header("Beállítások") + `<div class="stack">${back}<section class="card"><h3>Beállítások</h3><p class="muted">A beállításokat csak az adminisztrátorok érik el. Ha adminisztrátor vagy, válts a saját nevedre (jobb felső sarok), és lépj be a jelszavaddal.</p></section></div>`;
@@ -1362,6 +1384,7 @@ function settingsView(){
   const fr = S.cfg.fridges||[];
   return header("Beállítások") + `<div class="stack">${back}
   ${staffEditor()}
+  ${BACKEND==="fb" ? driveCard() : ""}
   <section class="card"><h3>Hűtők</h3><div class="list">${fr.map(f=>`<div class="li"><span class="grow"><b>${esc(f.name)}</b><br><span class="small muted">${f.min} – ${f.max} °C</span></span><button class="btn sm ghost" data-act="fridgeDel" data-id="${esc(f.id)}">Törlés</button></div>`).join("")||'<div class="empty">Még nincs hűtő.</div>'}</div>
   <div class="grid3"><label class="field"><span>Név</span><input id="frName" data-f="f.frName" value="${esc(S.f.frName||"")}"></label><label class="field"><span>Min °C</span><input id="frMin" type="number" step="1" data-f="f.frMin" value="${esc(S.f.frMin??"0")}"></label><label class="field"><span>Max °C</span><input id="frMax" type="number" step="1" data-f="f.frMax" value="${esc(S.f.frMax??"5")}"></label></div>
   <button class="btn" data-act="fridgeAdd">Hűtő hozzáadása</button></section>
@@ -1568,6 +1591,12 @@ const A = {
   wdAdd(){ S.cashDraft.wd.push({note:"",amt:"",by:S.me}); render(); },
   wdDel(d){ S.cashDraft.wd.splice(+d.i,1); render(); },
   async cashSave(){ return saveCashDraft(); },
+  async driveSave(){ const url = (S.f.drUrl ?? (S.drive||{}).url ?? "").trim(), key = (S.f.drKey ?? (S.drive||{}).key ?? "").trim();
+    if(url && !/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) return toast("A cím így kezdődjön: https://script.google.com/ … és /exec-re végződjön.");
+    delete S.f.drUrl; delete S.f.drKey; S.drive = url ? {url, key} : null; render(); await write("config/drive", r => r.set(S.drive || {})); toast(url ? "Mentve. Most nyomd meg: Összes küldése." : "Szinkron kikapcsolva."); },
+  async driveAll(){ if(!(S.drive||{}).url) return toast("Előbb add meg és mentsd a címet."); S.driveMsg = "Küldés…"; render();
+    try{ const n = await drivePush(null); S.driveMsg = `Kész: ${n} nap a táblázatban.`; S.drive = Object.assign({}, S.drive, {last: Date.now()}); await write("config/drive", r => r.set(S.drive)); }
+    catch(e){ S.driveMsg = "Hiba: " + (e.message||e) + " – ellenőrizd a címet és a kulcsot."; } render(); },
   async tempSave(){ const fr = S.cfg.fridges||[], rec = S.temps.find(t=>t.date===S.tempDate), values = Object.assign({}, rec&&rec.values);
     fr.forEach(f=>{ const v = S.tempDraft[f.id]; if(v!==undefined && v!=="") values[f.id] = num(v); });
     if(!Object.keys(values).length) return toast("Írj be legalább egy hőfokot.");
@@ -1866,6 +1895,7 @@ function wire(){
   const err = () => {};
   db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null, yearTop:d.yearTop||null};
     if(BACKEND==="fb" && !ensuredOwner && S.cfg.staff.length && !S.cfg.staff.some(x=>roleOf(x)==="owner")){ ensuredOwner = true; saveCfg({staff:[...S.cfg.staff, {id:"admin", name:"Admin", role:"owner", admin:true, active:true}]}).catch(()=>{}); } } S.dbOk = true; render(); }, err);
+  db.doc("config/drive").onSnapshot(s => { const d = s.exists ? s.data() : null; S.drive = d && d.url ? d : null; if(S.sub==="settings") render(); }, err);
   db.collection("items").onSnapshot(q => { S.items = q.docs.map(x=>({id:x.id, ...x.data()})); render(); seedItems(); }, err);
   db.doc("unavail/main").onSnapshot(s => { S.unavail = s.exists ? (s.data()||{}) : {}; render(); }, err);
   db.doc("freezer/main").onSnapshot(s => { S.freezer = s.exists ? {...s.data()} : {}; render(); }, err);

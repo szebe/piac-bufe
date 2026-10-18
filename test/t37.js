@@ -1,0 +1,21 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:390,height:1400}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+const got=[]; await p.route('https://script.google.com/**', async r => { got.push(JSON.parse(r.request().postData())); await r.fulfill({contentType:'application/json', headers:{'access-control-allow-origin':'*'}, body: JSON.stringify({ok:true})}); });
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore();
+ await fs.doc('cash/2026-10-15').set({date:'2026-10-15',close:50000,card:20000,exp:[],wd:[],by:'tamas',at:Date.now()});
+ await fs.doc('cash/2026-10-16').set({date:'2026-10-16',close:80000,card:30000,exp:[{name:'Tej',amt:2000}],wd:[{note:'bank',amt:10000,by:'tamas'}],by:'tamas',at:Date.now()}); });
+await p.click('[data-act=pickMe][data-id=tamas]'); await p.fill('#pinA','1111'); await p.fill('#pinB','1111'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(400);
+await p.evaluate(()=>{ S.alarmFor=null; S.snooze[CASH_ID()]=Date.now()+1e7; S.snooze[INV_ID()]=Date.now()+1e7; S.tab='more'; S.sub='settings'; render(); });
+await p.fill('#drUrl','https://script.google.com/macros/s/ABC/exec'); await p.fill('#drKey','k1'); await p.click('[data-act=driveSave]'); await p.waitForTimeout(300);
+console.log('stored', JSON.stringify(await p.evaluate(()=>window.__store.get('config/drive'))));
+await p.click('[data-act=driveAll]'); await p.waitForTimeout(500);
+console.log('all:', JSON.stringify(got[0]));
+console.log('msg', await p.evaluate(()=>S.driveMsg));
+// save closing for 10-17 via app
+await p.evaluate(async()=>{ S.cashDate='2026-10-17'; S.cashDraft={close:'90000',card:'25000',exp:[],wd:[]}; await saveCashDraft(); }); await p.waitForTimeout(500);
+console.log('after save:', JSON.stringify(got[1]));
+const el = await p.$('section.card:has(h3:text("Google"))'); await el.screenshot({path:'/tmp/claude-0/-home-claude/e9bfa389-a662-5a2b-a20d-7977b9feea75/scratchpad/drive.png'});
+await b.close(); })();
