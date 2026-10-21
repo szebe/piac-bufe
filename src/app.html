@@ -1045,7 +1045,8 @@ function sortedItems(){
   const abc = (a,b)=> a.name.localeCompare(b.name,"hu");
   if(S.sortMode==="recent"){ const pin = pinnedIds(); const pi = id => { const i = pin.indexOf(id); return i<0 ? 99 : i; };
     return [...S.items].sort((a,b)=> (pi(a.id)-pi(b.id)) || (lastChange(b)-lastChange(a)) || abc(a,b)); }
-  return [...S.items].sort(abc);
+  const pin = pinnedIds(); const pi = id => { const i = pin.indexOf(id); return i<0 ? 99 : i; };
+  return [...S.items].sort((a,b)=> (pi(a.id)-pi(b.id)) || abc(a,b));
 }
 function itemsView(){
   if(!S.items.length) return `<div class="card"><div class="empty">Még nincs alapanyag felvéve.${isAdmin()?" Lent hozzáadhatsz.":" Az admin tud alapanyagot felvenni."}</div></div>${isAdmin()?itemAdmin():""}`;
@@ -1055,7 +1056,7 @@ function itemsView(){
   <section class="card"><div class="list" id="itemList">${items.map(it=>{
     const low = it.min>0 && (it.stock||0) < it.min, open = S.openItem===it.id;
     return `<div class="item ${open?"open":""}" data-iid="${esc(it.id)}" ${open?"":`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="false"`}>
-      <div class="head" ${open?`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="true" style="cursor:pointer"`:""}>${canDrag && !open?`<span class="drag" aria-label="Áthelyezés" title="Húzd a helyére">⠿</span>`:""}<span class="grow">${mode==="recent" && pins.includes(it.id)?'<span aria-label="Kitűzve" title="Kitűzve">📌 </span>':""}<b>${esc(it.name)}</b></span>
+      <div class="head" ${open?`data-act="itemOpen" data-id="${esc(it.id)}" role="button" tabindex="0" aria-expanded="true" style="cursor:pointer"`:""}>${canDrag && !open?`<span class="drag" aria-label="Áthelyezés" title="Húzd a helyére">⠿</span>`:""}<span class="grow">${pins.includes(it.id)?'<span aria-label="Kitűzve" title="Kitűzve">📌 </span>':""}<b>${esc(it.name)}</b></span>
       <span class="num" style="text-align:right"><b>${fmtN(it.stock||0)} ${U(it)}</b><br>${low?'<span class="pill w">rendelni kell</span>':""}</span><span class="chev" aria-hidden="true">›</span></div>
       ${open?`<label class="qsel"><span>Készleten: ${fmtN(it.stock||0)} ${U(it)}</span><span aria-hidden="true">▾</span><select id="qs_${esc(it.id)}" data-qty="${esc(it.id)}" aria-label="Készleten lévő darabszám módosítása">${qtyOptions(it)}</select></label>
         ${it.wasteable?`<label class="qsel wsel"><span>Selejt: válassz mennyiséget</span><span aria-hidden="true">▾</span><select id="ws_${esc(it.id)}" data-waste="${esc(it.id)}" aria-label="Selejtezett darabszám"><option value="" selected>–</option>${wasteOptions(it)}</select></label>
@@ -1601,7 +1602,7 @@ const A = {
     if(pins.includes(d.id)) pins = pins.filter(x=>x!==d.id);
     else { if(pins.length >= 3) return toast("Már 3 tétel ki van tűzve. Előbb vegyél le egyet."); pins = [...pins, d.id]; }
     const added = pins.includes(d.id); S.cfg.pinned = pins; S.openItem = null; render();
-    await saveCfg({pinned: pins}).catch(()=>{}); toast(added ? `${it.name} kitűzve. A Legutóbbi nézetben elöl jelenik meg.` : `${it.name}: kitűzés levéve.`); },
+    await saveCfg({pinned: pins}).catch(()=>{}); toast(added ? `${it.name} kitűzve, a lista elején jelenik meg.` : `${it.name}: kitűzés levéve.`); },
   movesFilter(d){ S.movesFilter = d.v || ""; render(); },
   sortMode(d){ S.sortMode = d.m; ls.set("bufe.sort", d.m); S.openItem = null; render(); },
   celebDemo(d){ celebrate(d.l, d.l==="all" ? 251000 : 185000, today(), true); },
