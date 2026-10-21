@@ -1,0 +1,12 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:390,height:900}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ const fs=firebase.firestore();
+ for(const [id,n] of [['a1','Ásványvíz'],['a2','Kóla'],['a3','Zsemle'],['a4','Tej']]) await fs.doc('items/'+id).set({id,name:n,unit:'db',stock:5}); });
+await p.click('[data-act=pickMe][data-id=b]'); await p.fill('#pinA','2222'); await p.fill('#pinB','2222'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(400);
+await p.evaluate(async()=>{ S.alarmFor=null; S.snooze[INV_ID()]=Date.now()+1e7; S.snooze[CASH_ID()]=Date.now()+1e7; await saveCfg({pinned:['a3','a4']}); S.tab='stock'; S.sortMode='abc'; render(); });
+await p.waitForTimeout(300);
+console.log(await p.evaluate(()=>[...document.querySelectorAll('#itemList .item .head .grow')].map(e=>e.innerText.trim()).join(' | ')));
+await b.close(); })();
