@@ -474,7 +474,7 @@ let lastBeep = {};
 const KREM_ID = () => "krem-" + today();
 const INV_ID = () => "inv-" + today();
 const CASH_ID = () => "cash-" + today();
-function cashDue(){ if(!canCash() || isReadonly() || isClosed(today())) return false; const d = new Date(); if(d.getHours() < 11) return false; const c = S.cash.find(x=>x.date===today()); return !(c && c.close!=null && c.close!==""); }
+function cashDue(){ if(!S.cashLoaded || !canCash() || isReadonly() || isClosed(today())) return false; const d = new Date(); if(d.getHours() < 11) return false; const c = S.cash.find(x=>x.date===today()); return !(c && c.close!=null && c.close!==""); }
 function invDue(){ const d = new Date(); if(d.getHours()*60 + d.getMinutes() < 10*60) return false; return leltarPending() > 0; }
 function kremDue(){
   const d = new Date(), wd = d.getDay();
@@ -549,7 +549,7 @@ async function nativeSched(){ nCleared = false;
   for(let k = 0; k < 7; k++){ const dd = addDays(new Date(), k), ds = ymd(dd); if(isClosed(ds)) continue;
     const base = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 50).getTime();
     if(hasKrem && (dd.getDay() === 1 || dd.getDay() === 4) && !(k === 0 && !kremDue() && now >= base)){ const done = k === 0 && S.items.filter(i=>i.krem).every(i => i.lastCountDate === ds); if(!done) for(let i = 0; i < 4; i++) add(base + i*5*60000, "⏰ Krémleltár!", "Hétfő/csütörtök 10:50 – számold meg a krémeket."); }
-    if(canCash() && !isReadonly()){ const b11 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 11, 0).getTime(); if(!(k === 0 && !cashDue() && now >= b11)){ const tc = k===0 && S.cash.find(x=>x.date===ds); if(!(tc && tc.close!=null && tc.close!=="")) add(b11, "⏰ Mehet a kasszazárás?", "11:00 – nyisd meg az appot a kasszazáráshoz."); } }
+    if(canCash() && !isReadonly() && S.cashLoaded && shiftOf(ds).some(e => e.staffId === S.me)){ const b11 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 11, 0).getTime(); if(!(k === 0 && !cashDue() && now >= b11)){ const tc = k===0 && S.cash.find(x=>x.date===ds); if(!(tc && tc.close!=null && tc.close!=="")) add(b11, "⏰ Mehet a kasszazárás?", "11:00 – nyisd meg az appot a kasszazáráshoz."); } }
     if(dd.getDay() === 1 || dd.getDay() === 4 || isMonthlyInvDay(ds)){ const b10 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 0).getTime();
       if(!(k === 0 && !leltarPending())) for(let i = 0; i < 4; i++) add(b10 + i*15*60000, "⏰ Leltár ma!", (isMonthlyInvDay(ds) ? "Havi leltár" : dd.getDay()===1 ? "Hétfői teljes leltár" : "Csütörtöki részleges leltár") + " – indítsd el az appban."); }
     if(k === 0){ const doc = bakeDoc(ds); if(!(doc && doc.remaining) && (hasArrived(doc) || Object.keys(openingFor(ds)).length)) for(let i = 0; i < 3; i++) add(base + 5*60000 + i*5*60000, "⏰ Pékáru zárás", "10:55 – írd be a maradékot."); }
@@ -1969,7 +1969,7 @@ function wire(){
   db.collection("shifts").where("date",">=",cutoff).onSnapshot(q => {
     if(!firstShift){ q.docChanges().forEach(ch => { const d = ch.doc.data(); if(!d || ch.type==="removed" || d.by===S.me) return; const prev = S.shifts[d.date]; const was = (prev&&prev.entries||[]).filter(e=>e.staffId===S.me), now = (d.entries||[]).filter(e=>e.staffId===S.me); if(JSON.stringify(was)!==JSON.stringify(now)) S.notices.push(`${staffName(d.by)} módosította a műszakodat: ${fmtDay(d.date)} ${now.map(e=>e.start+"–"+e.end).join(", ")||"(törölve)"}`); }); }
     firstShift = false; const m = {}; q.docs.forEach(x => { const d = x.data(); m[d.date||x.id] = d; }); S.shifts = m; render(); }, err);
-  db.collection("cash").orderBy("date","desc").limit(400).onSnapshot(q => { S.cash = q.docs.map(x=>x.data()); render(); }, err);
+  db.collection("cash").orderBy("date","desc").limit(400).onSnapshot({includeMetadataChanges:true}, q => { S.cash = q.docs.map(x=>x.data()); S.cashLoaded = !q.metadata || !q.metadata.fromCache || S.cashLoaded; alarmTick(); render(); }, err);
   db.collection("temps").orderBy("date","desc").limit(62).onSnapshot(q => { S.temps = q.docs.map(x=>x.data()); render(); }, err);
   db.collection("messages").orderBy("at","desc").limit(40).onSnapshot(q => { S.msgs = q.docs.map(x=>({id:x.id, ...x.data()})); render(); if(S.sub==="msgs") markRead(); }, err);
   if(BACKEND==="fb") subWaste();

@@ -1,0 +1,12 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:390,height:900}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=tamas]'); await p.fill('#pinA','1111'); await p.fill('#pinB','1111'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(500);
+await p.evaluate(()=>{ S.snooze[INV_ID()]=Date.now()+1e7; alarmTick(); });
+console.log('before closing, alarm:', await p.evaluate(()=>S.alarmFor));
+await p.evaluate(async()=>{ await firebase.firestore().doc('cash/2026-10-21').set({date:'2026-10-21',close:90000,card:1000,exp:[],wd:[],by:'b',at:Date.now()}); });
+await p.waitForTimeout(300);
+console.log('after other closed, alarm:', await p.evaluate(()=>S.alarmFor));
+await b.close(); })();
