@@ -474,6 +474,7 @@ let lastBeep = {};
 const KREM_ID = () => "krem-" + today();
 const INV_ID = () => "inv-" + today();
 const CASH_ID = () => "cash-" + today();
+function cashClosedToday(){ const c = S.cash.find(x=>x.date===today()); return !!(c && c.close!=null && c.close!==""); }
 function cashDue(){ if(!S.cashLoaded || !canCash() || isReadonly() || isClosed(today())) return false; const d = new Date(); if(d.getHours() < 11) return false; const c = S.cash.find(x=>x.date===today()); return !(c && c.close!=null && c.close!==""); }
 function invDue(){ const d = new Date(); if(d.getHours()*60 + d.getMinutes() < 10*60) return false; return leltarPending() > 0; }
 function kremDue(){
@@ -856,7 +857,7 @@ function readonlyHome(){
     ${freezerSection()}
     ${shiftBars()}
     <section class="card"><div class="row"><h3 class="grow" style="margin:0">Forgalom – 7 nap</h3><b>${ft(tot)}</b></div><table class="tbl"><tbody>${rows.join("")}</tbody></table></section>
-    <section class="card"><div class="row"><b class="grow">Mai kiadások</b><span>${ex.length ? `${ex.length} tétel · <b>${ft(sum)}</b>` : '<span class="muted">nincs</span>'}</span></div></section>
+    ${cashClosedToday() ? "" : `<section class="card"><div class="row"><b class="grow">Mai kiadások</b><span>${ex.length ? `${ex.length} tétel · <b>${ft(sum)}</b>` : '<span class="muted">nincs</span>'}</span></div></section>`}
     ${watch.length ? `<section class="card"><b>Leltár</b><div class="list">${watch.map(it=>`<div class="li"><span class="grow">${esc(it.name)}<br><span class="small muted">${it.lastCountDate ? "számolva: " + fmtDay(it.lastCountDate).split(",")[0] : "még nem volt leltározva"}</span></span><b>${fmtQty(it.stock||0, it)}</b></div>`).join("")}</div></section>` : ""}
   </div>`;
 }
@@ -885,7 +886,7 @@ function homeViewInner(){
     ${lp ? `<section class="card invcta"><div class="label">Ma leltárnap</div><h3 style="margin:2px 0 4px">${esc(lt.name)}</h3><div class="small">${lt.items.length} tételből <b>${lp}</b> van hátra.</div><button class="btn pri" style="width:100%;margin-top:10px;font-size:1.1rem" data-act="invStart">Leltár indítása</button></section>` : ""}
     ${freezerSection()}
     ${bakeryBox()}
-    ${(()=>{ const tc = S.cash.find(x=>x.date===today()), ex = (tc && tc.exp) || [], sum = ex.reduce((a,e)=>a+num(e.amt),0);
+    ${(()=>{ if(cashClosedToday()) return ""; const tc = S.cash.find(x=>x.date===today()), ex = (tc && tc.exp) || [], sum = ex.reduce((a,e)=>a+num(e.amt),0);
       return `<section class="card"><div class="row"><span class="grow"><b>Mai kiadások</b><br><span class="small muted">${ex.length ? `${ex.length} tétel · ${ft(sum)}` : "még nincs"}</span></span><button class="btn sm pri" data-act="homeExp">+ Kiadás</button></div></section>`; })()}
     ${(()=>{ if(isReadonly()) return ""; const pend = liveMsgs().filter(m=>!Object.keys(m.okBy||{}).length); if(!pend.length) return ""; return `<div class="msgwrap"><button class="msgnew" data-act="msgNew" aria-label="Új üzenet írása">+</button><div class="msgcol">${pend.map(m=>`<div class="msgrow"><button class="msgcard" data-act="msgOpen" data-id="${esc(m.id)}"><span class="meta">${esc(staffName(m.by))}, ${m.showFrom?fmtDay(m.showFrom).split(",")[0]:tsLabel(m.at)}</span><span class="txt">${esc(m.text)}</span></button><button class="msgok" data-act="msgOk" data-id="${esc(m.id)}" aria-label="Elolvastam, levétel a főoldalról">OK</button></div>`).join("")}</div></div>`; })()}
     ${isReadonly() || liveMsgs().some(m=>!Object.keys(m.okBy||{}).length) ? "" : `<section class="card"><div class="row"><button class="namebtn grow" style="text-decoration:none;color:var(--fg);font:600 1.05rem var(--display)" data-act="goSub" data-sub="msgs">Üzenőfal</button><button class="btn sm pri" data-act="msgNew">+ Új</button></div></section>`}
