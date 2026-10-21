@@ -24,7 +24,7 @@
       where: (k,op,v) => query(coll, [...f,[k,op,v]], ob, lim), orderBy: (k,dir="asc") => query(coll, f, [k,dir], lim), limit: n => query(coll, f, ob, n),
       get: async () => ({ docs: run() }),
       add: async d => { const id = Math.random().toString(36).slice(2); store.set(coll+"/"+id, clone(d)); notify(); return docRef(coll+"/"+id); },
-      onSnapshot: (cb) => { let prev = new Map(); const l = () => { const docs = run(); const ch = docs.filter(x=>JSON.stringify(x.data())!==prev.get(x.id)).map(x=>({type: prev.has(x.id)?"modified":"added", doc:x})); prev = new Map(docs.map(x=>[x.id, JSON.stringify(x.data())])); cb({ docs, docChanges: () => ch }); }; listeners.add(l); l(); return () => listeners.delete(l); }
+      onSnapshot: (o, c2) => { const cb = typeof o === "function" ? o : c2; let prev = new Map(); const l = () => { const docs = run(); const ch = docs.filter(x=>JSON.stringify(x.data())!==prev.get(x.id)).map(x=>({type: prev.has(x.id)?"modified":"added", doc:x})); prev = new Map(docs.map(x=>[x.id, JSON.stringify(x.data())])); cb({ docs, docChanges: () => ch }); }; listeners.add(l); l(); return () => listeners.delete(l); }
     };
   }
   const fs = { settings(){}, enablePersistence: async()=>{}, collection: c => query(c), doc: p => docRef(p) };
