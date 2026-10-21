@@ -1194,17 +1194,21 @@ function cashPopView(){
 /* ---- Google Táblázat szinkron ---- */
 function driveRow(c){ const r = cashCalc(c, prevCash(c.date)), d = parseYmd(c.date);
   return { date:c.date, nap:DAYS[d.getDay()], close:c.close, card:c.card, exp:r.exp, expList:(c.exp||[]).map(e=>`${e.name}: ${e.amt}`).join("; "), wd:r.wd, wdList:(c.wd||[]).map(e=>`${e.note||"kivét"}: ${e.amt}${e.by?" ("+staffName(e.by)+")":""}`).join("; "), cashT:r.cashT, total:r.total, by:staffName(c.by), at:c.at ? new Date(c.at).toLocaleString("hu-HU") : "" }; }
-async function drivePush(dates){
-  const dv = S.drive; if(BACKEND!=="fb" || !dv || !dv.url || !dv.key) return null;
-  const rows = S.cash.filter(c => !dates || dates.includes(c.date)).sort((a,b)=> a.date<b.date?-1:1).map(driveRow);
-  if(!rows.length) return 0;
-  const res = await fetch(dv.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({key:dv.key, rows})});
+const driveTargets = () => ((S.drive && S.drive.targets) || []).filter(t => t && t.url && t.key);
+async function drivePushOne(t, rows){
+  const res = await fetch(t.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({key:t.key, rows})});
   const j = await res.json().catch(()=>({}));
   if(!j.ok) throw new Error(j.error || ("HTTP " + res.status));
-  return rows.length;
+}
+async function drivePush(dates){
+  const ts = driveTargets(); if(BACKEND!=="fb" || !ts.length) return {n:0, fails:[]};
+  const rows = S.cash.filter(c => !dates || dates.includes(c.date)).sort((a,b)=> a.date<b.date?-1:1).map(driveRow);
+  if(!rows.length) return {n:0, fails:[]};
+  const res = await Promise.all(ts.map(t => drivePushOne(t, rows).then(()=>null, e => `${t.label||"táblázat"}: ${e.message||e}`)));
+  return {n: rows.length, fails: res.filter(Boolean)};
 }
 function driveAfterSave(date){ const next = S.cash.filter(c => c.date > date).sort((a,b)=> a.date<b.date?-1:1)[0];
-  drivePush([date, ...(next ? [next.date] : [])]).catch(e => toast("A Google Táblázatba írás nem sikerült (" + (e.message||e) + "). Beállítások → Összes küldése.")); }
+  drivePush([date, ...(next ? [next.date] : [])]).then(r => { if(r.fails.length) toast("Táblázatba írás nem sikerült – " + r.fails.join("; ") + ". Beállítások → Összes küldése."); }).catch(()=>{}); }
 async function saveCashDraft(){
   const c = S.cashDraft; if(!c) return;
   const exp = c.exp.filter(e => num(e.amt)).map(e => ({name:(e.name||"").trim()||"Kiadás", amt:num(e.amt)}));
@@ -1370,13 +1374,16 @@ function closedCal(){
   <div class="pcal">${["H","K","Sze","Cs","P","Szo","V"].map(h=>`<div class="h">${h}</div>`).join("")}${cells}</div>
   <div class="row small"><span class="pill d">zárva</span><span class="pill ok">ünnep, de nyitva</span></div></section>`;
 }
-function driveCard(){ const dv = S.drive || {};
+function driveCard(){ const ts = driveTargets(), last = (S.drive||{}).last;
   return `<section class="card"><h3>Kasszazárás → Google Táblázat</h3>
-  <p class="small muted">Minden mentett kasszazárás automatikusan bekerül egy Google Táblázatba a Drive-odon (dátum, záró, kártya, kiadások, kivét, forgalom).</p>
-  <label class="field"><span>Webalkalmazás címe (…/exec)</span><input id="drUrl" type="url" data-f="f.drUrl" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(S.f.drUrl ?? dv.url ?? "")}"></label>
-  <label class="field"><span>Kulcs</span><input id="drKey" data-f="f.drKey" value="${esc(S.f.drKey ?? dv.key ?? "")}"></label>
-  <div class="row"><button class="btn grow" data-act="driveSave">Mentés</button><button class="btn pri grow" data-act="driveAll">Összes küldése</button></div>
-  <div class="small ${S.driveMsg && /Hiba/.test(S.driveMsg) ? "" : "muted"}" style="margin-top:6px">${S.driveMsg ? esc(S.driveMsg) : dv.url ? `Bekapcsolva${dv.last ? " · utolsó teljes küldés: " + tsLabel(dv.last) : ""}` : "Nincs beállítva."}</div></section>`; }
+  <p class="small muted">Minden mentett kasszazárás automatikusan bekerül az összes itt felsorolt Google Táblázatba (pl. két különböző fiók Drive-jába, hogy több helyen is meglegyen).</p>
+  ${ts.length ? `<div class="list">${ts.map((t,i)=>`<div class="li"><span class="grow"><b>${esc(t.label||("Táblázat " + (i+1)))}</b><br><span class="small muted">${esc(t.url.replace(/^https:\/\/script\.google\.com\/macros\/s\//,"").slice(0,18))}…</span></span><button class="btn sm ghost" data-act="driveDel" data-i="${i}">${S.f.drDel===i?"Biztosan?":"Törlés"}</button></div>`).join("")}</div>` : `<div class="empty">Még nincs táblázat beállítva.</div>`}
+  <span class="label" style="margin-top:10px">Új táblázat hozzáadása</span>
+  <label class="field"><span>Megnevezés (pl. „szebekft Drive”)</span><input id="drLabel" data-f="f.drLabel" value="${esc(S.f.drLabel||"")}"></label>
+  <label class="field"><span>Webalkalmazás címe (…/exec)</span><input id="drUrl" type="url" data-f="f.drUrl" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(S.f.drUrl||"")}"></label>
+  <label class="field"><span>Kulcs</span><input id="drKey" data-f="f.drKey" value="${esc(S.f.drKey||"")}"></label>
+  <div class="row"><button class="btn grow" data-act="driveAdd">Hozzáadás</button><button class="btn pri grow" data-act="driveAll">Összes küldése</button></div>
+  <div class="small ${S.driveMsg && /Hiba|nem sikerült/.test(S.driveMsg) ? "" : "muted"}" style="margin-top:6px">${S.driveMsg ? esc(S.driveMsg) : ts.length ? `${ts.length} táblázat bekapcsolva${last ? " · utolsó teljes küldés: " + tsLabel(last) : ""}` : ""}</div></section>`; }
 function settingsView(){
   const m = meStaff();
   if(!isAdmin() && BACKEND==="fb") return header("Beállítások") + `<div class="stack">${back}<section class="card"><h3>Beállítások</h3><p class="muted">A beállításokat csak az adminisztrátorok érik el. Ha adminisztrátor vagy, válts a saját nevedre (jobb felső sarok), és lépj be a jelszavaddal.</p></section></div>`;
@@ -1593,12 +1600,22 @@ const A = {
   wdAdd(){ S.cashDraft.wd.push({note:"",amt:"",by:S.me}); render(); },
   wdDel(d){ S.cashDraft.wd.splice(+d.i,1); render(); },
   async cashSave(){ return saveCashDraft(); },
-  async driveSave(){ const url = (S.f.drUrl ?? (S.drive||{}).url ?? "").trim(), key = (S.f.drKey ?? (S.drive||{}).key ?? "").trim();
-    if(url && !/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) return toast("A cím így kezdődjön: https://script.google.com/ … és /exec-re végződjön.");
-    delete S.f.drUrl; delete S.f.drKey; S.drive = url ? {url, key} : null; render(); await write("config/drive", r => r.set(S.drive || {})); toast(url ? "Mentve. Most nyomd meg: Összes küldése." : "Szinkron kikapcsolva."); },
-  async driveAll(){ if(!(S.drive||{}).url) return toast("Előbb add meg és mentsd a címet."); S.driveMsg = "Küldés…"; render();
-    try{ const n = await drivePush(null); S.driveMsg = `Kész: ${n} nap a táblázatban.`; S.drive = Object.assign({}, S.drive, {last: Date.now()}); await write("config/drive", r => r.set(S.drive)); }
-    catch(e){ S.driveMsg = "Hiba: " + (e.message||e) + " – ellenőrizd a címet és a kulcsot."; } render(); },
+  async driveAdd(){ const url = (S.f.drUrl||"").trim(), key = (S.f.drKey||"").trim(), label = (S.f.drLabel||"").trim();
+    if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) return toast("A cím így kezdődjön: https://script.google.com/ … és /exec-re végződjön.");
+    if(!key) return toast("Add meg a kulcsot.");
+    const ts = driveTargets(); if(ts.some(t => t.url === url)) return toast("Ez a táblázat már szerepel.");
+    S.driveMsg = "Próba küldés…"; render();
+    try{ await drivePushOne({url, key}, []); }catch(e){ S.driveMsg = "Hiba: " + (e.message||e) + " – ellenőrizd a címet és a kulcsot."; return render(); }
+    ["drUrl","drKey","drLabel"].forEach(k => delete S.f[k]);
+    S.drive = Object.assign({}, S.drive, {targets: [...ts, {url, key, label: label || ("Táblázat " + (ts.length+1))}]}); delete S.drive.url; delete S.drive.key;
+    S.driveMsg = "Hozzáadva. Most nyomd meg: Összes küldése."; render(); await write("config/drive", r => r.set(S.drive)); },
+  async driveDel(d){ const i = +d.i; if(S.f.drDel !== i){ S.f.drDel = i; return render(); } S.f.drDel = null;
+    const ts = driveTargets().filter((_,k) => k !== i); S.drive = Object.assign({}, S.drive, {targets: ts}); delete S.drive.url; delete S.drive.key; S.driveMsg = ""; render(); await write("config/drive", r => r.set(S.drive)); },
+  async driveAll(){ if(!driveTargets().length) return toast("Előbb adj hozzá egy táblázatot."); S.driveMsg = "Küldés…"; render();
+    try{ const r = await drivePush(null);
+      S.driveMsg = r.fails.length ? `Részben nem sikerült: ${r.fails.join("; ")}` : `Kész: ${r.n} nap, ${driveTargets().length} táblázatban.`;
+      if(!r.fails.length){ S.drive = Object.assign({}, S.drive, {last: Date.now()}); await write("config/drive", x => x.set(S.drive)); } }
+    catch(e){ S.driveMsg = "Hiba: " + (e.message||e); } render(); },
   async tempSave(){ const fr = S.cfg.fridges||[], rec = S.temps.find(t=>t.date===S.tempDate), values = Object.assign({}, rec&&rec.values);
     fr.forEach(f=>{ const v = S.tempDraft[f.id]; if(v!==undefined && v!=="") values[f.id] = num(v); });
     if(!Object.keys(values).length) return toast("Írj be legalább egy hőfokot.");
@@ -1897,7 +1914,9 @@ function wire(){
   const err = () => {};
   db.doc(cfgRef).onSnapshot(s => { if(s.exists){ const d = s.data(); S.cfg = {staff:d.staff||[], fridges:d.fridges||[], openDays:d.openDays||[], closedDays:d.closedDays||[], adminPin:d.adminPin||"", itemOrder:d.itemOrder||[], pinned:d.pinned||[], allTime:d.allTime||null, yearTop:d.yearTop||null};
     if(BACKEND==="fb" && !ensuredOwner && S.cfg.staff.length && !S.cfg.staff.some(x=>roleOf(x)==="owner")){ ensuredOwner = true; saveCfg({staff:[...S.cfg.staff, {id:"admin", name:"Admin", role:"owner", admin:true, active:true}]}).catch(()=>{}); } } S.dbOk = true; render(); }, err);
-  db.doc("config/drive").onSnapshot(s => { const d = s.exists ? s.data() : null; S.drive = d && d.url ? d : null; if(S.sub==="settings") render(); }, err);
+  db.doc("config/drive").onSnapshot(s => { const d = s.exists ? Object.assign({}, s.data()) : null;
+    if(d && !d.targets && d.url && d.key) d.targets = [{url:d.url, key:d.key, label:"tamas.szebeni Drive"}];
+    S.drive = d; if(S.sub==="settings") render(); }, err);
   db.collection("items").onSnapshot(q => { S.items = q.docs.map(x=>({id:x.id, ...x.data()})); render(); seedItems(); }, err);
   db.doc("unavail/main").onSnapshot(s => { S.unavail = s.exists ? (s.data()||{}) : {}; render(); }, err);
   db.doc("freezer/main").onSnapshot(s => { S.freezer = s.exists ? {...s.data()} : {}; render(); }, err);
