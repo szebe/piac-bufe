@@ -1491,7 +1491,7 @@ const A = {
   personCalClose(){ S.personCal = null; render(); },
   personMonth(d){ const pc = S.personCal; const x = new Date(pc.y, pc.m + (+d.d), 1); pc.y = x.getFullYear(); pc.m = x.getMonth(); render(); },
   week(d){ S.weekOff = d.d==="0" ? 0 : S.weekOff + (+d.d); S.shiftForm=null; render(); },
-  shiftAdd(d){ S.shiftForm = { date:d.date, staffId: shiftStaffOn(d.date).some(x=>x.id===S.me) ? S.me : ((shiftStaffOn(d.date)[0]||{}).id||""), start:"06:00", end:"11:00", i:null }; S.shiftHist=null; render(); },
+  shiftAdd(d){ S.shiftForm = { date:d.date, staffId: shiftStaffOn(d.date).some(x=>x.id===S.me) ? S.me : ((shiftStaffOn(d.date)[0]||{}).id||""), start:"06:00", end:"11:30", i:null }; S.shiftHist=null; render(); },
   shiftEdit(d){ const e = shiftOf(d.date)[+d.i]; S.shiftForm = { date:d.date, staffId:e.staffId, start:e.start, end:e.end, i:+d.i }; S.shiftHist=null; render(); },
   shiftCancel(){ S.shiftForm=null; render(); },
   async shiftSave(){ const f = S.shiftForm, es = [...shiftOf(f.date)]; const e = {staffId:f.staffId, start:f.start, end:f.end};
