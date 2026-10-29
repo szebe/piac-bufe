@@ -171,6 +171,7 @@ function saveCart(){ ls.set("pb.cart", JSON.stringify(S.cart)); }
 
 /* ---------- opening hours ---------- */
 function openState(){ const d = new Date(), m = d.getHours()*60 + d.getMinutes(), td = ymd(d);
+  if(S.pub.test) return {ok:true, test:true};
   if(S.pub.paused) return {ok:false, msg:"Az online rendelés most szünetel. Telefonon rendelhetsz: " + PHONE_TXT};
   const closedToday = (S.pub.closed||[]).includes(td);
   if(closedToday || m >= LAST_ORDER){ let n = new Date(d); for(let i=0;i<14;i++){ n.setDate(n.getDate()+1); if(!(S.pub.closed||[]).includes(ymd(n))) break; }
@@ -198,6 +199,7 @@ function menuView(){
   return `<header class="top"><div class="row1"><div class="brand">Piac Büfé</div><span class="badge">Előrendelés</span></div>
     <div class="sub">Cegléd, Piac · nyitva 6:00–12:30 · fizetés a pultnál</div></header>
   <main class="body">
+    ${S.pub.test ? `<div class="note w" role="status" style="background:#FFE08A;color:#3D2A00"><b>TESZTÜZEM</b> – nyitvatartáson kívül is lehet rendelni. Ez nem éles rendelés.</div>` : ""}
     ${S.addFor && S.order ? `<div class="note w" role="status" style="align-items:center">${svg('<path d="M12 5v14M5 12h14"/>',22,"currentColor",2.2)}<span style="flex:1"><b>Bővíted a #${esc(S.order.no)} rendelést.</b><br>Válaszd ki, mit kérsz még – a végén csak az új tételeket küldjük el.</span><button class="btn2" style="width:auto;min-height:40px;padding:0 12px;font-size:14px" data-act="addCancel">Mégse</button></div>` : ""}
     ${active && !S.addFor ? `<button class="note g" style="border:0;text-align:left;width:100%;cursor:pointer" data-act="showStatus">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',22,"currentColor",1.9)}<span><b>Folyamatban lévő rendelésed: #${esc(S.order.no)}</b><br>Koppints az állapotához.</span></button>` : ""}
     ${!os.ok ? `<div class="note w" role="status">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',22,"currentColor",1.9)}<span>${esc(os.msg)} Az étlapot addig is böngészheted.</span></div>` : ""}
@@ -342,7 +344,7 @@ const A = {
     let when = "asap";
     if(S.when === "15" || S.when === "30") when = hm(new Date(Date.now() + (+S.when)*60000));
     if(S.when === "time"){ const m = /^(\d{1,2}):(\d{2})$/.exec(S.time||""); const mm = m ? (+m[1])*60 + (+m[2]) : -1, now = new Date(), nm = now.getHours()*60 + now.getMinutes();
-      if(mm < 0) err.time = "Válassz átvételi időt."; else if(mm < Math.max(OPEN_FROM, nm + 10) || mm > OPEN_TO) err.time = "Ma " + hm(new Date(Math.max(now.getTime()+10*60000, new Date().setHours(6,0,0,0)))) + " és 12:30 között válassz időt."; else when = `${+m[1]}:${m[2]}`; }
+      if(mm < 0) err.time = "Válassz átvételi időt."; else if(!S.pub.test && (mm < Math.max(OPEN_FROM, nm + 10) || mm > OPEN_TO)) err.time = "Ma " + hm(new Date(Math.max(now.getTime()+10*60000, new Date().setHours(6,0,0,0)))) + " és 12:30 között válassz időt."; else when = `${+m[1]}:${m[2]}`; }
     if(cartQty() > MAX_QTY) err.send = `Online legfeljebb ${MAX_QTY} tétel rendelhető.`;
     S.err = err; if(Object.keys(err).length){ S.keepScroll = true; render(); focusErr(err.eat ? "sec-eat" : err.time ? "time" : err.name ? "sec-name" : err.phone ? "sec-phone" : null); return; }
     if(($("hp")||{}).value) return;
