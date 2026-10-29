@@ -43,6 +43,21 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   const verR = await fetch(docUrl("config/main"), {headers: {Authorization: "Bearer " + ver.idToken}});
   ok(verR.status === 200, "rules: listed + verified email allowed (" + verR.status + ")");
 
+  // public ordering page rules
+  const order = {no: "123", at: Date.now(), name: "Vevő Vera", phone: "+36301234567", eat: "elvitel", when: "asap", items: [{id: "hd", name: "Hot dog", opts: ["szósz: ketchup"], unit: 1200, qty: 1}], total: 1200, qtyTotal: 1, status: "new"};
+  const mkOrder = async (id, o, auth) => fetch(docUrl("weborders") + "?documentId=" + id, {method: "POST", headers: Object.assign({"Content-Type": "application/json"}, auth ? {Authorization: "Bearer " + auth} : {}), body: JSON.stringify({fields: toFs(o).mapValue.fields})});
+  ok((await mkOrder("w_ok", order)).status === 200, "rules: anonymous valid web order allowed");
+  ok((await fetch(docUrl("weborders/w_ok"))).status === 200, "rules: anonymous can read own order by id");
+  ok((await mkOrder("w_bad1", Object.assign({}, order, {status: "accepted"}))).status === 403, "rules: web order with non-new status denied");
+  ok((await mkOrder("w_bad2", Object.assign({}, order, {phone: "+3611234567"}))).status === 403, "rules: web order with landline denied");
+  ok((await mkOrder("w_bad3", Object.assign({}, order, {qtyTotal: 11}))).status === 403, "rules: web order over 10 items denied");
+  ok((await mkOrder("w_bad4", Object.assign({}, order, {hack: 1}))).status === 403, "rules: web order with extra field denied");
+  ok((await fetch(docUrl("weborders"))).status === 403, "rules: anonymous cannot list web orders");
+  ok((await fetch(docUrl("weborders/w_ok") + "?updateMask.fieldPaths=status", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {status: {stringValue: "done"}}})})).status === 403, "rules: anonymous cannot update web order");
+  await put("public/menu", {soldOut: {mg: true}, paused: false, closed: []});
+  ok((await fetch(docUrl("public/menu"))).status === 200, "rules: public menu readable");
+  ok((await fetch(docUrl("public/menu") + "?updateMask.fieldPaths=paused", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {paused: {booleanValue: true}}})})).status === 403, "rules: anonymous cannot change public menu");
+
   const b = await chromium.launch(); const p = await b.newPage({viewport: {width: 400, height: 850}});
   const errs = []; p.on("pageerror", e => errs.push(e.message));
   const cfgJs = `window.FB_CONFIG={apiKey:"fake",authDomain:"${PROJECT}.firebaseapp.com",projectId:"${PROJECT}"};window.FB_EMAIL=${JSON.stringify(EMAIL)};window.FB_EMULATOR=true;`;

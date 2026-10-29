@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E6646">
+<title>Piac Büfé – online rendelés</title>
+<meta name="description" content="Rendelj előre a ceglédi Piac Büfétől: melegszendvics, hamburger, hot dog, kávé, tea, üdítő.">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>(()=>{const T=new Date(2026,9,29,8,5).getTime(), D=Date, off=T-D.now(); class FD extends D{constructor(...a){ if(a.length) super(...a); else super(D.now()+off);} static now(){return D.now()+off;}} window.Date=FD;})();</script>
+<script src="mockfb.js"></script>
+<style>
+:root{--bg:#F5F2EA;--card:#FFFFFF;--ink:#1B211E;--muted:#5E655F;--line:#E2DED3;--line2:#D6D1C4;--green:#0E6646;--green2:#0B4E36;--tint:#E3EFE8;--warn:#FCEFD0;--warnInk:#6A3A00;--red:#8A2A0A;--redBg:#FBE1D6;--chili:#D23A12}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;-webkit-text-size-adjust:100%}
+button{font-family:inherit;cursor:pointer;color:inherit}
+input,textarea{font-family:inherit;font-size:16px}
+a{color:var(--green)}
+.wrap{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+.top{background:var(--green);color:#fff;padding:20px 18px 14px;padding-top:max(20px,env(safe-area-inset-top))}
+.top .row1{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.5px}
+.badge{font-size:12px;font-weight:700;background:#F4B400;color:var(--ink);padding:5px 10px;border-radius:999px}
+.sub{font-size:13px;color:#D5E8DD;margin-top:4px}
+.bar{display:flex;align-items:center;gap:10px;padding:14px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.bar h1{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;flex:1}
+.back{border:0;background:#F0EDE4;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.body{flex:1;padding:16px 16px 120px;display:flex;flex-direction:column;gap:18px}
+h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px}
+h3{margin:0;font-size:15px;font-weight:700}
+h3 small{font-weight:500;color:var(--muted);font-size:13px}
+.req{font-weight:700;font-size:12px;color:#7A4300;background:var(--warn);padding:3px 8px;border-radius:999px;margin-left:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px}
+.item{width:100%;border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px 14px 12px 12px;display:flex;align-items:center;gap:12px;min-height:80px;text-align:left}
+.item.off{opacity:.55}
+.ico{width:56px;height:56px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center}
+.iname{font-weight:600;font-size:16px;display:block}
+.isub{font-size:13px;color:var(--muted);display:block;margin-top:2px}
+.price{font-weight:700;font-size:15px;white-space:nowrap}
+.plus{width:32px;height:32px;border-radius:999px;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;margin-left:auto}
+.col{display:flex;flex-direction:column;gap:10px}
+.grid{display:grid;gap:8px}
+.pill{border:1px solid var(--line2);background:#fff;border-radius:14px;padding:10px 12px;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center}
+.pill.on{border:2px solid var(--green);background:var(--tint);color:var(--green2)}
+.pill b{font-size:15px}.pill span{font-size:12px}
+.chip{border:1px solid var(--line2);background:#fff;border-radius:999px;padding:0 16px;min-height:44px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.chip.on{border:2px solid var(--green);background:var(--tint);color:var(--green2)}
+.chip.no{background:#F3EFE6;color:#6B6B63;border:1px dashed #B9B3A4;text-decoration:line-through}
+.chip.inc{background:var(--tint);color:var(--green2);border:1px solid #B8D6C6}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chk{border:0;border-bottom:1px solid #EEEAE0;background:#fff;display:flex;align-items:center;gap:12px;padding:14px 16px;min-height:56px;font-size:16px;text-align:left;width:100%}
+.chk:last-child{border-bottom:0}
+.box{width:26px;height:26px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;border:2px solid #B9B3A4;background:#fff}
+.chk.on .box{background:var(--green);border-color:var(--green)}
+.qty{display:flex;align-items:center;gap:12px}
+.qb{width:44px;height:44px;border-radius:12px;border:1px solid var(--line2);background:#fff;font-size:22px}
+.qb.p{background:var(--green);border:0;color:#fff}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.field input,.field textarea{padding:12px 14px;border:1px solid var(--line2);border-radius:12px;background:#fff;color:var(--ink);width:100%}
+.field textarea{resize:none}
+.err{font-size:13px;color:var(--red)}
+.hint{font-size:13px;color:#7A4300}
+.foot{position:fixed;left:0;right:0;bottom:0;padding:12px 12px max(14px,env(safe-area-inset-bottom));background:linear-gradient(rgba(245,242,234,0),var(--bg) 30%);z-index:6}
+.foot .in{max-width:536px;margin:0 auto}
+.cta{width:100%;border:0;border-radius:16px;padding:16px 18px;display:flex;align-items:center;gap:12px;font-size:17px;font-weight:700;min-height:58px;background:var(--green);color:#fff;box-shadow:0 8px 24px rgba(14,102,70,.3)}
+.cta.dark{background:var(--ink);box-shadow:0 8px 24px rgba(27,33,30,.25);font-size:16px}
+.cta[disabled]{background:#CFCABD;color:#4A4F4B;box-shadow:none;cursor:default}
+.cnt{background:#F4B400;color:var(--ink);border-radius:999px;min-width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;padding:0 6px}
+.note{border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.45;display:flex;gap:10px;align-items:flex-start}
+.note.g{background:var(--tint);color:#12432F}
+.note.w{background:var(--warn);color:#4A2A00}
+.note.r{background:var(--redBg);color:#6E1F05}
+.row{display:flex;align-items:center;gap:10px}
+.line{display:flex;gap:12px;padding:14px 14px 14px 16px;border-bottom:1px solid #EEEAE0;align-items:center}
+.link{border:0;background:#fff;color:var(--green);font-weight:600;font-size:15px;padding:14px 16px;text-align:left;min-height:48px;width:100%;border-radius:0 0 16px 16px}
+.hot{width:100%;border:1px solid var(--line2);background:#fff;border-radius:16px;padding:10px 16px;min-height:56px;display:flex;align-items:center;gap:12px;text-align:left}
+.hot.on{border:2px solid #C2410C;background:#FDEDE4}
+.big{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:64px;line-height:1;color:var(--green)}
+.steps .s{display:flex;gap:14px;align-items:center;padding:12px 0}
+.dot{width:28px;height:28px;border-radius:999px;flex:none;display:flex;align-items:center;justify-content:center;border:2px solid var(--line2);background:#fff}
+.dot.done{background:var(--green);border-color:var(--green)}
+.dot.cur{border:4px solid #E8890C}
+.btn2{border:1px solid #C9C3B5;background:#fff;border-radius:14px;min-height:52px;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;color:var(--ink);width:100%}
+.btn2.g{background:var(--green);color:#fff;border:0;font-weight:700}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;z-index:20;max-width:90vw}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+.ready{animation:pulse 1.4s ease-in-out 3}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+"use strict";
+const PHONE = "+36705550997", PHONE_TXT = "+36 70 555 0997", OPEN_FROM = 6*60, OPEN_TO = 12*60+30, LAST_ORDER = 12*60+15, MAX_QTY = 10;
+const SZ = [{k:"psajt",n:"Plusz sajt",p:200},{k:"lhagyma",n:"Lila hagyma",p:100}];
+const MENU = [
+  {id:"mh",cat:"Melegszendvics",name:"Húsos melegszendvics",sub:"friss, ropogósra sütve",price:950,kind:"sandwich",extras:SZ,hot:1},
+  {id:"mg",cat:"Melegszendvics",name:"Gombás melegszendvics",sub:"friss, ropogósra sütve",price:900,kind:"sandwich",extras:SZ,hot:1},
+  {id:"ms",cat:"Melegszendvics",name:"Sajtos melegszendvics",sub:"friss, ropogósra sütve",price:850,kind:"sandwich",extras:SZ,hot:1},
+  {id:"hb",cat:"Hamburger, hot dog, virsli",name:"Hamburger",sub:"sima vagy sajtos",kind:"burger",varTitle:"Fajta",vars:[{k:"sima",n:"Sima",p:1500},{k:"sajtos",n:"Sajtos",p:1700}],extras:[{k:"dhus",n:"Dupla hús",p:650}],ingr:["Ketchup","Mustár","Majonéz","Vegyes vágott savanyúság","Lila hagyma"],hot:1},
+  {id:"hd",cat:"Hamburger, hot dog, virsli",name:"Hot dog",sub:"szósszal, kiegészítőkkel",price:1200,kind:"hotdog",sauce:1,cheese:[{k:"none",n:"Nincs",p:0},{k:"sajt",n:"Sajt",p:200},{k:"dsajt",n:"Dupla sajt",p:400}],extras:[{k:"dvirsli",n:"Dupla virsli",p:650},{k:"phagyma",n:"Pirított hagyma",p:200}],hot:1},
+  {id:"pv",cat:"Hamburger, hot dog, virsli",name:"Pár virsli",sub:"kenyérrel, mustárral",price:1400,kind:"hotdog",extras:[{k:"pvirsli",n:"Plusz 1 virsli",p:650}],hot:1},
+  {id:"kv",cat:"Kávé",name:"Kávé",sub:"fekete, tejes, cappuccino, forró csoki",kind:"cup",varTitle:"Milyet kérsz?",grid:2,vars:[{k:"f",n:"Kávé",p:350},{k:"tej",n:"Kávé tejjel",p:400},{k:"tsz",n:"Kávé tejszínnel",p:400},{k:"hab",n:"Kávé habbal",p:400},{k:"cap",n:"Cappuccino",p:400},{k:"fcs",n:"Forró csoki",p:400}]},
+  {id:"tea",cat:"Tea, üdítő, víz",name:"Tea",sub:"0,5 l · 1 l · 1,5 l",kind:"cup",varTitle:"Kiszerelés",vars:[{k:"05",n:"0,5 l",p:300},{k:"1",n:"1 l",p:600},{k:"15",n:"1,5 l",p:900}]},
+  {id:"ud",cat:"Tea, üdítő, víz",name:"Üdítő 0,5 l",sub:"Coca-Cola, Coca-Cola Zero, Fanta",kind:"bottle",varTitle:"Melyiket kéred?",grid:1,keep:1,vars:[{k:"cc",n:"Coca-Cola",p:650},{k:"ccz",n:"Coca-Cola Zero",p:650},{k:"fa",n:"Fanta",p:650}],note:"600 Ft + 50 Ft palack"},
+  {id:"av",cat:"Tea, üdítő, víz",name:"Ásványvíz 0,5 l",sub:"300 Ft + 50 Ft palack",price:350,kind:"bottle"}
+];
+const HOT = ["Nem csípős","csípős","közepesen csípős","nagyon csípős"];
+const TINT = {sandwich:"#FCEFD0",burger:"#F6E2D3",hotdog:"#F9E3C4",cup:"#E3EFE8",bottle:"#DDEAF2"};
+const ICON = {
+  sandwich:'<path d="M3 9l9-5 9 5"/><path d="M3 9h18v3H3z"/><path d="M4 12l1 6h14l1-6"/><path d="M8 15h8"/>',
+  burger:'<path d="M4 11a8 6 0 0 1 16 0z"/><path d="M3 14h18"/><path d="M4 17h16v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z"/>',
+  hotdog:'<rect x="2.5" y="9" width="19" height="7" rx="3.5"/><path d="M4 12.5c2-1.5 3 1.5 5 0s3 1.5 5 0 3 1.5 5 0"/>',
+  cup:'<path d="M6 8h11l-1.2 12H7.2z"/><path d="M5 8h13"/><path d="M10 4c0 1 1 1 1 2M13 4c0 1 1 1 1 2"/>',
+  bottle:'<path d="M10 2.5h4v3l1.5 2.5v12.5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1V8L10 5.5z"/><path d="M8.5 12h7"/>'
+};
+const svg = (d, s=30, c="#1B211E", w=1.7) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const CHECK = c => svg('<path d="M5 12l5 5 9-10"/>', 16, c, 3);
+const BACK = svg('<path d="M15 5l-7 7 7 7"/>', 20, "#1B211E", 2.2);
+const PLUS = svg('<path d="M12 5v14M5 12h14"/>', 16, "#fff", 2.6);
+const PHONE_ICO = svg('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>', 22, "currentColor", 1.9);
+const chili = on => `<svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="${on?"#D23A12":"none"}" stroke="${on?"#9A2A0C":"#9E978A"}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6c-4.5 1-7.5 6-8.5 14 6.5-1.5 11.5-6 11.5-11 0-1.7-1.2-3-3-3z"/><path d="M13 6c0-1.5 1-2.5 2.5-3" fill="none"/></svg>`;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ft = n => n.toLocaleString("hu-HU") + " Ft";
+const pad = n => String(n).padStart(2, "0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const hm = d => `${d.getHours()}:${pad(d.getMinutes())}`;
+const ls = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }, del(k){ try{ localStorage.removeItem(k); }catch(e){} } };
+const lsJ = (k, d) => { try{ return JSON.parse(ls.get(k)) ?? d; }catch(e){ return d; } };
+function normPhone(s){ let d = String(s||"").replace(/[^\d+]/g, ""); if(d.startsWith("+36")) d = d.slice(3); else if(d.startsWith("0036")) d = d.slice(4); else if(d.startsWith("06")) d = d.slice(2);
+  d = d.replace(/\D/g, ""); return /^(20|30|31|50|70)\d{7}$/.test(d) ? "+36" + d : null; }
+async function sha(s){ try{ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("pb:" + s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }catch(e){ return ""; } }
+
+const S = {
+  screen:"menu", cur:null, sel:null, qty:1, cart: lsJ("pb.cart", []), eat:null, when:"asap", time:"", name: ls.get("pb.name")||"", phone: ls.get("pb.phone")||"",
+  pub:{soldOut:{}, paused:false, closed:[], blockedH:[]}, pubOk:false, order:null, orderId: ls.get("pb.active")||"", sending:false, err:{}
+};
+let db = null, unsubOrder = null;
+
+/* ---------- prices & options ---------- */
+function newSel(it){ return {v: it.vars ? it.vars[0].k : null, extras:{}, cheese:"none", sauces:{}, without:{}, note:"", hot:0}; }
+function unit(it, s){ let p = it.vars ? it.vars.find(x=>x.k===s.v).p : it.price;
+  (it.extras||[]).forEach(e => { if(s.extras[e.k]) p += e.p; }); if(it.cheese) p += it.cheese.find(c=>c.k===s.cheese).p; return p; }
+function opts(it, s){ const o = [];
+  if(it.vars){ const n = it.vars.find(x=>x.k===s.v).n; if(!(it.id==="kv" && n==="Kávé")) o.push(it.keep ? n : n.toLowerCase()); }
+  if(it.sauce){ const x = ["Ketchup","Mustár","Majonéz"].filter(k=>s.sauces[k]); if(x.length) o.push("szósz: " + x.join(" + ").toLowerCase()); }
+  if(it.cheese && s.cheese!=="none") o.push(it.cheese.find(c=>c.k===s.cheese).n.toLowerCase());
+  (it.extras||[]).forEach(e => { if(s.extras[e.k]) o.push(e.n.toLowerCase()); });
+  if(it.ingr){ const w = it.ingr.filter(x=>s.without[x]); if(w.length) o.push(w.map(x=>x.toLowerCase()).join(", ") + " nélkül"); }
+  if(s.note && s.note.trim()) o.push("„" + s.note.trim().slice(0,80) + "”");
+  if(s.hot) o.push(HOT[s.hot]);
+  return o; }
+const cartQty = () => S.cart.reduce((a,r)=>a+r.qty, 0);
+const cartTotal = () => S.cart.reduce((a,r)=>a+r.unit*r.qty, 0);
+function saveCart(){ ls.set("pb.cart", JSON.stringify(S.cart)); }
+
+/* ---------- opening hours ---------- */
+function openState(){ const d = new Date(), m = d.getHours()*60 + d.getMinutes(), td = ymd(d);
+  if(S.pub.paused) return {ok:false, msg:"Az online rendelés most szünetel. Telefonon rendelhetsz: " + PHONE_TXT};
+  const closedToday = (S.pub.closed||[]).includes(td);
+  if(closedToday || m >= LAST_ORDER){ let n = new Date(d); for(let i=0;i<14;i++){ n.setDate(n.getDate()+1); if(!(S.pub.closed||[]).includes(ymd(n))) break; }
+    const day = (n.getDate() - d.getDate() === 1 || (n.getMonth()!==d.getMonth() && n.getDate()===1)) ? "holnap" : ["vasárnap","hétfőn","kedden","szerdán","csütörtökön","pénteken","szombaton"][n.getDay()];
+    return {ok:false, msg:`Most zárva vagyunk – ${day} 6:00-tól rendelhetsz.`}; }
+  if(m < OPEN_FROM - 60) return {ok:false, msg:"Rendelni reggel 5:00-tól lehet, 6:00-tól adjuk ki."};
+  return {ok:true}; }
+
+/* ---------- render ---------- */
+const $ = id => document.getElementById(id);
+function toast(t){ const el = $("toast"); el.innerHTML = `<div class="toast">${esc(t)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(()=>el.innerHTML="", 3200); }
+function render(){ const y = window.scrollY, f = document.activeElement && document.activeElement.id;
+  $("app").innerHTML = S.screen==="item" ? itemView() : S.screen==="cart" ? cartView() : S.screen==="status" ? statusView() : S.screen==="blocked" ? blockedView() : menuView();
+  if(f && $(f)) $(f).focus({preventScroll:true}); if(S.keepScroll) window.scrollTo(0, y); S.keepScroll = false; }
+function go(screen){ S.screen = screen; render(); window.scrollTo(0,0); }
+
+function menuView(){
+  const os = openState(), cats = [...new Set(MENU.map(i=>i.cat))], last = lsJ("pb.last", null), active = S.order && !["done","rejected","noshow"].includes(S.order.status);
+  return `<header class="top"><div class="row1"><div class="brand">Piac Büfé</div><span class="badge">Előrendelés</span></div>
+    <div class="sub">Cegléd, Piac · nyitva 6:00–12:30 · fizetés a pultnál</div></header>
+  <main class="body">
+    ${active ? `<button class="note g" style="border:0;text-align:left;width:100%;cursor:pointer" data-act="showStatus">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',22,"currentColor",1.9)}<span><b>Folyamatban lévő rendelésed: #${esc(S.order.no)}</b><br>Koppints az állapotához.</span></button>` : ""}
+    ${!os.ok ? `<div class="note w" role="status">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',22,"currentColor",1.9)}<span>${esc(os.msg)} Az étlapot addig is böngészheted.</span></div>` : ""}
+    ${last && last.items && last.items.length ? `<section class="card row" style="padding:14px 14px 14px 16px;gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:3px"><div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.6px">Mint múltkor</div><div style="font-size:14px;line-height:1.35">${esc(last.items.map(r=>`${r.qty}× ${r.name}${r.opts.length?" ("+r.opts.join(", ")+")":""}`).join(", "))}</div></div><button class="btn2 g" style="width:auto;padding:0 14px;min-height:44px;font-size:14px" data-act="reorder">Újrarendelem</button></section>` : ""}
+    ${cats.map(c => `<section class="col"><h2>${esc(c)}</h2>${MENU.filter(i=>i.cat===c).map(it => { const off = !!(S.pub.soldOut||{})[it.id];
+      return `<button class="item ${off?"off":""}" data-act="open" data-id="${it.id}" ${off?'aria-disabled="true"':""} aria-label="${esc(it.name)}, ${off?"elfogyott":esc(priceTxt(it))}">
+        <span class="ico" style="background:${TINT[it.kind]}">${svg(ICON[it.kind])}</span>
+        <span style="flex:1"><span class="iname">${esc(it.name)}</span><span class="isub">${off ? "Ma elfogyott" : esc(it.sub)}</span></span>
+        <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="price">${off ? "–" : esc(priceTxt(it))}</span>${off?"":`<span class="plus">${PLUS}</span>`}</span></button>`; }).join("")}</section>`).join("")}
+    <p style="font-size:13px;color:var(--muted);text-align:center;margin:8px 0 0">Kérdésed van? Hívj minket: <a href="tel:${PHONE}">${PHONE_TXT}</a></p>
+  </main>
+  ${cartQty() ? `<div class="foot"><div class="in"><button class="cta dark" data-act="cart"><span class="cnt">${cartQty()}</span><span style="flex:1;text-align:left">Kosár megtekintése</span><span>${ft(cartTotal())}</span></button></div></div>` : ""}`;
+}
+function priceTxt(it){ if(it.vars){ const ps = it.vars.map(v=>v.p); return Math.min(...ps)===Math.max(...ps) ? ft(ps[0]) : ft(Math.min(...ps)) + "-tól"; } return ft(it.price); }
+
+function itemView(){
+  const it = MENU.find(i=>i.id===S.cur), s = S.sel, sauceMiss = it.sauce && !Object.values(s.sauces).some(Boolean), u = unit(it, s);
+  return `<div class="bar"><button class="back" data-act="menu" aria-label="Vissza az étlaphoz">${BACK}</button><h1>${esc(it.name)}</h1></div>
+  <main class="body">
+    ${it.vars ? `<section class="col"><h3>${esc(it.varTitle)} <small>· válassz egyet</small></h3><div class="grid" style="grid-template-columns:repeat(${it.grid||3},minmax(0,1fr))">${it.vars.map(v=>`<button class="pill ${s.v===v.k?"on":""}" aria-pressed="${s.v===v.k}" data-act="var" data-k="${v.k}"><b>${esc(v.n)}</b><span>${ft(v.p)}</span></button>`).join("")}</div>${it.note?`<div style="font-size:13px;color:var(--muted)">${esc(it.note)}</div>`:""}</section>` : ""}
+    ${it.sauce ? `<section class="col"><h3>Szósz <span class="req">kötelező</span> <small>· akár több is</small></h3><div class="chips">${["Ketchup","Mustár","Majonéz"].map(n=>`<button class="chip ${s.sauces[n]?"on":""}" aria-pressed="${!!s.sauces[n]}" data-act="sauce" data-k="${n}">${s.sauces[n]?CHECK("currentColor"):""}${n}</button>`).join("")}</div>${sauceMiss?`<div class="hint">Válassz legalább egy szószt.</div>`:""}</section>` : ""}
+    ${it.cheese ? `<section class="col"><h3>Sajt</h3><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">${it.cheese.map(c=>`<button class="pill ${s.cheese===c.k?"on":""}" aria-pressed="${s.cheese===c.k}" data-act="cheese" data-k="${c.k}"><b>${c.n}</b><span>${c.p?"+"+ft(c.p):"–"}</span></button>`).join("")}</div></section>` : ""}
+    ${it.ingr ? `<section class="col"><h3>Összetevők <small>· koppints arra, amit nem kérsz bele</small></h3><div class="chips">${it.ingr.map(n=>`<button class="chip ${s.without[n]?"no":"inc"}" aria-pressed="${!!s.without[n]}" data-act="without" data-k="${esc(n)}">${esc(n)}${s.without[n]?" nélkül":""}</button>`).join("")}</div>
+      <label class="field">Mit ne tegyünk bele? (nem kötelező)<textarea id="note" rows="2" maxlength="80" data-f="note" placeholder="pl. kevés mustárral">${esc(s.note)}</textarea></label></section>` : ""}
+    ${it.hot ? `<section class="col"><h3>Csípősség <small>· nyomd meg többször</small></h3><button class="hot ${s.hot?"on":""}" data-act="hot" aria-label="Csípősség: ${HOT[s.hot]}"><span style="display:flex;gap:2px">${[1,2,3].map(i=>chili(i<=s.hot)).join("")}</span><span style="flex:1;font-size:16px;font-weight:600">${s.hot ? HOT[s.hot][0].toUpperCase()+HOT[s.hot].slice(1) : "Nem csípős"}</span><span style="font-size:13px;color:var(--muted)">${s.hot===3?"újra: kikapcsol":"koppints: csípősebb"}</span></button></section>` : ""}
+    ${it.extras && it.extras.length ? `<section class="col"><h3>Kiegészítők <small>· nem kötelező</small></h3><div class="card" style="overflow:hidden">${it.extras.map(e=>`<button class="chk ${s.extras[e.k]?"on":""}" aria-pressed="${!!s.extras[e.k]}" data-act="extra" data-k="${e.k}"><span class="box">${s.extras[e.k]?CHECK("#fff"):""}</span><span style="flex:1">${esc(e.n)}</span><span style="color:var(--muted);font-size:15px">+${ft(e.p)}</span></button>`).join("")}</div></section>` : ""}
+    <section class="card row" style="justify-content:space-between;padding:10px 12px 10px 16px"><span style="font-size:16px;font-weight:600">Darab</span><div class="qty"><button class="qb" data-act="qty" data-d="-1" aria-label="Kevesebb">−</button><b style="font-size:20px;min-width:20px;text-align:center">${S.qty}</b><button class="qb p" data-act="qty" data-d="1" aria-label="Több">+</button></div></section>
+  </main>
+  <div class="foot"><div class="in"><button class="cta" data-act="add" ${sauceMiss?"disabled":""}><span style="flex:1;text-align:left">Kosárba</span><span>${ft(u*S.qty)}</span></button></div></div>`;
+}
+
+function cartView(){
+  const os = openState(), q = cartQty(), tooMany = q > MAX_QTY, e = S.err;
+  const can = os.ok && S.eat && !tooMany && !S.sending;
+  const whens = [["asap","Mielőbb","a büfé megírja, mikorra"],["15","15 perc múlva",hm(new Date(Date.now()+15*60000))+"-ra"],["30","30 perc múlva",hm(new Date(Date.now()+30*60000))+"-ra"],["time","Időpontra","ma, válassz időt"]];
+  return `<div class="bar"><button class="back" data-act="menu" aria-label="Vissza az étlaphoz">${BACK}</button><h1>Rendelésed</h1></div>
+  <main class="body">
+    ${!os.ok ? `<div class="note w" role="status">${esc(os.msg)}</div>` : ""}
+    <section class="card">${S.cart.map((r,i)=>`<div class="line"><div style="flex:1;display:flex;flex-direction:column;gap:3px"><b style="font-size:15px">${esc(r.name)}</b>${r.opts.length?`<span style="font-size:13px;color:var(--muted);line-height:1.35">${esc(r.opts.join(", "))}</span>`:""}<b style="font-size:14px">${ft(r.unit*r.qty)}</b></div>
+      <div class="qty" style="gap:8px"><button class="qb" style="width:40px;height:40px" data-act="cq" data-i="${i}" data-d="-1" aria-label="Kevesebb ${esc(r.name)}">−</button><b style="min-width:16px;text-align:center">${r.qty}</b><button class="qb" style="width:40px;height:40px" data-act="cq" data-i="${i}" data-d="1" aria-label="Több ${esc(r.name)}">+</button></div></div>`).join("")}
+      <button class="link" data-act="menu">+ Még valamit kérek</button></section>
+    ${tooMany ? `<div class="note r" role="alert">Online egyszerre legfeljebb ${MAX_QTY} tétel rendelhető. Nagyobb rendelést telefonon veszünk fel: <a href="tel:${PHONE}">${PHONE_TXT}</a></div>` : ""}
+    <section class="col"><h3>Hogyan kéred? <span class="req">kötelező</span></h3><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">${[["elvitel","Elvitelre","becsomagoljuk"],["helyben","Helyben fogyasztom","a büfénél eszem meg"]].map(([k,n,sub])=>`<button class="pill ${S.eat===k?"on":""}" style="min-height:64px" aria-pressed="${S.eat===k}" data-act="eat" data-k="${k}"><b style="font-size:16px">${n}</b><span>${sub}</span></button>`).join("")}</div>${e.eat?`<div class="hint">Válaszd ki, hogy elviszed vagy helyben fogyasztod.</div>`:""}</section>
+    <section class="col"><h3>Mikorra kéred?</h3><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">${whens.map(([k,n,sub])=>`<button class="pill ${S.when===k?"on":""}" style="min-height:64px" aria-pressed="${S.when===k}" data-act="when" data-k="${k}"><b>${n}</b><span>${sub}</span></button>`).join("")}</div>
+      ${S.when==="time" ? `<label class="field" style="flex-direction:row;align-items:center;gap:10px;font-size:14px">Átvétel ideje <input id="time" type="time" data-f="time" value="${esc(S.time)}" min="06:00" max="12:30" style="width:auto"></label>${e.time?`<div class="err">${esc(e.time)}</div>`:""}` : ""}</section>
+    <section class="col"><h3>Kinek készítjük?</h3>
+      <label class="field">Név<input id="name" data-f="name" value="${esc(S.name)}" maxlength="40" autocomplete="name" placeholder="pl. Kovács Anna"></label>${e.name?`<div class="err">${esc(e.name)}</div>`:""}
+      <label class="field">Mobilszám<input id="phone" data-f="phone" value="${esc(S.phone)}" type="tel" autocomplete="tel" placeholder="+36 30 123 4567" ${e.phone?'aria-invalid="true" style="border:2px solid #B53A10"':""}></label>${e.phone?`<div class="err">${esc(e.phone)}</div>`:""}
+      <div style="font-size:12px;color:var(--muted)">Ezen a telefonon megjegyezzük, legközelebb nem kell beírni.</div>
+      <label class="sr">Ne töltsd ki<input id="hp" data-f="hp" tabindex="-1" autocomplete="off"></label></section>
+    <div class="note g">${svg('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/>',22,"currentColor",1.8)}<span>Fizetés átvételkor a pultnál – készpénz vagy kártya.</span></div>
+    ${e.send ? `<div class="note r" role="alert">${esc(e.send)}</div>` : ""}
+  </main>
+  <div class="foot"><div class="in"><button class="cta" data-act="submit" ${can?"":"disabled"}><span style="flex:1;text-align:left">${S.sending?"Küldés…":"Rendelés leadása"}</span><span>${ft(cartTotal())}</span></button></div></div>`;
+}
+
+function statusView(){
+  const o = S.order; if(!o) return `<main class="body"><p>Betöltés…</p></main>`;
+  const st = o.status, trusted = ls.get("pb.trusted") === normPhone(o.phone);
+  const step = st==="new" ? 1 : st==="accepted" ? 2 : st==="ready" || st==="done" ? 3 : 1;
+  const steps = [["Elküldve","megkaptuk a rendelésed"], st==="new" ? ["Visszaigazolásra vár","a büfé hamarosan jóváhagyja"] : ["Visszaigazolva", o.mins ? `kb. ${o.mins} perc alatt elkészül` : ""], ["Készül", o.readyAt ? `kész kb. ${o.readyAt}-kor` : ""], ["Kész","átveheted a pultnál"]];
+  const failed = st==="rejected" || st==="noshow";
+  return `<main class="body" style="padding-top:28px;padding-bottom:40px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px">Rendelésszám</div><div class="big" style="${failed?"color:#8E877A":""}">#${esc(o.no)}</div><div style="font-size:15px">${esc(o.name)} · ${o.eat==="helyben"?"helyben fogyasztás":"elvitel"} · ${o.when==="asap"?"mielőbb":esc(o.when)}</div></div>
+    ${failed ? `<section class="card" style="padding:18px;display:flex;flex-direction:column;gap:10px"><b style="font-size:17px">Most nem tudtuk elkészíteni</b><span style="font-size:15px;line-height:1.5;color:#333A35">${st==="noshow"?"A rendelést nem vették át.":"Nem értünk el a megadott számon, vagy a rendelést most nem tudtuk vállalni."} Ha még kéred, hívj minket, és rögtön összerakjuk.</span></section>
+      <a class="btn2 g" href="tel:${PHONE}">${PHONE_ICO} ${PHONE_TXT} – hívás</a><button class="btn2" data-act="newOrder">Új rendelés</button>` : `
+    ${st==="ready" ? `<div class="note g ready" style="background:var(--green);color:#fff;padding:18px"><b style="font-size:18px">Kész, jöhetsz érte!</b><br>Mondd a pultnál: #${esc(o.no)}</div>` : ""}
+    ${st==="accepted" ? `<div class="note g" style="background:var(--green);color:#fff;padding:16px"><span><b style="font-size:17px">Visszaigazolva – kb. ${esc(o.mins)} perc múlva kész</b><br><span style="color:#D5E8DD">${esc(o.readyAt)}-ra jöhetsz érte. Szólunk, ha elkészült.</span></span></div>` : ""}
+    ${st==="new" && !trusted ? `<div class="note w">${PHONE_ICO}<span><b>Most rendelsz először – üdv nálunk!</b><br>A büfé 1–2 percen belül felhívhat a megadott számon, hogy megerősítse a rendelést. Ez csak az első alkalommal van így.</span></div>` : ""}
+    <section class="card steps" style="padding:6px 16px">${steps.map((s,i)=>{ const done = i < step || (st==="ready"||st==="done") && i===3, cur = i===step && !done; return `<div class="s"><span class="dot ${done?"done":""} ${cur?"cur":""}">${done?CHECK("#fff"):""}</span><div style="display:flex;flex-direction:column"><span style="font-size:16px;${cur?"font-weight:700":done?"":"color:var(--muted)"}">${s[0]}</span>${s[1]?`<span style="font-size:12px;color:var(--muted)">${esc(s[1])}</span>`:""}</div></div>`; }).join("")}</section>`}
+    <section class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:6px;font-size:14px">${(o.items||[]).map(r=>`<div class="row" style="align-items:flex-start"><span style="flex:1">${r.qty}× ${esc(r.name)}${r.opts&&r.opts.length?`<span style="color:var(--muted)"> · ${esc(r.opts.join(", "))}</span>`:""}</span><b>${ft(r.unit*r.qty)}</b></div>`).join("")}
+      <div class="row" style="border-top:1px solid #EEEAE0;padding-top:8px;font-weight:700"><span style="flex:1">Fizetendő átvételkor</span><span>${ft(o.total)}</span></div></section>
+    ${!failed ? `<a class="btn2" href="tel:${PHONE}">${PHONE_ICO} Kérdésed van? ${PHONE_TXT}</a>` : ""}
+    ${st==="done"||st==="ready" ? `<button class="btn2" data-act="newOrder">Új rendelés</button>` : `<button class="btn2" data-act="menu">Vissza az étlaphoz</button>`}
+  </main>`;
+}
+function blockedView(){
+  return `<main class="body" style="padding-top:48px;align-items:stretch;text-align:center;gap:18px">
+    <div style="width:72px;height:72px;border-radius:999px;background:#EEEAE0;display:flex;align-items:center;justify-content:center;align-self:center;color:#4F564F">${PHONE_ICO}</div>
+    <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-size:24px;margin:0">Erről a számról most telefonon rendelj</h1>
+    <p style="font-size:15px;line-height:1.5;color:#333A35;margin:0">Ezen a számon az online rendelés jelenleg nem elérhető. Hívj minket, és szívesen felvesszük a rendelésed.</p>
+    <a class="btn2 g" href="tel:${PHONE}">${PHONE_ICO} ${PHONE_TXT} – hívás</a><button class="btn2" data-act="menu">Vissza</button></main>`;
+}
+
+/* ---------- actions ---------- */
+const A = {
+  menu(){ go("menu"); }, cart(){ S.err = {}; go("cart"); }, showStatus(){ go("status"); },
+  open(d){ const it = MENU.find(i=>i.id===d.id); if((S.pub.soldOut||{})[it.id]) return toast(it.name + " ma elfogyott."); S.cur = it.id; S.sel = newSel(it); S.qty = 1; go("item"); },
+  var(d){ S.sel.v = d.k; S.keepScroll = true; render(); },
+  sauce(d){ S.sel.sauces[d.k] = !S.sel.sauces[d.k]; S.keepScroll = true; render(); },
+  cheese(d){ S.sel.cheese = d.k; S.keepScroll = true; render(); },
+  without(d){ S.sel.without[d.k] = !S.sel.without[d.k]; S.keepScroll = true; render(); },
+  extra(d){ S.sel.extras[d.k] = !S.sel.extras[d.k]; S.keepScroll = true; render(); },
+  hot(){ S.sel.hot = (S.sel.hot + 1) % 4; S.keepScroll = true; render(); },
+  qty(d){ S.qty = Math.max(1, Math.min(MAX_QTY, S.qty + (+d.d))); S.keepScroll = true; render(); },
+  add(){ const it = MENU.find(i=>i.id===S.cur), s = S.sel; if(it.sauce && !Object.values(s.sauces).some(Boolean)) return;
+    S.cart.push({id: it.id, name: it.name, opts: opts(it, s), unit: unit(it, s), qty: S.qty}); saveCart(); toast(`${it.name} a kosárban.`); go("menu"); },
+  cq(d){ const r = S.cart[+d.i]; r.qty += +d.d; if(r.qty <= 0) S.cart.splice(+d.i, 1); saveCart(); if(!S.cart.length) return go("menu"); S.keepScroll = true; render(); },
+  eat(d){ S.eat = d.k; delete S.err.eat; S.keepScroll = true; render(); },
+  when(d){ S.when = d.k; S.keepScroll = true; render(); },
+  reorder(){ const last = lsJ("pb.last", null); if(!last) return; const off = last.items.filter(r => (S.pub.soldOut||{})[r.id]);
+    S.cart = last.items.filter(r => !(S.pub.soldOut||{})[r.id]).map(r => ({...r})); saveCart(); if(off.length) toast("Ma elfogyott: " + off.map(r=>r.name).join(", ")); if(S.cart.length) A.cart(); else render(); },
+  newOrder(){ ls.del("pb.active"); if(unsubOrder) unsubOrder(); S.order = null; S.orderId = ""; S.eat = null; go("menu"); },
+  async submit(){
+    const os = openState(); if(!os.ok) return toast(os.msg);
+    const err = {}; if(!S.eat) err.eat = 1;
+    const name = S.name.trim(); if(name.length < 2) err.name = "Add meg a neved.";
+    const ph = normPhone(S.phone); if(!ph) err.phone = "Kérlek, mobilszámot adj meg (+36 20 / 30 / 31 / 50 / 70 …).";
+    let when = "asap";
+    if(S.when === "15" || S.when === "30") when = hm(new Date(Date.now() + (+S.when)*60000));
+    if(S.when === "time"){ const m = /^(\d{1,2}):(\d{2})$/.exec(S.time||""); const mm = m ? (+m[1])*60 + (+m[2]) : -1, now = new Date(), nm = now.getHours()*60 + now.getMinutes();
+      if(mm < 0) err.time = "Válassz átvételi időt."; else if(mm < Math.max(OPEN_FROM, nm + 10) || mm > OPEN_TO) err.time = "Ma " + hm(new Date(Math.max(now.getTime()+10*60000, new Date().setHours(6,0,0,0)))) + " és 12:30 között válassz időt."; else when = `${+m[1]}:${m[2]}`; }
+    if(cartQty() > MAX_QTY) err.send = `Online legfeljebb ${MAX_QTY} tétel rendelhető.`;
+    S.err = err; if(Object.keys(err).length){ S.keepScroll = true; render(); return; }
+    if(($("hp")||{}).value) return;
+    const h = await sha(ph); if(h && (S.pub.blockedH||[]).includes(h)) return go("blocked");
+    const prev = S.order && !["done","rejected","noshow"].includes(S.order.status) && S.order.at > Date.now() - 6*3600000;
+    if(prev) { S.err = {send:`Már van egy folyamatban lévő rendelésed (#${S.order.no}). Várd meg, amíg elkészül, vagy hívj minket.`}; S.keepScroll = true; return render(); }
+    ls.set("pb.name", name); ls.set("pb.phone", S.phone.trim());
+    const doc = { no: String(100 + Math.floor(Math.random()*900)), at: Date.now(), name: name.slice(0,40), phone: ph, eat: S.eat, when,
+      items: S.cart.map(r => ({id: r.id, name: r.name, opts: r.opts.slice(0,8), unit: r.unit, qty: r.qty})), total: cartTotal(), qtyTotal: cartQty(), status: "new" };
+    S.sending = true; S.keepScroll = true; render();
+    try{ const ref = db.collection("weborders").doc(); await ref.set(doc);
+      ls.set("pb.active", ref.id); ls.set("pb.last", JSON.stringify({items: S.cart})); S.cart = []; saveCart(); S.sending = false; S.orderId = ref.id; S.order = doc; watchOrder(ref.id); go("status"); }
+    catch(e){ S.sending = false; S.err = {send: "Nem sikerült elküldeni. Ellenőrizd az internetet, vagy hívj minket: " + PHONE_TXT}; S.keepScroll = true; render(); }
+  }
+};
+document.addEventListener("click", e => { const b = e.target.closest("[data-act]"); if(!b || b.disabled) return; const f = A[b.dataset.act]; if(f){ e.preventDefault(); f(b.dataset); } });
+document.addEventListener("input", e => { const f = e.target.dataset && e.target.dataset.f; if(!f) return; if(f === "note") S.sel.note = e.target.value; else S[f] = e.target.value;
+  if(S.err[f]){ delete S.err[f]; } if(f === "time"){ S.keepScroll = true; render(); } });
+
+/* ---------- data ---------- */
+function watchOrder(id){ if(unsubOrder) unsubOrder(); let first = true;
+  unsubOrder = db.collection("weborders").doc(id).onSnapshot(s => { if(!s.exists){ return; } const o = s.data(), prev = S.order && S.order.status; S.order = o;
+    if(first && S.screen === "menu" && !["done","rejected","noshow"].includes(o.status) && o.at > Date.now() - 12*3600000) S.screen = "status"; first = false;
+    if(["accepted","ready","done"].includes(o.status)) ls.set("pb.trusted", o.phone);
+    if(o.status === "ready" && prev && prev !== "ready"){ try{ navigator.vibrate && navigator.vibrate([300,150,300]); }catch(e){} }
+    if(o.at < Date.now() - 12*3600000){ ls.del("pb.active"); S.order = null; }
+    if(S.screen === "status" || S.screen === "menu") render(); }, () => {}); }
+function boot(){
+  try{ firebase.initializeApp(window.FB_CONFIG); db = firebase.firestore(); if(window.FB_EMULATOR) db.useEmulator("127.0.0.1", 8080); }catch(e){ db = firebase.firestore(); }
+  db.collection("public").doc("menu").onSnapshot(s => { S.pub = Object.assign({soldOut:{}, paused:false, closed:[], blockedH:[]}, s.exists ? s.data() : {}); S.pubOk = true; if(S.screen !== "item") { S.keepScroll = true; render(); } }, () => { S.pubOk = true; });
+  if(S.orderId){ watchOrder(S.orderId); }
+  render();
+  setInterval(() => { if(S.screen === "menu" || S.screen === "cart"){ S.keepScroll = true; render(); } }, 60000);
+}
+boot();
+</script>
+</body>
+</html>

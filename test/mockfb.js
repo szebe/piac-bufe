@@ -21,6 +21,7 @@
       if(lim) docs = docs.slice(0, lim);
       return docs.map(x => ({ id: x.p.split("/").pop(), exists: true, data: () => clone(x.d) })); };
     return {
+      doc: id => docRef(coll + "/" + (id || Math.random().toString(36).slice(2))),
       where: (k,op,v) => query(coll, [...f,[k,op,v]], ob, lim), orderBy: (k,dir="asc") => query(coll, f, [k,dir], lim), limit: n => query(coll, f, ob, n),
       get: async () => ({ docs: run() }),
       add: async d => { const id = Math.random().toString(36).slice(2); store.set(coll+"/"+id, clone(d)); notify(); return docRef(coll+"/"+id); },

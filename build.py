@@ -33,6 +33,7 @@ for f in ["firebase-app-compat.js", "firebase-auth-compat.js", "firebase-firesto
     (root / "www" / f).write_bytes((root / "node_modules/firebase" / f).read_bytes())
 out = head + src_app + "\n</body></html>\n"
 (root / "www/index.html").write_text(out, encoding="utf-8")
+(root / "www/rendeles.html").write_text((root / "src/rendeles.html").read_text(encoding="utf-8"), encoding="utf-8")
 sw = (root / "sw.template.js").read_text(encoding="utf-8").replace("__VERSION__", ver)
 (root / "www/sw.js").write_text(sw, encoding="utf-8")
 print("built www/index.html", ver, len(out)//1024, "KB")

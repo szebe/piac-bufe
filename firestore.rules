@@ -1,19 +1,46 @@
 rules_version = '2';
 // Ezt a szöveget kell bemásolni: Firebase konzol → Firestore Database → Rules (Szabályok) → Publish (Közzététel)
-// Hozzáférés: a bolt közös fiókja, ÉS minden munkatárs, akinek az e-mail címe szerepel a Kollégák listában
-// (config/main.emails) és a címét a levélben megerősítette.
 service cloud.firestore {
   match /databases/{database}/documents {
+    // a bolt közös fiókja
     function shop() {
       return request.auth != null && request.auth.token.email == "szebekft@gmail.com";
     }
+    // saját e-mailes munkatársi fiók (a Kollégák listában szereplő, megerősített cím)
     function member() {
       return request.auth != null
         && request.auth.token.email_verified == true
         && request.auth.token.email.lower() in get(/databases/$(database)/documents/config/main).data.get("emails", []);
     }
+    function staff() { return shop() || member(); }
+
     match /{document=**} {
-      allow read, write: if shop() || member();
+      allow read, write: if staff();
+    }
+
+    // vásárlói rendelőoldal: elfogyott tételek, nyitvatartás – bárki olvashatja
+    match /public/{doc} {
+      allow get: if true;
+    }
+
+    // online rendelések: a vásárló csak újat adhat le, és csak a sajátját (az azonosító ismeretében) nézheti
+    match /weborders/{id} {
+      allow get: if true;
+      allow create: if validOrder(request.resource.data);
+    }
+    function validOrder(d) {
+      return d.keys().hasOnly(["no", "at", "name", "phone", "eat", "when", "items", "total", "qtyTotal", "status"])
+        && d.keys().hasAll(["no", "at", "name", "phone", "eat", "when", "items", "total", "qtyTotal", "status"])
+        && d.status == "new"
+        && d.no is string && d.no.size() <= 4
+        && d.at is int && d.at > request.time.toMillis() - 300000 && d.at < request.time.toMillis() + 300000
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 40
+        && d.phone is string && d.phone.matches("^\\+36(20|30|31|50|70)[0-9]{7}$")
+        && d.eat in ["elvitel", "helyben"]
+        && d.when is string && d.when.size() <= 5
+        && d.items is list && d.items.size() >= 1 && d.items.size() <= 10
+        && d.qtyTotal is int && d.qtyTotal >= 1 && d.qtyTotal <= 10
+        && d.total is int && d.total > 0 && d.total <= 30000;
     }
   }
 }

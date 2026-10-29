@@ -2,7 +2,7 @@ name: Test (staging)
 
 on:
   push:
-    branches: [kovetkezo-frissites]
+    branches-ignore: [main]
 
 permissions:
   contents: read
