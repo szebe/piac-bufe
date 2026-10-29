@@ -81,6 +81,8 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
 
   const b = await chromium.launch(); const p = await b.newPage({viewport: {width: 400, height: 850}});
   const errs = []; p.on("pageerror", e => errs.push(e.message));
+  const NOALARM = pg => pg.addInitScript(() => { const iv = setInterval(() => { if(window.alarmTick && !window.__na){ window.__na = 1; window.alarmTick = () => {}; } if(window.S){ S.alarmFor = null; const o = document.getElementById("overlay"); if(o && !S.close) o.innerHTML = ""; } }, 100); });
+  await NOALARM(p);
   const cfgJs = `window.FB_CONFIG={apiKey:"fake",authDomain:"${PROJECT}.firebaseapp.com",projectId:"${PROJECT}"};window.FB_EMAIL=${JSON.stringify(EMAIL)};window.FB_EMULATOR=true;`;
   await p.route("**/firebase-config.js", r => r.fulfill({contentType: "text/javascript", body: cfgJs}));
   await p.goto("http://127.0.0.1:5173/"); await p.waitForSelector("#lgPw", {timeout: 15000});
@@ -115,7 +117,7 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   ok((await get("cash/2026-10-01")) !== null, "import wrote cash doc");
   ok(await p.evaluate(() => CELEB_AUDIO.week === "data:audio/mpeg;base64,AAAA"), "celebration audio loaded from Firestore");
   // second device sees same data (realtime)
-  const p2 = await (await b.newContext()).newPage({viewport: {width: 400, height: 850}});
+  const p2 = await (await b.newContext()).newPage({viewport: {width: 400, height: 850}}); await NOALARM(p2);
   await p2.route("**/firebase-config.js", r => r.fulfill({contentType: "text/javascript", body: cfgJs}));
   await p2.goto("http://127.0.0.1:5173/"); await p2.waitForSelector("#lgPw");
   await p2.click("[data-act=lgMode][data-m=reg]"); await p2.fill("#lgEm", "bobe@example.com"); await p2.fill("#lgPw", "bobe-123456"); await p2.fill("#lgPw2", "bobe-123456"); await p2.click("[data-act=fbRegister]");
@@ -125,7 +127,7 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   await verifyAll(); await p2.click("[data-act=fbVerified]");
   await p2.waitForFunction(() => S.dbOk && S.me === "b", null, {timeout: 15000}); ok(true, "Böbe logged in with own account after verifying");
   // forgot password
-  const p3 = await (await b.newContext()).newPage({viewport: {width: 400, height: 850}});
+  const p3 = await (await b.newContext()).newPage({viewport: {width: 400, height: 850}}); await NOALARM(p3);
   await p3.route("**/firebase-config.js", r => r.fulfill({contentType: "text/javascript", body: cfgJs}));
   await p3.goto("http://127.0.0.1:5173/"); await p3.waitForSelector("#lgPw");
   await p3.click("[data-act=lgMode][data-m=forgot]"); await p3.fill("#lgEm", "bobe@example.com"); await p3.click("[data-act=fbReset]"); await p3.waitForSelector(".note.ok", {timeout: 10000});
