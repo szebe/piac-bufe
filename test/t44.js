@@ -1,0 +1,18 @@
+const { chromium } = require(process.env.PW||'playwright');
+const SP='/tmp/claude-0/-home-claude/e9bfa389-a662-5a2b-a20d-7977b9feea75/scratchpad/';
+(async()=>{ const b = await chromium.launch(); const ctx = await b.newContext({viewport:{width:390,height:844}, colorScheme:'dark'}); const p = await ctx.newPage();
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockrend.html'); await p.waitForTimeout(400);
+await p.click('[data-act=open][data-id=hb]'); console.log('in item:', await p.evaluate(()=>S.screen));
+await p.goBack(); await p.waitForTimeout(200); console.log('after back:', await p.evaluate(()=>S.screen), p.url().endsWith('mockrend.html'));
+await p.click('[data-act=open][data-id=hd]'); await p.click('[data-act=add]', {force:true}); await p.waitForTimeout(300);
+console.log('sauce need:', await p.evaluate(()=>document.getElementById('sec-sauce').className));
+await p.click('[data-act=sauce][data-k=Ketchup]'); await p.click('[data-act=add]'); await p.waitForTimeout(100);
+console.log('after add screen:', await p.evaluate(()=>S.screen));
+await p.click('[data-act=cart]'); await p.waitForTimeout(100);
+await p.screenshot({path:SP+'j1.png'});
+await p.click('[data-act=submit]', {force:true}); await p.waitForTimeout(700);
+console.log('eat need:', await p.evaluate(()=>document.getElementById('sec-eat').className), '| eat in view:', await p.evaluate(()=>{ const r=document.getElementById('sec-eat').getBoundingClientRect(); return r.top>=0 && r.bottom<=innerHeight; }));
+await p.screenshot({path:SP+'j2.png'});
+await p.goBack(); await p.waitForTimeout(200); console.log('cart back ->', await p.evaluate(()=>S.screen));
+await b.close(); })();
