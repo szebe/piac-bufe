@@ -106,6 +106,8 @@ h3 small{font-weight:500;color:var(--muted);font-size:13px}
 .stamp{aspect-ratio:1;border-radius:999px;border:2px dashed var(--line2);display:flex;align-items:center;justify-content:center;color:var(--muted2);font-size:13px;font-weight:700}
 .stamp.on{border:0;background:var(--green);color:#fff}
 .stamp.c.on{background:#7A4A1E}
+@keyframes pop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.25)}100%{transform:scale(1);opacity:1}}
+.stamp.new{animation:pop .7s cubic-bezier(.2,.9,.3,1.4) .3s both;box-shadow:0 0 0 4px rgba(244,180,0,.45)}
 .qrbox{background:#fff;border-radius:16px;padding:14px;display:flex;justify-content:center;align-self:center}
 .qrbox svg{width:200px;height:200px;display:block}
 .loycard{border:0;width:100%;text-align:left;cursor:pointer;background:linear-gradient(135deg,var(--green),#0B4E36);color:#fff;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px}
@@ -306,6 +308,7 @@ function statusView(){
     <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px">Rendelésszám</div><div class="big" style="${failed?"color:var(--muted2)":""}">#${esc(o.no)}</div><div style="font-size:15px">${esc(o.name)} · ${o.eat==="helyben"?"helyben fogyasztás":"elvitel"} · ${o.when==="asap"?"mielőbb":esc(o.when)}</div></div>
     ${failed ? `<section class="card" style="padding:18px;display:flex;flex-direction:column;gap:10px"><b style="font-size:17px">Most nem tudtuk elkészíteni</b><span style="font-size:15px;line-height:1.5;color:var(--ink2)">${st==="noshow"?"A rendelést nem vették át.":"Nem értünk el a megadott számon, vagy a rendelést most nem tudtuk vállalni."} Ha még kéred, hívj minket, és rögtön összerakjuk.</span></section>
       <a class="btn2 g" href="tel:${PHONE}">${PHONE_ICO} ${PHONE_TXT} – hívás</a><button class="btn2" data-act="newOrder">Új rendelés</button>` : `
+    ${st==="done" ? thanksBox(o) : ""}
     ${st==="ready" ? `<div class="note g ready" style="background:var(--green);color:#fff;padding:18px"><b style="font-size:18px">Kész, jöhetsz érte!</b><br>Mondd a pultnál: #${esc(o.no)}</div>` : ""}
     ${st==="accepted" ? `<div class="note g" style="background:var(--green);color:#fff;padding:16px"><span><b style="font-size:17px">Visszaigazolva – kb. ${esc(o.mins)} perc múlva kész</b><br><span style="color:#D5E8DD">${esc(o.readyAt)}-ra jöhetsz érte. Szólunk, ha elkészült.</span></span></div>` : ""}
     ${st==="new" && !trusted ? `<div class="note w">${PHONE_ICO}<span><b>Most rendelsz először – üdv nálunk!</b><br>A büfé 1–2 percen belül felhívhat a megadott számon, hogy megerősítse a rendelést. Ez csak az első alkalommal van így.</span></div>` : ""}
@@ -322,6 +325,32 @@ function statusView(){
   </main>`;
 }
 const PRIVACY = "A törzsvásárlói programban a mobilszámodat (titkosított azonosítóként) és a pecsétekhez tartozó vásárlásokat (dátum, étel/kávé fajtája) tároljuk, kizárólag a pecsétek és jutalmak nyilvántartására. Az adatokat nem adjuk át harmadik félnek. 6 hónap vásárlás nélkül a pecsétek lejárnak és törlődnek. Kilépni és az adataid törlését kérni a büfénél vagy telefonon (" + PHONE_TXT + ") tudod. Adatkezelő: Szebe Kft., 2700 Cegléd, Nyúl u. 9.";
+/* köszönő üzenetek: a pecsétek számához igazodva, minden alkalommal más */
+const THANKS = [
+  "Köszönjük, hogy minket választottál! Itt az első pecséted – jó étvágyat hozzá!",
+  "Öröm volt újra kiszolgálni téged! Gyűlik a pecsét, gyűlik a jókedv.",
+  "Köszönjük a bizalmat! 1983 óta sütünk a piacon – és most már neked is.",
+  "Hálásak vagyunk, hogy visszajöttél! Ilyen vendégekért szeretjük ezt csinálni.",
+  "Félúton vagy! Köszönjük, hogy a reggeled egy kis darabja nálunk telik.",
+  "Köszönjük! Bevalljuk: már vártunk – jó, hogy itt voltál.",
+  "Szuper, hogy újra itt jártál! Már látszik a cél.",
+  "Köszönjük a hűségedet – még kettő, és egy ételre a vendégünk vagy!",
+  "Hajrá, már csak EGY pecsét! Köszönjük, hogy ennyiszer minket választottál.",
+  "Gratulálunk, megvan mind a 10 pecsét! Válaszd ki a pultnál a kedvencedet – most mi állunk jót érte. Köszönjük!"];
+function thanksBox(o){
+  if(!o.loyal) return `<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:8px"><b style="font-size:17px">Köszönjük, hogy minket választottál!</b><span style="font-size:14px;color:var(--ink2)">Gyűjts pecsétet: 10 vásárlásért egy étel ajándék.</span><button class="btn2 g" data-act="card">Csatlakozom a pecsétgyűjtéshez</button></section>`;
+  const L = S.loy; if(!L) return `<section class="card" style="padding:16px"><b style="font-size:17px">Köszönjük, hogy minket választottál!</b></section>`;
+  const td = ymd(new Date()), n = L.f.length, got = L.f.length && L.f[L.f.length - 1].d === td, cof = L.c.length && L.c[L.c.length - 1].d === td;
+  const shown = Math.min(n, LOY_N), left = Math.max(0, LOY_N - n);
+  const msg = got ? THANKS[Math.max(0, Math.min(n, LOY_N) - 1)] : cof ? "Köszönjük a kávézást! Kávépecsétet kaptál – 10 kávépecsétért egy kávé a vendégünk." : "Köszönjük, hogy minket választottál! Ma már kaptál pecsétet – holnap újra gyűjthetsz.";
+  const cheer = left === 0 ? "🎉 Megvan! Válaszd ki a pultnál az ajándék ételedet." : left === 1 ? "Már csak 1 pecsét! A következő vásárlásnál jár az ajándék!" : left === 2 ? "Mindjárt megvan – még 2 pecsét!" : left === 3 ? "Hajrá, még 3 pecsét, és tiéd az ajándék étel!" : left <= 5 ? `Már a felénél is túl vagy – még ${left} pecsét!` : left <= 7 ? `Szép kezdés! Még ${left} pecsét az ajándék ételig.` : `Gyűjtsd tovább: még ${left} pecsét az ajándék ételig.`;
+  const hot = left <= 3;
+  return `<section class="card thanks" style="padding:18px;display:flex;flex-direction:column;gap:12px;${hot?"border:2px solid #F4B400;":""}">
+    <div class="row" style="gap:10px;align-items:flex-start">${svg('<path d="M12 21s-7-4.4-9.3-8.7C1 8.9 3 5 6.6 5c2 0 3.4 1.2 4.4 2.6C12 6.2 13.4 5 15.4 5 19 5 21 8.9 21.3 12.3 19 16.6 12 21 12 21z"/>',26,"#D23A12",1.8)}<b style="font-size:17px;line-height:1.35">${esc(msg)}</b></div>
+    ${got || n ? `<div><div class="row" style="margin-bottom:8px"><b style="flex:1">Ételpecsétjeid</b><b>${shown}/10</b></div><div class="stamps">${Array.from({length:LOY_N}, (_,i) => `<span class="stamp ${i < shown ? "on" : ""} ${got && i === shown - 1 ? "new" : ""}">${i < shown ? CHECK("#fff") : i+1}</span>`).join("")}</div></div>` : ""}
+    <div style="font-size:${hot?16:15}px;font-weight:${hot?800:600};color:${hot?"var(--warnInk2)":"var(--accent)"}">${esc(cheer)}</div>
+    ${cof && got ? `<div style="font-size:13px;color:var(--muted)">+ kávépecsét is jár: ${Math.min(L.c.length, LOY_N)}/10</div>` : ""}
+    <button class="btn2" data-act="card">Kártyám megnyitása</button></section>`; }
 function cardView(){
   const ph = normPhone(ls.get("pb.phone")), ok = ph && loyConsent(), L = S.loy || loyFresh(null);
   const head = `<div class="bar"><button class="back" data-act="menu" aria-label="Vissza az étlaphoz">${BACK}</button><h1>Törzsvásárlói kártyám</h1></div>`;
