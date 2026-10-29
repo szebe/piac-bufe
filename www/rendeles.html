@@ -186,7 +186,7 @@ function saveCart(){ ls.set("pb.cart", JSON.stringify(S.cart)); }
 
 /* ---------- opening hours ---------- */
 function openState(){ const d = new Date(), m = d.getHours()*60 + d.getMinutes(), td = ymd(d);
-  if(S.pub.test) return {ok:true, test:true};
+  if(S.pub.test || !S.pub.live) return {ok:true, test:true};
   if(S.pub.paused) return {ok:false, msg:"Az online rendelés most szünetel. Telefonon rendelhetsz: " + PHONE_TXT};
   const closedToday = (S.pub.closed||[]).includes(td);
   if(closedToday || m >= LAST_ORDER){ let n = new Date(d); for(let i=0;i<14;i++){ n.setDate(n.getDate()+1); if(!(S.pub.closed||[]).includes(ymd(n))) break; }
@@ -362,7 +362,7 @@ const A = {
     let when = "asap";
     if(S.when === "15" || S.when === "30") when = hm(new Date(Date.now() + (+S.when)*60000));
     if(S.when === "time"){ const m = /^(\d{1,2}):(\d{2})$/.exec(S.time||""); const mm = m ? (+m[1])*60 + (+m[2]) : -1, now = new Date(), nm = now.getHours()*60 + now.getMinutes();
-      if(mm < 0) err.time = "Válassz átvételi időt."; else if(!S.pub.test && (mm < Math.max(OPEN_FROM, nm + 10) || mm > OPEN_TO)) err.time = "Ma " + hm(new Date(Math.max(now.getTime()+10*60000, new Date().setHours(6,0,0,0)))) + " és 11:00 között válassz időt."; else when = `${+m[1]}:${m[2]}`; }
+      if(mm < 0) err.time = "Válassz átvételi időt."; else if(S.pub.live && !S.pub.test && (mm < Math.max(OPEN_FROM, nm + 10) || mm > OPEN_TO)) err.time = "Ma " + hm(new Date(Math.max(now.getTime()+10*60000, new Date().setHours(6,0,0,0)))) + " és 11:00 között válassz időt."; else when = `${+m[1]}:${m[2]}`; }
     if(cartQty() > MAX_QTY) err.send = `Online legfeljebb ${MAX_QTY} tétel rendelhető.`;
     S.err = err; if(Object.keys(err).length){ S.keepScroll = true; render(); focusErr(err.eat ? "sec-eat" : err.time ? "time" : err.name ? "sec-name" : err.phone ? "sec-phone" : null); return; }
     if(($("hp")||{}).value) return;
