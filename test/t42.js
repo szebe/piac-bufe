@@ -1,0 +1,32 @@
+const { chromium } = require(process.env.PW||'playwright');
+const SP='/tmp/claude-0/-home-claude/e9bfa389-a662-5a2b-a20d-7977b9feea75/scratchpad/';
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:1280,height:800}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=tamas]'); await p.fill('#pinA','1111'); await p.fill('#pinB','1111'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(500);
+await p.evaluate(()=>{ S.snooze[INV_ID()]=Date.now()+1e7; S.snooze[CASH_ID()]=Date.now()+1e7; S.alarmFor=null; renderAlarm(); });
+const mk = (id, no, name, phone, st, items, eat='elvitel') => ({id,no,at:Date.now()-60000,name,phone,eat,when:'asap',items,total:2000,qtyTotal:2,status:st});
+await p.evaluate(async (orders)=>{ const fs=firebase.firestore(); for(const o of orders){ const {id,...d}=o; await fs.doc('weborders/'+id).set(d); } }, [
+  mk('w1','631','Nagy Péter','+36201181180','new',[{id:'hd',name:'Hot dog',opts:['szósz: ketchup + mustár','sajt','pirított hagyma','nagyon csípős'],unit:1600,qty:1}],'helyben'),
+  mk('w2','632','Kiss Judit','+36705503000','ready',[{id:'kv',name:'Kávé',opts:['kávé tejjel'],unit:400,qty:1}])]);
+await p.waitForTimeout(400);
+console.log('alarm:', await p.evaluate(()=>S.alarmFor), '| overlay:', (await p.evaluate(()=>document.querySelector('#overlay').innerText)).replace(/\s+/g,' ').slice(0,120));
+await p.click('#overlay [data-act=webOpen]'); await p.waitForTimeout(200); console.log('after open alarm:', await p.evaluate(()=>S.alarmFor));
+await p.screenshot({path:SP+'t1.png'});
+await p.click('[data-act=webPick][data-id=w1]'); await p.click('[data-act=webAccept][data-id=w1][data-m="15"]'); await p.waitForTimeout(300);
+console.log('w1:', JSON.stringify(await p.evaluate(()=>{ const d=window.__store.get('weborders/w1'); return {s:d.status,m:d.mins,r:d.readyAt}; })));
+await p.click('[data-act=webReady][data-id=w1]'); await p.waitForTimeout(200);
+await p.click('[data-act=webDone][data-id=w1]'); await p.waitForTimeout(300);
+console.log('phones:', JSON.stringify(await p.evaluate(()=>window.__store.get('config/phones'))));
+await p.click('[data-act=webNoShow][data-id=w2]'); await p.click('[data-act=webNoShow][data-id=w2]'); await p.waitForTimeout(300);
+await p.evaluate(async()=>{ await firebase.firestore().doc('weborders/w3').set({no:'633',at:Date.now(),name:'Kiss Judit',phone:'+36705503000',eat:'elvitel',when:'9:00',items:[{id:'tea',name:'Tea',opts:['1 l'],unit:600,qty:1}],total:600,qtyTotal:1,status:'ready'}); });
+await p.waitForTimeout(300); await p.click('[data-act=webNoShow][data-id=w3]'); await p.click('[data-act=webNoShow][data-id=w3]'); await p.waitForTimeout(400);
+console.log('menu doc:', JSON.stringify(await p.evaluate(()=>window.__store.get('public/menu'))));
+await p.click('[data-act=webSold][data-k=mg]'); await p.waitForTimeout(200);
+console.log('sold:', JSON.stringify(await p.evaluate(()=>window.__store.get('public/menu').soldOut)));
+await p.evaluate(async()=>{ await firebase.firestore().doc('weborders/w4').set({no:'634',at:Date.now(),name:'Tóth Gábor',phone:'+36308821000',eat:'elvitel',when:'asap',items:[{id:'hb',name:'Hamburger',opts:['sajtos','lila hagyma nélkül','„kevés mustár”','közepesen csípős'],unit:1700,qty:2}],total:3400,qtyTotal:2,status:'new'}); });
+await p.waitForTimeout(400); await p.evaluate(()=>{ S.alarmFor=null; S.snooze['web-w4']=Date.now()+1e6; renderAlarm(); render(); });
+await p.screenshot({path:SP+'t2.png'});
+await p.setViewportSize({width:390,height:844}); await p.waitForTimeout(100); await p.screenshot({path:SP+'t3.png'});
+await b.close(); })();

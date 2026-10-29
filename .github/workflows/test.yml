@@ -1,0 +1,26 @@
+name: Test (staging)
+
+on:
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (Firestore emulator)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: python3 build.py
+      - run: npx playwright install --with-deps chromium
+      - run: npx firebase emulators:exec --project demo-bufe --only firestore,auth "node test/e2e.js"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-screenshot, path: test/e2e.png, if-no-files-found: ignore }
