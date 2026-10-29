@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script>(()=>{const T=new Date(2026,9,29,8,5).getTime(), D=Date, off=T-D.now(); class FD extends D{constructor(...a){ if(a.length) super(...a); else super(D.now()+off);} static now(){return D.now()+off;}} window.Date=FD;})();</script>
+<script>(()=>{const T=new Date(2026,9,29,10,50).getTime(), D=Date, off=T-D.now(); class FD extends D{constructor(...a){ if(a.length) super(...a); else super(D.now()+off);} static now(){return D.now()+off;}} window.Date=FD;})();</script>
 <script src="mockfb.js"></script>
 <style>
 :root{color-scheme:light;--bg:#F5F2EA;--card:#FFFFFF;--soft:#F0EDE4;--ink:#1B211E;--ink2:#333A35;--muted:#5E655F;--muted2:#8E877A;--line:#E2DED3;--line2:#D6D1C4;--line3:#EEEAE0;--green:#0E6646;--accent:#0E6646;--green2:#0B4E36;--tint:#E3EFE8;--tintInk:#12432F;--warn:#FCEFD0;--warnInk:#4A2A00;--warnInk2:#7A4300;--red:#8A2A0A;--redBg:#FBE1D6;--need:#FDF0EA;--needLine:#B53A10;--needInk:#9A2A0C;--chili:#D23A12;--off:#C9C2B3;--offInk:#1B211E;--inv:#1B211E;--invInk:#FFFFFF;--box:#B9B3A4;--noBg:#F3EFE6;--noInk:#6B6B63;--hotBg:#FDEDE4;--btnLine:#C9C3B5;--test:#FFE08A;--testInk:#3D2A00}
@@ -34,7 +34,7 @@ a{color:var(--accent)}
 .sub{font-size:13px;color:#D5E8DD;margin-top:4px}
 .bar{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 .bar h1{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;flex:1}
-.back{border:0;background:var(--soft);width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.back{border:0;background:var(--soft);color:var(--ink);width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
 .body{flex:1;padding:16px 16px 120px;display:flex;flex-direction:column;gap:18px}
 h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px}
 h3{margin:0;font-size:15px;font-weight:700}
@@ -108,7 +108,7 @@ h3 small{font-weight:500;color:var(--muted);font-size:13px}
 <div id="toast" role="status" aria-live="polite"></div>
 <script>
 "use strict";
-const PHONE = "+36705550997", PHONE_TXT = "+36 70 555 0997", OPEN_FROM = 6*60, OPEN_TO = 12*60+30, LAST_ORDER = 12*60+15, MAX_QTY = 10;
+const PHONE = "+36705550997", PHONE_TXT = "+36 70 555 0997", OPEN_FROM = 6*60, OPEN_TO = 11*60, LAST_ORDER = 10*60+45, MAX_QTY = 10;
 const SZ = [{k:"psajt",n:"Plusz sajt",p:200},{k:"lhagyma",n:"Lila hagyma",p:100}];
 const MENU = [
   {id:"mh",cat:"Melegszendvics",name:"Húsos melegszendvics",sub:"friss, ropogósra sütve",price:950,kind:"sandwich",extras:SZ,hot:1},
@@ -133,7 +133,7 @@ const ICON = {
 };
 const svg = (d, s=30, c="#1B211E", w=1.7) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const CHECK = c => svg('<path d="M5 12l5 5 9-10"/>', 16, c, 3);
-const BACK = svg('<path d="M15 5l-7 7 7 7"/>', 20, "#1B211E", 2.2);
+const BACK = svg('<path d="M15 5l-7 7 7 7"/>', 20, "currentColor", 2.2);
 const PLUS = svg('<path d="M12 5v14M5 12h14"/>', 16, "#fff", 2.6);
 const PHONE_ICO = svg('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>', 22, "currentColor", 1.9);
 const chili = on => `<svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="${on?"#D23A12":"none"}" stroke="${on?"#9A2A0C":"#9E978A"}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6c-4.5 1-7.5 6-8.5 14 6.5-1.5 11.5-6 11.5-11 0-1.7-1.2-3-3-3z"/><path d="M13 6c0-1.5 1-2.5 2.5-3" fill="none"/></svg>`;
@@ -211,9 +211,9 @@ window.addEventListener("popstate", () => { if(S.screen !== "menu"){ S.screen = 
 function menuView(){
   const os = openState(), cats = [...new Set(MENU.map(i=>i.cat))], last = lsJ("pb.last", null), active = S.order && !["done","rejected","noshow","cancelled"].includes(S.order.status);
   return `<header class="top"><div class="row1"><div class="brand">Piac Büfé</div><span style="display:flex;gap:8px;align-items:center"><button class="theme" data-act="theme" aria-label="Megjelenés: ${THEME_TXT[themePref()]} (koppints a váltáshoz)" title="Megjelenés váltása">${THEME_ICO[themePref()]}<span>${THEME_TXT[themePref()]}</span></button><span class="badge">Előrendelés</span></span></div>
-    <div class="sub">Cegléd, Piac · nyitva 6:00–12:30 · fizetés a pultnál</div></header>
+    <div class="sub">Cegléd, Piac · nyitva 6:00–11:00 · fizetés a pultnál</div></header>
   <main class="body">
-    ${S.pub.test ? `<div class="note w" role="status" style="background:var(--test);color:var(--testInk)"><b>TESZTÜZEM</b> – nyitvatartáson kívül is lehet rendelni. Ez nem éles rendelés.</div>` : ""}
+    ${S.pub.test ? `<div class="note w" role="alert" style="background:var(--test);color:var(--testInk);flex-direction:column;gap:4px"><b style="font-size:16px">TESZTÜZEM – a rendelések még nem élesek</b><span>Amíg ezt a feliratot látod, ne itt rendelj, hanem telefonon, nyitvatartási időben (6:00–11:00): <a href="tel:${PHONE}" style="color:inherit;font-weight:700">${PHONE_TXT}</a></span></div>` : ""}
     ${S.addFor && S.order ? `<div class="note w" role="status" style="align-items:center">${svg('<path d="M12 5v14M5 12h14"/>',22,"currentColor",2.2)}<span style="flex:1"><b>Bővíted a #${esc(S.order.no)} rendelést.</b><br>Válaszd ki, mit kérsz még – a végén csak az új tételeket küldjük el.</span><button class="btn2" style="width:auto;min-height:40px;padding:0 12px;font-size:14px" data-act="addCancel">Mégse</button></div>` : ""}
     ${active && !S.addFor ? `<button class="note g" style="border:0;text-align:left;width:100%;cursor:pointer" data-act="showStatus">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',22,"currentColor",1.9)}<span><b>Folyamatban lévő rendelésed: #${esc(S.order.no)}</b><br>Koppints az állapotához.</span></button>` : ""}
     ${!os.ok ? `<div class="note w" role="status">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',22,"currentColor",1.9)}<span>${esc(os.msg)} Az étlapot addig is böngészheted.</span></div>` : ""}
@@ -252,6 +252,7 @@ function cartView(){
   const whens = [["asap","Mielőbb","a büfé megírja, mikorra"],["15","15 perc múlva",hm(new Date(Date.now()+15*60000))+"-ra"],["30","30 perc múlva",hm(new Date(Date.now()+30*60000))+"-ra"],["time","Időpontra","ma, válassz időt"]];
   return `<div class="bar"><button class="back" data-act="menu" aria-label="Vissza az étlaphoz">${BACK}</button><h1>${add ? "Pótrendelés #" + esc(S.order.no) : "Rendelésed"}</h1></div>
   <main class="body">
+    ${S.pub.test ? `<div class="note w" role="alert" style="background:var(--test);color:var(--testInk)"><span><b>TESZTÜZEM</b> – ez a rendelés nem éles. Valódi rendelést telefonon adj le: <a href="tel:${PHONE}" style="color:inherit;font-weight:700">${PHONE_TXT}</a></span></div>` : ""}
     ${!os.ok ? `<div class="note w" role="status">${esc(os.msg)}</div>` : ""}
     <section class="card">${S.cart.map((r,i)=>`<div class="line"><div style="flex:1;display:flex;flex-direction:column;gap:3px"><b style="font-size:15px">${esc(r.name)}</b>${r.opts.length?`<span style="font-size:13px;color:var(--muted);line-height:1.35">${esc(r.opts.join(", "))}</span>`:""}<b style="font-size:14px">${ft(r.unit*r.qty)}</b></div>
       <div class="qty" style="gap:8px"><button class="qb" style="width:40px;height:40px" data-act="cq" data-i="${i}" data-d="-1" aria-label="Kevesebb ${esc(r.name)}">−</button><b style="min-width:16px;text-align:center">${r.qty}</b><button class="qb" style="width:40px;height:40px" data-act="cq" data-i="${i}" data-d="1" aria-label="Több ${esc(r.name)}">+</button></div></div>`).join("")}
@@ -260,7 +261,7 @@ function cartView(){
     ${add ? `<div class="note g">${svg('<path d="M12 5v14M5 12h14"/>',22,"currentColor",2.2)}<span>Ezeket a tételeket a <b>#${esc(S.order.no)}</b> rendelésedhez adjuk (${S.order.eat==="helyben"?"helyben fogyasztás":"elvitel"}, ${esc(S.order.name)}). A büfé jóváhagyja, és ha kell, megírja az új időt.</span></div>` : `
     <section id="sec-eat" class="col ${e.eat?"need shake":""}"><h3>Hogyan kéred? <span class="req">kötelező</span></h3><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">${[["elvitel","Elvitelre","becsomagoljuk"],["helyben","Helyben fogyasztom","a büfénél eszem meg"]].map(([k,n,sub])=>`<button class="pill ${S.eat===k?"on":""}" style="min-height:64px" aria-pressed="${S.eat===k}" data-act="eat" data-k="${k}"><b style="font-size:16px">${n}</b><span>${sub}</span></button>`).join("")}</div>${e.eat?`<div class="hint">⚠ Válaszd ki, hogy elviszed vagy helyben fogyasztod.</div>`:""}</section>
     <section class="col"><h3>Mikorra kéred?</h3><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">${whens.map(([k,n,sub])=>`<button class="pill ${S.when===k?"on":""}" style="min-height:64px" aria-pressed="${S.when===k}" data-act="when" data-k="${k}"><b>${n}</b><span>${sub}</span></button>`).join("")}</div>
-      ${S.when==="time" ? `<label class="field" style="flex-direction:row;align-items:center;gap:10px;font-size:14px">Átvétel ideje <input id="time" type="time" data-f="time" value="${esc(S.time)}" min="06:00" max="12:30" style="width:auto"></label>${e.time?`<div class="err">${esc(e.time)}</div>`:""}` : ""}</section>
+      ${S.when==="time" ? `<label class="field" style="flex-direction:row;align-items:center;gap:10px;font-size:14px">Átvétel ideje <input id="time" type="time" data-f="time" value="${esc(S.time)}" min="06:00" max="11:00" style="width:auto"></label>${e.time?`<div class="err">${esc(e.time)}</div>`:""}` : ""}</section>
     <section class="col"><h3>Kinek készítjük?</h3>
       <label class="field ${e.name?"need":""}" id="sec-name">Név<input id="name" data-f="name" value="${esc(S.name)}" maxlength="40" autocomplete="name" placeholder="pl. Kovács Anna"></label>${e.name?`<div class="err">${esc(e.name)}</div>`:""}
       <label class="field ${e.phone?"need":""}" id="sec-phone">Mobilszám<input id="phone" data-f="phone" value="${esc(S.phone)}" type="tel" autocomplete="tel" placeholder="+36 30 123 4567" ${e.phone?'aria-invalid="true" style="border:2px solid #B53A10"':""}></label>${e.phone?`<div class="err">${esc(e.phone)}</div>`:""}
@@ -360,7 +361,7 @@ const A = {
     let when = "asap";
     if(S.when === "15" || S.when === "30") when = hm(new Date(Date.now() + (+S.when)*60000));
     if(S.when === "time"){ const m = /^(\d{1,2}):(\d{2})$/.exec(S.time||""); const mm = m ? (+m[1])*60 + (+m[2]) : -1, now = new Date(), nm = now.getHours()*60 + now.getMinutes();
-      if(mm < 0) err.time = "Válassz átvételi időt."; else if(!S.pub.test && (mm < Math.max(OPEN_FROM, nm + 10) || mm > OPEN_TO)) err.time = "Ma " + hm(new Date(Math.max(now.getTime()+10*60000, new Date().setHours(6,0,0,0)))) + " és 12:30 között válassz időt."; else when = `${+m[1]}:${m[2]}`; }
+      if(mm < 0) err.time = "Válassz átvételi időt."; else if(!S.pub.test && (mm < Math.max(OPEN_FROM, nm + 10) || mm > OPEN_TO)) err.time = "Ma " + hm(new Date(Math.max(now.getTime()+10*60000, new Date().setHours(6,0,0,0)))) + " és 11:00 között válassz időt."; else when = `${+m[1]}:${m[2]}`; }
     if(cartQty() > MAX_QTY) err.send = `Online legfeljebb ${MAX_QTY} tétel rendelhető.`;
     S.err = err; if(Object.keys(err).length){ S.keepScroll = true; render(); focusErr(err.eat ? "sec-eat" : err.time ? "time" : err.name ? "sec-name" : err.phone ? "sec-phone" : null); return; }
     if(($("hp")||{}).value) return;
