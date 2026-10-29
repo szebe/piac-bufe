@@ -1,0 +1,11 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:390,height:844}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockrend.html'); await p.waitForTimeout(300);
+console.log('14:05 closed:', await p.evaluate(()=>openState()));
+await p.evaluate(async()=>{ await firebase.firestore().doc('public/menu').set({test:true}); }); await p.waitForTimeout(200);
+console.log('test mode:', await p.evaluate(()=>openState()), (await p.evaluate(()=>document.querySelector('.note.w').innerText)).slice(0,40));
+await p.click('[data-act=open][data-id=av]'); await p.click('[data-act=add]'); await p.click('[data-act=cart]');
+await p.click('[data-act=eat][data-k=elvitel]'); await p.fill('#name','Teszt Elek'); await p.fill('#phone','+36301234567'); await p.click('[data-act=submit]'); await p.waitForTimeout(300);
+console.log('sent:', await p.evaluate(()=>S.screen));
+await b.close(); })();

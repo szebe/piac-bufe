@@ -834,7 +834,7 @@ function webView(){ const ro = isReadonly(), W = S.web||[], pub = S.pub||{}, so 
   return header("Online rendelések") + `<div class="stack">
     <button class="btn ghost" style="align-self:flex-start" data-act="webBack">‹ Előrendelések</button>
     ${ro ? "" : `<section class="card" style="display:flex;flex-direction:column;gap:10px">
-      <div class="wbtop"><b class="grow">Online rendelés: ${pub.paused ? '<span style="color:var(--danger)">szünetel</span>' : '<span style="color:var(--accent)">fogadjuk</span>'}</b><button class="btn sm ${pub.paused?"pri":"ghost"}" data-act="webPause">${pub.paused ? "Újraindítom" : "Szüneteltetem"}</button><a class="btn sm ghost" href="https://szebe.github.io/piac-bufe/rendeles.html" target="_blank" rel="noopener">Rendelőoldal ↗</a></div>
+      <div class="wbtop"><b class="grow">Online rendelés: ${pub.paused ? '<span style="color:var(--danger)">szünetel</span>' : '<span style="color:var(--accent)">fogadjuk</span>'}</b><button class="btn sm ${pub.paused?"pri":"ghost"}" data-act="webPause">${pub.paused ? "Újraindítom" : "Szüneteltetem"}</button><button class="btn sm ${pub.test?"warn":"ghost"}" data-act="webTest" aria-pressed="${!!pub.test}">Tesztüzem: ${pub.test ? "BE" : "ki"}</button><a class="btn sm ghost" href="https://szebe.github.io/piac-bufe/rendeles.html" target="_blank" rel="noopener">Rendelőoldal ↗</a></div>
       <div class="wbtop"><span class="small muted" style="font-weight:700">Elérhető most (koppints, ha elfogyott):</span>${WEB_ITEMS.map(([k,n]) => `<button class="wbchip ${so[k]?"off":""}" aria-pressed="${!!so[k]}" data-act="webSold" data-k="${k}">${so[k]?"Elfogyott: ":""}${esc(n)}</button>`).join("")}</div></section>`}
     <div class="wbgrid">${col("Új rendelések","new","#E8890C")}${col("Készül","accepted","var(--accent)")}${col("Kész – átvételre vár","ready","var(--fg)")}</div>
     ${closed.length ? `<section class="card"><b>Ma lezárt: ${closed.length}</b><div class="small muted">${closed.map(o => `#${esc(o.no)} ${esc(o.name)} – ${o.status==="done"?"átadva":o.status==="noshow"?"nem jött el":o.status==="cancelled"?"a vásárló törölte":"elutasítva"}`).join(" · ")}</div></section>` : ""}
@@ -1550,6 +1550,7 @@ const A = {
     await phonesWrite(p => { const k = phoneKey(o.phone); cnt = (p.noshow[k]||0) + 1; p.noshow[k] = cnt; delete p.trusted[k]; return p; }).catch(()=>{});
     if(cnt >= 2){ await webBlockPhone(o.phone).catch(()=>{}); toast("Másodszor nem jött el – a szám tiltólistára került."); } else toast("Rögzítve. Legközelebb újra ellenőrizni kell."); },
   async webSold(d){ const so = Object.assign({}, (S.pub||{}).soldOut||{}); so[d.k] = !so[d.k]; if(!so[d.k]) delete so[d.k]; await pubWrite({soldOut: so}); },
+  async webTest(){ await pubWrite({test: !(S.pub||{}).test}); toast((S.pub||{}).test ? "Tesztüzem bekapcsolva: nyitvatartáson kívül is lehet rendelni." : "Tesztüzem kikapcsolva."); },
   async webPause(){ await pubWrite({paused: !(S.pub||{}).paused}); toast((S.pub||{}).paused ? "Az online rendelés szünetel." : "Az online rendelés újra fogad."); },
 
   nav(d){ S.tab = d.tab; S.sub = null; S.personCal = null; window.scrollTo(0,0); render(); },
