@@ -1,0 +1,13 @@
+const { chromium } = require(process.env.PW||'playwright');
+const SP='/tmp/claude-0/-home-claude/e9bfa389-a662-5a2b-a20d-7977b9feea75/scratchpad/';
+(async()=>{ const b = await chromium.launch(); const ctx = await b.newContext({viewport:{width:390,height:844}, colorScheme:'dark'}); const p = await ctx.newPage();
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockrend.html'); await p.waitForTimeout(400);
+console.log('auto in dark OS ->', await p.evaluate(()=>document.documentElement.dataset.theme));
+await p.screenshot({path:SP+'d1.png'});
+await p.click('[data-act=open][data-id=hd]'); await p.click('[data-act=sauce][data-k=Ketchup]'); await p.click('[data-act=hot]'); await p.click('[data-act=extra][data-k=phagyma]'); await p.screenshot({path:SP+'d2.png'});
+await p.click('[data-act=add]'); await p.click('[data-act=cart]'); await p.click('[data-act=submit]', {force:true}); await p.waitForTimeout(600); await p.screenshot({path:SP+'d3.png'});
+await p.goBack(); await p.waitForTimeout(200);
+await p.click('[data-act=theme]'); console.log('after 1 tap:', await p.evaluate(()=>[themePref(), document.documentElement.dataset.theme]));
+await p.click('[data-act=theme]'); console.log('after 2 taps:', await p.evaluate(()=>[themePref(), document.documentElement.dataset.theme]));
+await b.close(); })();
