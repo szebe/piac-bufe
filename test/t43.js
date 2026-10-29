@@ -1,0 +1,36 @@
+const { chromium } = require(process.env.PW||'playwright');
+const SP='/tmp/claude-0/-home-claude/e9bfa389-a662-5a2b-a20d-7977b9feea75/scratchpad/';
+(async()=>{ const b = await chromium.launch();
+// customer
+const c = await b.newPage({viewport:{width:390,height:844}}); c.on('pageerror', e=>console.log('PAGEERR c', e.message));
+await c.goto('file://'+__dirname+'/mockrend.html'); await c.waitForTimeout(400);
+await c.click('[data-act=open][data-id=av]'); await c.click('[data-act=add]'); await c.click('[data-act=cart]');
+await c.click('[data-act=eat][data-k=elvitel]'); await c.fill('#name','Teszt Elek'); await c.fill('#phone','+36 30 123 4567'); await c.click('[data-act=submit]'); await c.waitForTimeout(300);
+const pid = await c.evaluate(()=>S.orderId);
+await c.evaluate(async id=>{ await firebase.firestore().doc('weborders/'+id).update('status','accepted','mins',10,'readyAt','8:15'); }, pid); await c.waitForTimeout(200);
+await c.click('[data-act=addMore]'); await c.waitForTimeout(100);
+console.log('banner:', await c.evaluate(()=>document.querySelector('.note.w').innerText.replace(/\s+/g,' ')));
+await c.click('[data-act=open][data-id=kv]'); await c.click('[data-act=var][data-k=cap]'); await c.click('[data-act=add]'); await c.click('[data-act=cart]');
+console.log('cart title:', await c.evaluate(()=>document.querySelector('.bar h1').innerText), '| eat section shown:', await c.evaluate(()=>!!document.querySelector('[data-act=eat]')));
+await c.click('[data-act=submit]'); await c.waitForTimeout(300);
+const all = await c.evaluate(()=>[...window.__store.entries()].filter(([k])=>k.startsWith('weborders/')).map(([k,v])=>({id:k.split('/')[1], no:v.no, parent:v.parent||null, items:v.items.map(i=>i.name+':'+i.opts.join('/')), total:v.total, status:v.status})));
+console.log(JSON.stringify(all));
+console.log('status shows add:', (await c.evaluate(()=>document.body.innerText)).includes('Pótrendelés'.toUpperCase()) || (await c.evaluate(()=>document.body.innerText)).includes('Pótrendelés'));
+console.log('grand total line:', await c.evaluate(()=>[...document.querySelectorAll('.row')].map(r=>r.innerText).find(t=>t.includes('Fizetendő'))));
+await c.screenshot({path:SP+'add1.png', fullPage:true});
+// tablet with same docs
+const p = await b.newPage({viewport:{width:1280,height:800}}); p.on('pageerror', e=>console.log('PAGEERR t', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+await p.click('[data-act=pickMe][data-id=tamas]'); await p.fill('#pinA','1111'); await p.fill('#pinB','1111'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(400);
+await p.evaluate(()=>{ S.snooze[INV_ID()]=Date.now()+1e7; S.snooze[CASH_ID()]=Date.now()+1e7; S.alarmFor=null; renderAlarm(); });
+await p.evaluate(async docs=>{ const fs=firebase.firestore(); for(const d of docs){ const {id,...x}=d; await fs.doc('weborders/'+id).set(x); } }, await c.evaluate(()=>[...window.__store.entries()].filter(([k])=>k.startsWith('weborders/')).map(([k,v])=>Object.assign({id:k.split('/')[1]}, v))));
+await p.waitForTimeout(400);
+console.log('alarm overlay:', (await p.evaluate(()=>document.querySelector('#overlay').innerText)).replace(/\s+/g,' ').slice(0,100));
+await p.click('#overlay [data-act=webOpen]'); await p.waitForTimeout(200);
+const aid = all.find(x=>x.parent).id;
+await p.click(`[data-act=webAddPick][data-id="${aid}"]`); await p.screenshot({path:SP+'add2.png'});
+await p.click(`[data-act=webAddAccept][data-id="${aid}"][data-m="5"]`); await p.waitForTimeout(300);
+console.log('after accept:', JSON.stringify(await p.evaluate(([pid,aid])=>({p:window.__store.get('weborders/'+pid).readyAt, a:window.__store.get('weborders/'+aid).status}), [pid,aid])));
+await p.screenshot({path:SP+'add3.png'});
+await b.close(); })();

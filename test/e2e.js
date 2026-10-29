@@ -42,7 +42,13 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   ok((await mkOrder("w_bad4", Object.assign({}, order, {hack: 1}))).status === 403, "rules: web order with extra field denied");
   ok((await fetch(docUrl("weborders"))).status === 403, "rules: anonymous cannot list web orders");
   ok((await fetch(docUrl("weborders/w_ok") + "?updateMask.fieldPaths=status", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {status: {stringValue: "done"}}})})).status === 403, "rules: anonymous cannot update web order");
-  await put("weborders/w_ok", Object.assign({}, order, {status: "done"})); // web order closed for UI tests (no alarm)
+  ok((await mkOrder("w_add", Object.assign({}, order, {parent: "w_ok", total: 400}))).status === 200, "rules: add-on to open order allowed");
+  ok((await mkOrder("w_add2", Object.assign({}, order, {parent: "w_ok", phone: "+36309999999"}))).status === 403, "rules: add-on with other phone denied");
+  ok((await mkOrder("w_add3", Object.assign({}, order, {parent: "w_add"}))).status === 403, "rules: add-on to an add-on denied");
+  ok((await mkOrder("w_add4", Object.assign({}, order, {parent: "nincs"}))).status === 403, "rules: add-on to missing order denied");
+  await put("weborders/w_ok", Object.assign({}, order, {status: "done"}));
+  await put("weborders/w_add", Object.assign({}, order, {parent: "w_ok", status: "done"}));
+  ok((await mkOrder("w_add5", Object.assign({}, order, {parent: "w_ok"}))).status === 403, "rules: add-on to finished order denied"); // web order closed for UI tests (no alarm)
   await put("public/menu", {soldOut: {mg: true}, paused: false, closed: []});
   ok((await fetch(docUrl("public/menu"))).status === 200, "rules: public menu readable");
   ok((await fetch(docUrl("public/menu") + "?updateMask.fieldPaths=paused", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {paused: {booleanValue: true}}})})).status === 403, "rules: anonymous cannot change public menu");

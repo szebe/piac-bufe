@@ -29,7 +29,7 @@ service cloud.firestore {
       allow create: if validOrder(request.resource.data);
     }
     function validOrder(d) {
-      return d.keys().hasOnly(["no", "at", "name", "phone", "eat", "when", "items", "total", "qtyTotal", "status"])
+      return d.keys().hasOnly(["no", "at", "name", "phone", "eat", "when", "items", "total", "qtyTotal", "status", "parent"])
         && d.keys().hasAll(["no", "at", "name", "phone", "eat", "when", "items", "total", "qtyTotal", "status"])
         && d.status == "new"
         && d.no is string && d.no.size() <= 4
@@ -40,7 +40,13 @@ service cloud.firestore {
         && d.when is string && d.when.size() <= 5
         && d.items is list && d.items.size() >= 1 && d.items.size() <= 10
         && d.qtyTotal is int && d.qtyTotal >= 1 && d.qtyTotal <= 10
-        && d.total is int && d.total > 0 && d.total <= 30000;
+        && d.total is int && d.total > 0 && d.total <= 30000
+        && (!("parent" in d) || validParent(d));
+    }
+    // pótrendelés: csak még nyitott (új vagy elfogadott) saját rendeléshez, ugyanarról a számról
+    function validParent(d) {
+      let p = get(/databases/$(database)/documents/weborders/$(d.parent)).data;
+      return d.parent is string && p.status in ["new", "accepted"] && p.phone == d.phone && p.no == d.no && !("parent" in p);
     }
   }
 }
