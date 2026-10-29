@@ -27,6 +27,10 @@ service cloud.firestore {
     match /weborders/{id} {
       allow get: if true;
       allow create: if validOrder(request.resource.data);
+      // a vásárló a még el nem fogadott rendelését visszavonhatja
+      allow update: if resource.data.status == "new"
+        && request.resource.data.status == "cancelled"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "cancelledAt"]);
     }
     function validOrder(d) {
       return d.keys().hasOnly(["no", "at", "name", "phone", "eat", "when", "items", "total", "qtyTotal", "status", "parent"])
