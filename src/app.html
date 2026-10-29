@@ -599,8 +599,8 @@ function renderAlarm(){
     const o = (S.web||[]).find(x => "web-" + x.id === S.alarmFor), n = webNew().length;
     if(!o){ $("#overlay").innerHTML = ""; return; }
     $("#overlay").innerHTML = `<div class="alarm" role="alertdialog" aria-labelledby="alT"><div class="box">
-      <span class="label">Online rendelés</span>
-      <div class="big">#${esc(o.no)}</div>
+      <span class="label">${o.parent ? "Pótrendelés a rendeléshez" : "Online rendelés"}</span>
+      <div class="big">#${esc(o.no)}${o.parent ? " +" : ""}</div>
       <h2 id="alT">${esc(o.name)} · ${o.eat==="helyben"?"helyben":"elvitel"}</h2>
       <div class="muted">${esc((o.items||[]).map(r => r.qty + "× " + r.name).join(", "))}</div>
       ${n > 1 ? `<div class="note w">Összesen ${n} új rendelés vár elfogadásra.</div>` : ""}
@@ -836,25 +836,35 @@ function webTags(opts){ const out = []; const plus = [];
     else if(WEB_HOT.includes(x)) out.push(`<span class="wbtag h"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="#D23A12" stroke="#9A2A0C" stroke-width="1.6"><path d="M13 6c-4.5 1-7.5 6-8.5 14 6.5-1.5 11.5-6 11.5-11 0-1.7-1.2-3-3-3z"/></svg>${esc(x)}</span>`);
     else plus.push(x); });
   return out.join("") + (plus.length ? `<span style="font-size:.95rem">+ ${esc(plus.join(", "))}</span>` : ""); }
-function webCard(o){ const ro = isReadonly(), first = !webTrusted(o.phone), mins = o.status==="accepted" && o.readyAt ? (() => { const [h,m] = o.readyAt.split(":").map(Number), d = new Date(); d.setHours(h,m,0,0); return Math.round((d - Date.now())/60000); })() : null;
+function webAddBlock(a){ const ro = isReadonly(), t = new Date(a.at);
+  return `<div style="border:2px ${a.status==="new"?"solid #E8890C":"dashed var(--line)"};border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;${a.status==="rejected"?"opacity:.55":""}">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:.85rem;letter-spacing:.5px;text-transform:uppercase;color:${a.status==="new"?"#B5650A":"var(--accent)"}">+ Pótrendelés</b><span class="small muted">${t.getHours()}:${pad(t.getMinutes())}</span><span class="grow"></span><span class="pill">${a.status==="new"?"új – fogadd el":a.status==="rejected"?"elutasítva":"hozzáadva"}</span></div>
+    ${(a.items||[]).map(r => `<div style="display:flex;flex-direction:column;gap:3px"><div class="wbline"><span style="color:var(--accent)">${r.qty}×</span> ${esc(r.name)}</div>${webTags(r.opts)}</div>`).join("")}
+    ${a.status==="new" && !ro ? (S.f.webAddPick===a.id ? `<div style="background:var(--accent-soft);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center"><b class="grow" style="color:var(--accent)">Mennyivel tolódik az elkészülés?</b><button class="btn sm ghost" data-act="webAddPickNo">Mégse</button></div>
+      <div class="wbmins" style="grid-template-columns:repeat(4,minmax(0,1fr))">${[0,5,10,15].map(m => `<button class="btn pri" data-act="webAddAccept" data-id="${esc(a.id)}" data-m="${m}">${m ? `<b style="font-size:1.1rem">+${m}</b><span style="font-size:.7rem">perc</span>` : `<b style="font-size:.95rem">Nem</b><span style="font-size:.7rem">tolódik</span>`}</button>`).join("")}</div></div>`
+      : `<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn sm ghost" data-act="webAddReject" data-id="${esc(a.id)}">${S.f.webAddRej===a.id ? "Biztosan?" : "Elutasít"}</button><button class="btn pri" data-act="webAddPick" data-id="${esc(a.id)}">Hozzáad</button></div>`) : ""}
+  </div>`; }
+function webCard(o){ const ro = isReadonly(), first = !webTrusted(o.phone), adds = (S.web||[]).filter(a => a.parent === o.id), anyNew = adds.some(a => a.status === "new"),
+  grand = (o.total||0) + adds.filter(a => a.status !== "rejected").reduce((x,a) => x + (a.total||0), 0), mins = o.status==="accepted" && o.readyAt ? (() => { const [h,m] = o.readyAt.split(":").map(Number), d = new Date(); d.setHours(h,m,0,0); return Math.round((d - Date.now())/60000); })() : null;
   const placed = new Date(o.at), ph = String(o.phone||"");
-  return `<article class="wbcard ${o.status==="new"?"new":""}">
+  return `<article class="wbcard ${o.status==="new"||anyNew?"new":""}">
     <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span class="wbno">#${esc(o.no)}</span><b>${esc(o.name)}</b><span class="wbeat ${o.eat==="helyben"?"h":""}">${o.eat==="helyben"?"Helyben":"Elvitel"}</span><span class="grow"></span>
       ${o.status==="accepted" ? `<span class="wbtime ${mins!=null&&mins<=3?"late":""}">kész kb. ${esc(o.readyAt)}${mins!=null ? ` · ${mins>0?mins+" perc":"most"}` : ""}</span>` : o.status==="ready" ? `<span class="wbtime">átvételre vár</span>` : `<span class="wbtime">${o.when==="asap" ? "mielőbb" : "átvétel " + esc(o.when)}</span>`}</div>
     <div class="small muted" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><a href="tel:${esc(ph)}">${esc(ph.replace(/^\+36(\d\d)(\d{3})(\d{4})$/, "+36 $1 $2 $3"))}</a><span>· leadva ${placed.getHours()}:${pad(placed.getMinutes())}</span>
       ${first ? `<span class="pill" style="background:#FCEFD0;color:#7A4300">Első rendelés – hívd fel</span>` : `<span class="pill" style="background:var(--accent-soft);color:var(--accent)">Visszatérő vásárló</span>`}</div>
     <div style="display:flex;flex-direction:column;gap:7px;border-top:1px dashed var(--line);padding-top:8px">${(o.items||[]).map(r => `<div style="display:flex;flex-direction:column;gap:3px"><div class="wbline"><span style="color:var(--accent)">${r.qty}×</span> ${esc(r.name)}</div>${webTags(r.opts)}</div>`).join("")}</div>
+    ${adds.map(webAddBlock).join("")}
     ${o.status==="new" && S.f.webPick===o.id ? `<div style="background:var(--accent-soft);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center"><b class="grow" style="color:var(--accent)">Hány perc múlva lesz kész?</b><button class="btn sm ghost" data-act="webPickNo">Mégse</button></div>
       <div class="wbmins">${[5,10,15,20,25,30].map(m => `<button class="btn pri" data-act="webAccept" data-id="${esc(o.id)}" data-m="${m}" aria-label="${m} perc"><b style="font-size:1.15rem">${m}</b><span style="font-size:.7rem">perc</span></button>`).join("")}</div></div>` : ""}
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="small muted">Fizetendő: <b style="color:var(--fg)">${ft(o.total||0)}</b></span><span class="grow"></span>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="small muted">Fizetendő: <b style="color:var(--fg)">${ft(grand)}</b>${adds.length ? " (pótrendeléssel)" : ""}</span><span class="grow"></span>
       ${ro ? "" : o.status==="new" ? (S.f.webPick===o.id ? "" : `${first ? `<a class="btn sm ghost" href="tel:${esc(ph)}">Hívás</a>` : ""}<button class="btn sm ghost" data-act="webReject" data-id="${esc(o.id)}">${S.f.webRej===o.id ? "Biztosan?" : "Elutasít"}</button>${first ? `<button class="btn sm dng" data-act="webBlock" data-id="${esc(o.id)}">${S.f.webBlk===o.id ? "Tiltod?" : "Tilt"}</button>` : ""}<button class="btn pri" data-act="webPick" data-id="${esc(o.id)}">Elfogad</button>`)
         : o.status==="accepted" ? `<button class="btn pri" data-act="webReady" data-id="${esc(o.id)}">Kész ✓</button>`
         : o.status==="ready" ? `<button class="btn sm ghost" data-act="webNoShow" data-id="${esc(o.id)}">${S.f.webNs===o.id ? "Biztosan?" : "Nem jött el"}</button><button class="btn pri" data-act="webDone" data-id="${esc(o.id)}">Átadva</button>` : ""}</div>
   </article>`; }
 function webView(){ const ro = isReadonly(), W = S.web||[], pub = S.pub||{}, so = pub.soldOut||{};
-  const col = (t, st, c) => { const os = W.filter(o => o.status === st).sort((a,b) => st==="accepted" ? String(a.readyAt).localeCompare(String(b.readyAt), "hu", {numeric:true}) : a.at - b.at);
+  const col = (t, st, c) => { const os = W.filter(o => o.status === st && !(o.parent && W.some(p => p.id === o.parent))).sort((a,b) => st==="accepted" ? String(a.readyAt).localeCompare(String(b.readyAt), "hu", {numeric:true}) : a.at - b.at);
     return `<section class="wbcol"><h3><span aria-hidden="true" style="width:11px;height:11px;border-radius:99px;background:${c};display:inline-block"></span>${t} <span class="muted small">${os.length}</span></h3>${os.length ? os.map(webCard).join("") : `<div class="muted small" style="padding:14px 6px;text-align:center">Nincs itt rendelés.</div>`}</section>`; };
-  const closed = W.filter(o => ["done","rejected","noshow"].includes(o.status));
+  const closed = W.filter(o => !o.parent && ["done","rejected","noshow"].includes(o.status));
   return header("Online rendelések") + `<div class="stack">
     <button class="btn ghost" style="align-self:flex-start" data-act="webBack">‹ Előrendelések</button>
     ${ro ? "" : `<section class="card" style="display:flex;flex-direction:column;gap:10px">
@@ -863,6 +873,7 @@ function webView(){ const ro = isReadonly(), W = S.web||[], pub = S.pub||{}, so 
     <div class="wbgrid">${col("Új rendelések","new","#E8890C")}${col("Készül","accepted","var(--accent)")}${col("Kész – átvételre vár","ready","var(--fg)")}</div>
     ${closed.length ? `<section class="card"><b>Ma lezárt: ${closed.length}</b><div class="small muted">${closed.map(o => `#${esc(o.no)} ${esc(o.name)} – ${o.status==="done"?"átadva":o.status==="noshow"?"nem jött el":"elutasítva"}`).join(" · ")}</div></section>` : ""}
   </div>`; }
+async function webCloseAdds(pid, st){ for(const a of (S.web||[]).filter(x => x.parent === pid && x.status !== "rejected" && x.status !== st)){ a.status = st === "done" && a.status === "new" ? "rejected" : st; await write("weborders/"+a.id, r => r.update({status: a.status})).catch(()=>{}); } }
 async function pubWrite(patch){ S.pub = Object.assign({}, S.pub, patch); render();
   await write("public/menu", async r => { const sn = await r.get(); await r.set(Object.assign({}, sn.exists ? sn.data() : {}, patch)); }); }
 let pubSyncedFor = "";
@@ -1553,20 +1564,29 @@ const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pi
 const A = {
   webOpen(d){ S.tab = "order"; S.sub = "web"; if(d && d.id) S.snooze["web-"+d.id] = Date.now() + 90000; S.alarmFor = null; renderAlarm(); window.scrollTo(0,0); render(); },
   webBack(){ S.sub = null; render(); },
+  webAddPick(d){ S.f.webAddPick = d.id; render(); }, webAddPickNo(){ S.f.webAddPick = null; render(); },
+  async webAddAccept(d){ const a = S.web.find(x=>x.id===d.id); if(!a) return; const m = +d.m; S.f.webAddPick = null; a.status = "accepted";
+    const P = S.web.find(x=>x.id===a.parent); let patch = null;
+    if(P && P.status === "accepted" && m > 0 && P.readyAt){ const [h,mi] = P.readyAt.split(":").map(Number), t = new Date(); t.setHours(h, mi, 0, 0);
+      const nt = new Date(Math.max(t.getTime(), Date.now()) + m*60000); patch = {readyAt: nt.getHours() + ":" + pad(nt.getMinutes()), mins: (P.mins||0) + m}; Object.assign(P, patch); }
+    render(); await write("weborders/"+a.id, r => r.update({status:"accepted", acceptedAt:Date.now(), acceptedBy:S.me}));
+    if(patch) await write("weborders/"+P.id, r => r.update(patch)); toast(patch ? `Hozzáadva – új idő: kb. ${patch.readyAt}` : "Pótrendelés hozzáadva."); },
+  async webAddReject(d){ if(S.f.webAddRej !== d.id){ S.f.webAddRej = d.id; return render(); } S.f.webAddRej = null; const a = S.web.find(x=>x.id===d.id); if(a) a.status = "rejected"; render();
+    await write("weborders/"+d.id, r => r.update({status:"rejected", rejectedBy:S.me})); },
   webPick(d){ S.f.webPick = d.id; render(); }, webPickNo(){ S.f.webPick = null; render(); },
   async webAccept(d){ const m = +d.m, t = new Date(Date.now() + m*60000), readyAt = t.getHours() + ":" + pad(t.getMinutes()); S.f.webPick = null;
     const o = S.web.find(x=>x.id===d.id); if(o){ o.status = "accepted"; o.readyAt = readyAt; o.mins = m; } render();
     await write("weborders/"+d.id, r => r.update({status:"accepted", mins:m, readyAt, acceptedAt:Date.now(), acceptedBy:S.me})); },
   async webReady(d){ const o = S.web.find(x=>x.id===d.id); if(o) o.status = "ready"; render(); await write("weborders/"+d.id, r => r.update({status:"ready", readyAtTs:Date.now()})); },
   async webDone(d){ const o = S.web.find(x=>x.id===d.id); if(!o) return; o.status = "done"; render();
-    await write("weborders/"+d.id, r => r.update({status:"done", doneAt:Date.now()}));
+    await write("weborders/"+d.id, r => r.update({status:"done", doneAt:Date.now()})); await webCloseAdds(o.id, "done");
     await phonesWrite(p => { const k = phoneKey(o.phone), c = p.trusted[k] || {n:0}; p.trusted[k] = {n:(c.n||0)+1, name:o.name, last:Date.now()}; return p; }).catch(()=>{}); },
   async webReject(d){ if(S.f.webRej !== d.id){ S.f.webRej = d.id; return render(); } S.f.webRej = null; const o = S.web.find(x=>x.id===d.id); if(o) o.status = "rejected"; render();
-    await write("weborders/"+d.id, r => r.update({status:"rejected", rejectedBy:S.me})); toast("Elutasítva – a vásárló látja."); },
+    await write("weborders/"+d.id, r => r.update({status:"rejected", rejectedBy:S.me})); await webCloseAdds(d.id, "rejected"); toast("Elutasítva – a vásárló látja."); },
   async webBlock(d){ if(S.f.webBlk !== d.id){ S.f.webBlk = d.id; return render(); } S.f.webBlk = null; const o = S.web.find(x=>x.id===d.id); if(!o) return; o.status = "rejected"; render();
-    await write("weborders/"+d.id, r => r.update({status:"rejected", rejectedBy:S.me, blocked:true})); await webBlockPhone(o.phone).catch(()=>{}); toast("Elutasítva, a szám tiltólistára került."); },
+    await write("weborders/"+d.id, r => r.update({status:"rejected", rejectedBy:S.me, blocked:true})); await webCloseAdds(d.id, "rejected"); await webBlockPhone(o.phone).catch(()=>{}); toast("Elutasítva, a szám tiltólistára került."); },
   async webNoShow(d){ if(S.f.webNs !== d.id){ S.f.webNs = d.id; return render(); } S.f.webNs = null; const o = S.web.find(x=>x.id===d.id); if(!o) return; o.status = "noshow"; render();
-    await write("weborders/"+d.id, r => r.update({status:"noshow"})); let cnt = 0;
+    await write("weborders/"+d.id, r => r.update({status:"noshow"})); await webCloseAdds(d.id, "noshow"); let cnt = 0;
     await phonesWrite(p => { const k = phoneKey(o.phone); cnt = (p.noshow[k]||0) + 1; p.noshow[k] = cnt; delete p.trusted[k]; return p; }).catch(()=>{});
     if(cnt >= 2){ await webBlockPhone(o.phone).catch(()=>{}); toast("Másodszor nem jött el – a szám tiltólistára került."); } else toast("Rögzítve. Legközelebb újra ellenőrizni kell."); },
   async webSold(d){ const so = Object.assign({}, (S.pub||{}).soldOut||{}); so[d.k] = !so[d.k]; if(!so[d.k]) delete so[d.k]; await pubWrite({soldOut: so}); },
