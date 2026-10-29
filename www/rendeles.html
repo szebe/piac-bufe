@@ -196,6 +196,7 @@ function menuView(){
         <span style="flex:1"><span class="iname">${esc(it.name)}</span><span class="isub">${off ? "Ma elfogyott" : esc(it.sub)}</span></span>
         <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="price">${off ? "–" : esc(priceTxt(it))}</span>${off?"":`<span class="plus">${PLUS}</span>`}</span></button>`; }).join("")}</section>`).join("")}
     <p style="font-size:13px;color:var(--muted);text-align:center;margin:8px 0 0">Kérdésed van? Hívj minket: <a href="tel:${PHONE}">${PHONE_TXT}</a></p>
+    <p style="font-size:12px;text-align:center;margin:0"><a href="app/" style="color:var(--muted)">Munkatársi belépés</a></p>
   </main>
   ${cartQty() ? `<div class="foot"><div class="in"><button class="cta dark" data-act="cart"><span class="cnt">${cartQty()}</span><span style="flex:1;text-align:left">Kosár megtekintése</span><span>${ft(cartTotal())}</span></button></div></div>` : ""}`;
 }
