@@ -56,6 +56,13 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   await put("weborders/w_ok", Object.assign({}, order, {status: "done"}));
   await put("weborders/w_add", Object.assign({}, order, {parent: "w_ok", status: "done"}));
   ok((await mkOrder("w_add5", Object.assign({}, order, {parent: "w_ok"}))).status === 403, "rules: add-on to finished order denied"); // web order closed for UI tests (no alarm)
+  ok((await mkOrder("w_loy", Object.assign({}, order, {loyal: true}))).status === 200, "rules: order with loyalty flag allowed");
+  ok((await mkOrder("w_loy2", Object.assign({}, order, {loyal: "igen"}))).status === 403, "rules: non-bool loyalty flag denied");
+  await put("weborders/w_loy", Object.assign({}, order, {status: "done"}));
+  await put("loyalty/abc", {f: [], c: [], last: 1});
+  ok((await fetch(docUrl("loyalty/abc"))).status === 200, "rules: loyalty card readable by id");
+  ok((await fetch(docUrl("loyalty"))).status === 403, "rules: loyalty cards cannot be listed");
+  ok((await fetch(docUrl("loyalty/abc") + "?updateMask.fieldPaths=last", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {last: {integerValue: "5"}}})})).status === 403, "rules: customer cannot change loyalty card");
   await put("public/menu", {soldOut: {mg: true}, paused: false, closed: []});
   ok((await fetch(docUrl("public/menu"))).status === 200, "rules: public menu readable");
   ok((await fetch(docUrl("public/menu") + "?updateMask.fieldPaths=paused", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {paused: {booleanValue: true}}})})).status === 403, "rules: anonymous cannot change public menu");

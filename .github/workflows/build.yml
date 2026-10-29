@@ -81,7 +81,7 @@ jobs:
           cp -r www/. site/app/
           cp www/rendeles.html site/index.html
           cp www/rendeles.html site/rendeles.html
-          cp www/firebase-app-compat.js www/firebase-firestore-compat.js www/firebase-config.js www/icon-192.png www/apple-touch-icon.png site/
+          cp www/firebase-app-compat.js www/firebase-firestore-compat.js www/firebase-config.js www/qrcode.js www/icon-192.png www/apple-touch-icon.png site/
           sed 's#href="./"#href="../app/"#; s#href="icon-192.png"#href="../icon-192.png"#; s#href="PiacBufe.apk"#href="../app/PiacBufe.apk"#' download.html > site/letoltes/index.html
           cp site/letoltes/index.html site/app/letoltes.html
           sed 's#href="./"#href="app/"#; s#href="PiacBufe.apk"#href="app/PiacBufe.apk"#' download.html > site/letoltes.html

@@ -23,6 +23,11 @@ service cloud.firestore {
       allow get: if true;
     }
 
+    // törzsvásárlói kártya: a vásárló a saját (telefonszámból képzett azonosítójú) kártyáját olvashatja
+    match /loyalty/{id} {
+      allow get: if true;
+    }
+
     // online rendelések: a vásárló csak újat adhat le, és csak a sajátját (az azonosító ismeretében) nézheti
     match /weborders/{id} {
       allow get: if true;
@@ -33,7 +38,7 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "cancelledAt"]);
     }
     function validOrder(d) {
-      return d.keys().hasOnly(["no", "at", "name", "phone", "eat", "when", "items", "total", "qtyTotal", "status", "parent"])
+      return d.keys().hasOnly(["no", "at", "name", "phone", "eat", "when", "items", "total", "qtyTotal", "status", "parent", "loyal"])
         && d.keys().hasAll(["no", "at", "name", "phone", "eat", "when", "items", "total", "qtyTotal", "status"])
         && d.status == "new"
         && d.no is string && d.no.size() <= 4
@@ -45,6 +50,7 @@ service cloud.firestore {
         && d.items is list && d.items.size() >= 1 && d.items.size() <= 10
         && d.qtyTotal is int && d.qtyTotal >= 1 && d.qtyTotal <= 10
         && d.total is int && d.total > 0 && d.total <= 30000
+        && (!("loyal" in d) || d.loyal is bool)
         && (!("parent" in d) || validParent(d));
     }
     // pótrendelés: csak még nyitott (új vagy elfogadott) saját rendeléshez, ugyanarról a számról

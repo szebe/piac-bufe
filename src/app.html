@@ -409,7 +409,7 @@ const S = {
   ready:false, dbOk:null, isOwner:false,
   cfg:{staff:[], fridges:[], openDays:[], closedDays:[], adminPin:""},
   calMonth:null, bakeryOpen:false, bk:{}, bo:{}, bakeOrdOpen:false, close:null, sortMode: (m => m==="custom" ? "recent" : m)(ls.get("bufe.sort") || "abc"),
-  items:[], moves:[], orders:[], web:[], pub:{}, phones:{}, shifts:{}, cash:[], temps:[], msgs:[], reqs:[], freezer:{}, bakery:[], wasteLog:[],
+  items:[], moves:[], orders:[], web:[], pub:{}, phones:{}, loy:null, shifts:{}, cash:[], temps:[], msgs:[], reqs:[], freezer:{}, bakery:[], wasteLog:[],
   me: ls.get("bufe.me") || "", adminUnlocked: ls.get("bufe.admin") === "1", unlockedId: "", pinFor: null, cashPop: null,
   tab: "home", sub: null, f:{}, weekOff:0, invTab:"stock", openItem:null, editItem:null,
   cashDate: today(), cashDraft:null, tempDate: today(), tempDraft:{},
@@ -419,6 +419,29 @@ const S = {
 const meStaff = () => S.cfg.staff.find(s => s.id === S.me);
 const WEB_ITEMS = [["mh","Húsos melegszendvics"],["mg","Gombás melegszendvics"],["ms","Sajtos melegszendvics"],["hb","Hamburger"],["hd","Hot dog"],["pv","Pár virsli"],["kv","Kávé"],["tea","Tea"],["ud","Üdítő"],["av","Ásványvíz"]];
 const WEB_HOT = ["csípős","közepesen csípős","nagyon csípős"];
+const LOY_N = 10, LOY_EXP = 183*86400000;
+const LOY_FOODS = [["mh","Húsos melegszendvics",950],["mg","Gombás melegszendvics",900],["ms","Sajtos melegszendvics",850],["hb-sima","Hamburger",1500],["hb-sajtos","Sajtos hamburger",1700],["hd","Hot dog",1200],["pv","Pár virsli",1400]].map(([k,n,p])=>({k,n,p}));
+const LOY_COFFEE = [["kv-f","Kávé",350],["kv-tej","Kávé tejjel",400],["kv-tsz","Kávé tejszínnel",400],["kv-hab","Kávé habbal",400],["kv-cap","Cappuccino",400],["kv-fcs","Forró csoki",400]].map(([k,n,p])=>({k,n,p}));
+function loyFresh(d){ if(!d || !d.last || d.last < Date.now() - LOY_EXP) return {f:[], c:[], last:0}; return {f:d.f||[], c:d.c||[], last:d.last}; }
+function loyRewards(list){ const m = new Map(); list.slice(0, LOY_N).forEach(x => (x.it || [x]).forEach(i => { if(!m.has(i.k)) m.set(i.k, i); })); return [...m.values()]; }
+async function loyKey(ph){ try{ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("pl:" + ph)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }catch(e){ return ""; } }
+function loyNormPhone(s){ let d = String(s||"").replace(/[^\d+]/g, ""); if(d.startsWith("+36")) d = d.slice(3); else if(d.startsWith("0036")) d = d.slice(4); else if(d.startsWith("06")) d = d.slice(2);
+  d = d.replace(/\D/g, ""); return /^(20|30|31|50|70)\d{7}$/.test(d) ? "+36" + d : null; }
+function loyFromItems(items){ const foods = [], cof = [];
+  (items||[]).forEach(r => { const o = (r.opts||[]).join(" ");
+    if(["mh","mg","ms","hd","pv"].includes(r.id)) foods.push(LOY_FOODS.find(f => f.k === r.id));
+    else if(r.id === "hb") foods.push(LOY_FOODS.find(f => f.k === (/sajtos/i.test(o) ? "hb-sajtos" : "hb-sima")));
+    else if(r.id === "kv"){ const c = LOY_COFFEE.find(c => c.n.toLowerCase() === String(r.name||"").toLowerCase()) || LOY_COFFEE[0]; cof.push(c); } });
+  return {foods: foods.filter(Boolean), cof}; }
+/* pecsét jóváírása: étel → 1 ételpecsét/nap (az ételek mind 500 Ft felettiek), kávé → 1 kávépecsét/nap */
+async function loyStamp(ph, foods, cof, src){ const k = await loyKey(ph); if(!k) throw new Error("hash"); const td = today(); let res = {food:false, cof:false, L:null};
+  await write("loyalty/" + k, async r => { const sn = await r.get(); const L = loyFresh(sn.exists ? sn.data() : null);
+    const fu = [...new Map(foods.map(f => [f.k, {k:f.k, n:f.n, p:f.p}])).values()];
+    if(fu.length && !L.f.some(x => x.d === td)){ L.f.push({d:td, it:fu}); res.food = true; }
+    if(cof.length && !L.c.some(x => x.d === td)){ const c = cof[0]; L.c.push({d:td, k:c.k, n:c.n, p:c.p}); res.cof = true; }
+    if(res.food || res.cof) L.last = Date.now(); res.L = L; await r.set(L); });
+  if(res.food || res.cof) db.collection("loyaltylog").add({k, ph: ph.slice(0,5) + "…" + ph.slice(-3), type:"stamp", food:res.food, cof:res.cof, src, ...by()}).catch(()=>{});
+  return res; }
 const webNew = () => (S.web||[]).filter(o => o.status === "new");
 const phoneKey = p => String(p||"").replace(/\D/g, "");
 const webTrusted = p => !!(((S.phones||{}).trusted||{})[phoneKey(p)]);
@@ -754,7 +777,7 @@ function view(){
   if(BACKEND==="fb" && needsPin(meStaff()) && !unlocked()){ S.pinFor = S.me; return pinView(); }
   if(S.inv) return invView();
   switch(S.tab){
-    case "order": return S.sub==="olog" ? orderLogView() : S.sub==="web" ? webView() : orderView();
+    case "order": return S.sub==="olog" ? orderLogView() : S.sub==="web" ? webView() : S.sub==="loy" ? loyView() : orderView();
     case "shift": return shiftView();
     case "stock": return stockView();
     case "more": return moreView();
@@ -795,7 +818,8 @@ function pickView(){
 
 /* ----- online rendelések (vásárlói rendelőoldal → tablet) ----- */
 function webEntry(){ const n = webNew().length, act = (S.web||[]).filter(o => ["new","accepted","ready"].includes(o.status)).length;
-  return `<section class="card" style="display:flex;align-items:center;gap:10px"><div class="grow"><b>Online rendelések</b><div class="small muted">${act ? `${act} folyamatban${n ? ` · <b style="color:var(--warn)">${n} új</b>` : ""}` : "ma még nincs nyitott online rendelés"}${(S.pub||{}).paused ? " · <b>szünetel</b>" : ""}</div></div><button class="btn ${n?"warn":"pri"}" data-act="webOpen">Megnyitom</button></section>`; }
+  return `<section class="card" style="display:flex;align-items:center;gap:10px"><div class="grow"><b>Online rendelések</b><div class="small muted">${act ? `${act} folyamatban${n ? ` · <b style="color:var(--warn)">${n} új</b>` : ""}` : "ma még nincs nyitott online rendelés"}${(S.pub||{}).paused ? " · <b>szünetel</b>" : ""}</div></div><button class="btn ${n?"warn":"pri"}" data-act="webOpen">Megnyitom</button></section>
+  <section class="card" style="display:flex;align-items:center;gap:10px"><div class="grow"><b>★ Törzsvásárlói pecsét</b><div class="small muted">pultnál: QR-kód vagy telefonszám alapján</div></div><button class="btn pri" data-act="loyOpen">Megnyitom</button></section>`; }
 function webTags(opts){ const out = []; const plus = [];
   (opts||[]).forEach(x => { if(/^szósz:/i.test(x)) out.push(`<span class="wbtag s">Szósz: ${esc(x.replace(/^szósz:\s*/i,""))}</span>`);
     else if(/ nélkül$/.test(x)) out.push(`<span class="wbtag w">Nélküle: ${esc(x.replace(/ nélkül$/,""))}</span>`);
@@ -834,7 +858,7 @@ function webView(){ const ro = isReadonly(), W = S.web||[], pub = S.pub||{}, so 
   return header("Online rendelések") + `<div class="stack">
     <button class="btn ghost" style="align-self:flex-start" data-act="webBack">‹ Előrendelések</button>
     ${ro ? "" : `<section class="card" style="display:flex;flex-direction:column;gap:10px">
-      <div class="wbtop"><b class="grow">Online rendelés: ${pub.paused ? '<span style="color:var(--danger)">szünetel</span>' : '<span style="color:var(--accent)">fogadjuk</span>'}</b><button class="btn sm ${pub.paused?"pri":"ghost"}" data-act="webPause">${pub.paused ? "Újraindítom" : "Szüneteltetem"}</button><button class="btn sm ${pub.test?"warn":"ghost"}" data-act="webTest" aria-pressed="${!!pub.test}">Tesztüzem: ${pub.test ? "BE" : "ki"}</button><button class="btn sm ${pub.live?"pri":"warn"}" data-act="webLive" aria-pressed="${!!pub.live}">${pub.live ? "Élesben fut ✓" : "Még teszt – élesítés"}</button><a class="btn sm ghost" href="https://piacbufe83.hu/" target="_blank" rel="noopener">Rendelőoldal ↗</a></div>
+      <div class="wbtop"><b class="grow">Online rendelés: ${pub.paused ? '<span style="color:var(--danger)">szünetel</span>' : '<span style="color:var(--accent)">fogadjuk</span>'}</b><button class="btn sm ${pub.paused?"pri":"ghost"}" data-act="webPause">${pub.paused ? "Újraindítom" : "Szüneteltetem"}</button><button class="btn sm ${pub.test?"warn":"ghost"}" data-act="webTest" aria-pressed="${!!pub.test}">Tesztüzem: ${pub.test ? "BE" : "ki"}</button><button class="btn sm ${pub.live?"pri":"warn"}" data-act="webLive" aria-pressed="${!!pub.live}">${pub.live ? "Élesben fut ✓" : "Még teszt – élesítés"}</button><button class="btn sm pri" data-act="loyOpen">★ Pecsét / jutalom</button><a class="btn sm ghost" href="https://piacbufe83.hu/" target="_blank" rel="noopener">Rendelőoldal ↗</a></div>
       <div class="wbtop"><span class="small muted" style="font-weight:700">Elérhető most (koppints, ha elfogyott):</span>${WEB_ITEMS.map(([k,n]) => `<button class="wbchip ${so[k]?"off":""}" aria-pressed="${!!so[k]}" data-act="webSold" data-k="${k}">${so[k]?"Elfogyott: ":""}${esc(n)}</button>`).join("")}</div></section>`}
     <div class="wbgrid">${col("Új rendelések","new","#E8890C")}${col("Készül","accepted","var(--accent)")}${col("Kész – átvételre vár","ready","var(--fg)")}</div>
     ${closed.length ? `<section class="card"><b>Ma lezárt: ${closed.length}</b><div class="small muted">${closed.map(o => `#${esc(o.no)} ${esc(o.name)} – ${o.status==="done"?"átadva":o.status==="noshow"?"nem jött el":o.status==="cancelled"?"a vásárló törölte":"elutasítva"}`).join(" · ")}</div></section>` : ""}
@@ -851,6 +875,45 @@ async function phonesWrite(fn){ await write("config/phones", async r => { const 
 async function webBlockPhone(phone){ const k = phoneKey(phone), h = await webHash(phone);
   await phonesWrite(p => { p.blocked[k] = Date.now(); delete p.trusted[k]; return p; });
   const bl = new Set((S.pub||{}).blockedH||[]); if(h) bl.add(h); await pubWrite({blockedH: [...bl]}); }
+function loyView(){ const ro = isReadonly(), Q = S.loy;
+  let h = header("Törzsvásárlói pecsét") + `<div class="stack"><button class="btn ghost" style="align-self:flex-start" data-act="loyBack">‹ Vissza</button>`;
+  if(!Q || !Q.L){ return h + `<section class="card" style="display:flex;flex-direction:column;gap:10px"><h3 style="margin:0">Vásárló azonosítása</h3>
+    <button class="btn pri" style="min-height:56px;font-size:1.05rem" data-act="loyScan">QR-kód beolvasása kamerával</button>
+    <div class="small muted" style="text-align:center">vagy</div>
+    <label class="field"><span>Mobilszám</span><input id="loyPh" type="tel" inputmode="tel" data-f="f.loyPh" value="${esc(S.f.loyPh||"")}" placeholder="pl. 30 123 4567"></label>
+    <button class="btn" data-act="loyFind">Keresés</button>${Q && Q.err ? `<div class="note d">${esc(Q.err)}</div>` : ""}${Q && Q.loading ? `<div class="muted small">Betöltés…</div>` : ""}</section>
+    <section class="card small muted">Pecsét: minden ételt tartalmazó (500 Ft feletti) vásárlás 1 ételpecsét, minden kávé 1 kávépecsét – naponta legfeljebb egy-egy. 10 ételpecsét = 1 étel alapáron azok közül, amiket a vásárló evett. 10 kávépecsét = 1 kávé. 6 hónap vásárlás nélkül lejár.</section></div>`; }
+  const L = Q.L, td = today(), fd = L.f.some(x => x.d === td), cd = L.c.some(x => x.d === td), f = L.f.length, c = L.c.length, sel = S.f.loySel || {}, csel = S.f.loyCof || "";
+  const dots = (n, col) => `<div style="display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px">${Array.from({length:LOY_N},(_,i)=>`<span style="aspect-ratio:1;border-radius:99px;${i<Math.min(n,LOY_N)?`background:${col}`:"border:2px dashed var(--line)"}"></span>`).join("")}</div>`;
+  h += `<section class="card" style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:8px"><b class="grow" style="font-size:1.1rem">${esc(Q.ph.replace(/^\+36(\d\d)(\d{3})(\d{4})$/, "+36 $1 $2 $3"))}</b><button class="btn sm ghost" data-act="loyReset">Másik vásárló</button></div>
+    <div><b>Ételpecsét: ${Math.min(f,LOY_N)}/10</b>${f>LOY_N?` <span class="muted small">(+${f-LOY_N})</span>`:""}</div>${dots(f, "var(--accent)")}
+    <div><b>Kávépecsét: ${Math.min(c,LOY_N)}/10</b>${c>LOY_N?` <span class="muted small">(+${c-LOY_N})</span>`:""}</div>${dots(c, "#7A4A1E")}
+    ${L.last ? `<div class="small muted">Utolsó pecsét: ${new Date(L.last).toLocaleDateString("hu-HU")}</div>` : `<div class="small muted">Még nincs pecsétje.</div>`}</section>`;
+  if(ro) return h + `</div>`;
+  if(f >= LOY_N) h += `<section class="card" style="border:3px solid var(--accent);display:flex;flex-direction:column;gap:8px"><b style="color:var(--accent)">Jár egy ajándék étel! Melyiket kéri? (alapáron, kiegészítők nélkül)</b><div style="display:flex;flex-wrap:wrap;gap:8px">${loyRewards(L.f).map(i => `<button class="btn ${S.f.loyRw===i.k?"pri":""}" data-act="loyRedeem" data-t="f" data-k="${i.k}">${S.f.loyRw===i.k?"Biztosan? ":""}${esc(i.n)} · ${ft(i.p)}</button>`).join("")}</div></section>`;
+  if(c >= LOY_N) h += `<section class="card" style="border:3px solid #7A4A1E;display:flex;flex-direction:column;gap:8px"><b style="color:#7A4A1E">Jár egy ajándék kávé!</b><div style="display:flex;flex-wrap:wrap;gap:8px">${loyRewards(L.c).map(i => `<button class="btn ${S.f.loyRw===i.k?"pri":""}" data-act="loyRedeem" data-t="c" data-k="${i.k}">${S.f.loyRw===i.k?"Biztosan? ":""}${esc(i.n)}</button>`).join("")}</div></section>`;
+  h += `<section class="card" style="display:flex;flex-direction:column;gap:10px"><h3 style="margin:0">Mai vásárlás jóváírása</h3>
+    <div><span class="small muted" style="font-weight:700">Étel (${fd ? "ma már kapott ételpecsétet" : "bármelyik → 1 ételpecsét"}):</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${LOY_FOODS.map(i => `<button class="wbchip ${sel[i.k]?"":"off"}" style="${sel[i.k]?"":"text-decoration:none"}" aria-pressed="${!!sel[i.k]}" data-act="loyPick" data-k="${i.k}" ${fd?"disabled":""}>${esc(i.n)}</button>`).join("")}</div></div>
+    <div><span class="small muted" style="font-weight:700">Kávé (${cd ? "ma már kapott kávépecsétet" : "→ 1 kávépecsét"}):</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${LOY_COFFEE.map(i => `<button class="wbchip ${csel===i.k?"":"off"}" style="${csel===i.k?"":"text-decoration:none"}" aria-pressed="${csel===i.k}" data-act="loyCofPick" data-k="${i.k}" ${cd?"disabled":""}>${esc(i.n)}</button>`).join("")}</div></div>
+    <button class="btn pri" style="min-height:52px" data-act="loyGive" ${(fd||!Object.values(sel).some(Boolean)) && (cd||!csel) ? "disabled" : ""}>Pecsét jóváírása</button></section></div>`;
+  return h; }
+async function loyLoad(ph){ S.loy = {ph, loading:true}; render(); const k = await loyKey(ph);
+  try{ const sn = await db.doc("loyalty/" + k).get(); S.loy = {ph, k, L: loyFresh(sn.exists ? sn.data() : null)}; }catch(e){ S.loy = {err:"Nem sikerült betölteni. Ellenőrizd az internetet."}; }
+  S.f.loySel = {}; S.f.loyCof = ""; S.f.loyRw = null; render(); }
+let loyStream = null;
+function loyScanStop(){ try{ loyStream && loyStream.getTracks().forEach(t => t.stop()); }catch(e){} loyStream = null; const o = $("#loyScanBox"); if(o) o.remove(); }
+async function loyScanStart(){
+  if(!window.jsQR){ await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "jsQR.js"; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); }).catch(()=>{}); }
+  if(!window.jsQR || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return toast("Ezen az eszközön nem érhető el a kamera – írd be a telefonszámot.");
+  const box = document.createElement("div"); box.id = "loyScanBox"; box.className = "alarm"; box.innerHTML = `<div class="box" style="align-items:center"><span class="label">QR-kód beolvasása</span><video playsinline muted style="width:100%;max-width:360px;border-radius:12px;background:#000"></video><div class="muted small">Tartsd a vásárló telefonján lévő QR-kódot a kamera elé.</div><button class="btn" data-act="loyScanCancel">Mégse</button></div>`;
+  document.body.appendChild(box); const v = box.querySelector("video");
+  try{ loyStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}); v.srcObject = loyStream; await v.play(); }
+  catch(e){ loyScanStop(); return toast("A kamera nem indult el (engedély?). Írd be a telefonszámot."); }
+  const cv = document.createElement("canvas"), cx = cv.getContext("2d", {willReadFrequently:true});
+  const tick = () => { if(!loyStream) return; if(v.videoWidth){ cv.width = v.videoWidth; cv.height = v.videoHeight; cx.drawImage(v, 0, 0); const img = cx.getImageData(0, 0, cv.width, cv.height), q = window.jsQR(img.data, img.width, img.height);
+      if(q && /^PIACBUFE:/.test(q.data)){ const ph = loyNormPhone(q.data.slice(9)); loyScanStop(); if(ph){ try{ navigator.vibrate && navigator.vibrate(80); }catch(e){} return loyLoad(ph); } return toast("Ismeretlen QR-kód."); } }
+    setTimeout(tick, 200); };
+  tick(); }
 /* ----- home ----- */
 const BAKERY = [["kifli","Hot dog kifli"],["zsemle","Hambi zsemle"],["kenyer","Kenyér"]];
 function bakeDoc(date){ return S.bakery.find(x=>x.date===date); }
@@ -1520,10 +1583,27 @@ function settingsView(){
 const cfgRef = "config/main";
 async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
 const RO_FIELDS = new Set(["cashDate","tempDate","f.pinIn2","f.pinA","f.pinB","f.pinTrust","f.lgEm","f.lgPw"]);
-const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","webOpen","webBack","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","unOpen","goUnavail","ologOpen","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
+const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","webOpen","webBack","loyOpen","loyBack","loyReset","loyFind","loyScan","loyScanCancel","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","unOpen","goUnavail","ologOpen","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
 const A = {
   webOpen(d){ S.tab = "order"; S.sub = "web"; if(d && d.id) S.snooze["web-"+d.id] = Date.now() + 90000; S.alarmFor = null; renderAlarm(); window.scrollTo(0,0); render(); },
   webBack(){ S.sub = null; render(); },
+  loyOpen(){ S.tab = "order"; S.sub = "loy"; S.loy = null; window.scrollTo(0,0); render(); },
+  loyBack(){ loyScanStop(); S.sub = "web"; S.loy = null; render(); },
+  loyReset(){ S.loy = null; delete S.f.loyPh; render(); },
+  loyFind(){ const ph = loyNormPhone(S.f.loyPh); if(!ph){ S.loy = {err:"Érvénytelen mobilszám."}; return render(); } loyLoad(ph); },
+  loyScan(){ loyScanStart(); }, loyScanCancel(){ loyScanStop(); },
+  loyPick(d){ S.f.loySel = Object.assign({}, S.f.loySel, {[d.k]: !(S.f.loySel||{})[d.k]}); render(); },
+  loyCofPick(d){ S.f.loyCof = S.f.loyCof === d.k ? "" : d.k; render(); },
+  async loyGive(){ const Q = S.loy; if(!Q || !Q.ph) return; const foods = LOY_FOODS.filter(i => (S.f.loySel||{})[i.k]), cof = LOY_COFFEE.filter(i => i.k === S.f.loyCof);
+    const r = await loyStamp(Q.ph, foods, cof, "pult").catch(() => null); if(!r) return toast("Nem sikerült menteni.");
+    S.loy = {ph:Q.ph, L:r.L}; S.f.loySel = {}; S.f.loyCof = ""; render();
+    toast(r.food || r.cof ? `Jóváírva: ${[r.food?"ételpecsét":"", r.cof?"kávépecsét":""].filter(Boolean).join(" + ")}` : "Ma már kapott pecsétet."); },
+  async loyRedeem(d){ const Q = S.loy; if(!Q || !Q.ph) return; if(S.f.loyRw !== d.k){ S.f.loyRw = d.k; return render(); } S.f.loyRw = null;
+    const k = await loyKey(Q.ph); let item = null;
+    await write("loyalty/" + k, async r => { const sn = await r.get(); const L = loyFresh(sn.exists ? sn.data() : null); const list = d.t === "f" ? L.f : L.c;
+      if(list.length < LOY_N) return; item = loyRewards(list).find(i => i.k === d.k); if(!item) return; list.splice(0, LOY_N); L.last = L.last || Date.now(); await r.set(L); S.loy = {ph:Q.ph, L}; });
+    if(item){ db.collection("loyaltylog").add({k, ph: Q.ph.slice(0,5) + "…" + Q.ph.slice(-3), type: d.t === "f" ? "reward-food" : "reward-coffee", item: item.n, price: item.p, ...by()}).catch(()=>{}); toast(`Beváltva: ${item.n} ajándék.`); }
+    render(); },
   webAddPick(d){ S.f.webAddPick = d.id; render(); }, webAddPickNo(){ S.f.webAddPick = null; render(); },
   async webAddAccept(d){ const a = S.web.find(x=>x.id===d.id); if(!a) return; const m = +d.m; S.f.webAddPick = null; a.status = "accepted";
     const P = S.web.find(x=>x.id===a.parent); let patch = null;
@@ -1540,6 +1620,9 @@ const A = {
   async webReady(d){ const o = S.web.find(x=>x.id===d.id); if(o) o.status = "ready"; render(); await write("weborders/"+d.id, r => r.update({status:"ready", readyAtTs:Date.now()})); },
   async webDone(d){ const o = S.web.find(x=>x.id===d.id); if(!o) return; o.status = "done"; render();
     await write("weborders/"+d.id, r => r.update({status:"done", doneAt:Date.now()})); await webCloseAdds(o.id, "done");
+    if(o.loyal){ const grp = [o, ...(S.web||[]).filter(a => a.parent === o.id && a.status === "done")], all = grp.flatMap(x => x.items||[]), tot = grp.reduce((x,y) => x + (y.total||0), 0), li = loyFromItems(all);
+      const r = await loyStamp(o.phone, tot > 500 ? li.foods : [], li.cof, "online").catch(() => null);
+      if(r && (r.food || r.cof)) toast(`#${o.no}: ${[r.food?"ételpecsét":"", r.cof?"kávépecsét":""].filter(Boolean).join(" + ")} jóváírva.`); }
     await phonesWrite(p => { const k = phoneKey(o.phone), c = p.trusted[k] || {n:0}; p.trusted[k] = {n:(c.n||0)+1, name:o.name, last:Date.now()}; return p; }).catch(()=>{}); },
   async webReject(d){ if(S.f.webRej !== d.id){ S.f.webRej = d.id; return render(); } S.f.webRej = null; const o = S.web.find(x=>x.id===d.id); if(o) o.status = "rejected"; render();
     await write("weborders/"+d.id, r => r.update({status:"rejected", rejectedBy:S.me})); await webCloseAdds(d.id, "rejected"); toast("Elutasítva – a vásárló látja."); },
