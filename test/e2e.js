@@ -54,6 +54,7 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   ok((await mkOrder("w_bad4", Object.assign({}, order, {hack: 1}))).status === 403, "rules: web order with extra field denied");
   ok((await fetch(docUrl("weborders"))).status === 403, "rules: anonymous cannot list web orders");
   ok((await fetch(docUrl("weborders/w_ok") + "?updateMask.fieldPaths=status", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {status: {stringValue: "done"}}})})).status === 403, "rules: anonymous cannot update web order");
+  await put("weborders/w_ok", Object.assign({}, order, {status: "done"})); // web order closed for UI tests (no alarm)
   await put("public/menu", {soldOut: {mg: true}, paused: false, closed: []});
   ok((await fetch(docUrl("public/menu"))).status === 200, "rules: public menu readable");
   ok((await fetch(docUrl("public/menu") + "?updateMask.fieldPaths=paused", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {paused: {booleanValue: true}}})})).status === 403, "rules: anonymous cannot change public menu");
