@@ -13,8 +13,9 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script>(()=>{const T=new Date(2026,9,29,8,5).getTime(), D=Date, off=T-D.now(); class FD extends D{constructor(...a){ if(a.length) super(...a); else super(D.now()+off);} static now(){return D.now()+off;}} window.Date=FD;})();</script>
+<script>(()=>{const T=new Date(2026,9,30,8,5).getTime(), D=Date, off=T-D.now(); class FD extends D{constructor(...a){ if(a.length) super(...a); else super(D.now()+off);} static now(){return D.now()+off;}} window.Date=FD;})();</script>
 <script src="mockfb.js"></script>
+<script src="qrcode.js" defer></script>
 <style>
 :root{color-scheme:light;--bg:#F5F2EA;--card:#FFFFFF;--soft:#F0EDE4;--ink:#1B211E;--ink2:#333A35;--muted:#5E655F;--muted2:#8E877A;--line:#E2DED3;--line2:#D6D1C4;--line3:#EEEAE0;--green:#0E6646;--accent:#0E6646;--green2:#0B4E36;--tint:#E3EFE8;--tintInk:#12432F;--warn:#FCEFD0;--warnInk:#4A2A00;--warnInk2:#7A4300;--red:#8A2A0A;--redBg:#FBE1D6;--need:#FDF0EA;--needLine:#B53A10;--needInk:#9A2A0C;--chili:#D23A12;--off:#C9C2B3;--offInk:#1B211E;--inv:#1B211E;--invInk:#FFFFFF;--box:#B9B3A4;--noBg:#F3EFE6;--noInk:#6B6B63;--hotBg:#FDEDE4;--btnLine:#C9C3B5;--test:#FFE08A;--testInk:#3D2A00}
 :root[data-theme="dark"]{color-scheme:dark;--bg:#121614;--card:#1D2420;--soft:#28302C;--ink:#ECEFEA;--ink2:#C9CFCA;--muted:#A6AEA8;--muted2:#7F8882;--line:#313A35;--line2:#45504A;--line3:#29312D;--green:#17794F;--accent:#74D3A6;--green2:#A6E6C6;--tint:#1C3A2D;--tintInk:#CDEBDC;--warn:#3A2E12;--warnInk:#F3D38A;--warnInk2:#F3C86A;--red:#FF9C7C;--redBg:#3D1F17;--need:#2E1A14;--needLine:#E0663D;--needInk:#FFB49A;--off:#3A423E;--offInk:#E2E6E3;--inv:#ECEFEA;--invInk:#121614;--box:#5A645E;--noBg:#262C29;--noInk:#8E968F;--hotBg:#3A2218;--btnLine:#45504A;--test:#5A4A12;--testInk:#FFE9A8}
@@ -100,6 +101,13 @@ h3 small{font-weight:500;color:var(--muted);font-size:13px}
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--inv);color:var(--invInk);padding:12px 16px;border-radius:12px;font-size:14px;z-index:20;max-width:90vw}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
 .ready{animation:pulse 1.4s ease-in-out 3}
+.stamps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.stamp{aspect-ratio:1;border-radius:999px;border:2px dashed var(--line2);display:flex;align-items:center;justify-content:center;color:var(--muted2);font-size:13px;font-weight:700}
+.stamp.on{border:0;background:var(--green);color:#fff}
+.stamp.c.on{background:#7A4A1E}
+.qrbox{background:#fff;border-radius:16px;padding:14px;display:flex;justify-content:center;align-self:center}
+.qrbox svg{width:200px;height:200px;display:block}
+.loycard{border:0;width:100%;text-align:left;cursor:pointer;background:linear-gradient(135deg,var(--green),#0B4E36);color:#fff;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 </style>
 </head>
@@ -179,6 +187,14 @@ function opts(it, s){ const o = [];
 const canAdd = o => !!o && ["new","accepted"].includes(o.status) && !o.parent;
 const addIds = () => lsJ("pb.adds", {})[S.orderId] || [];
 const addDocs = () => addIds().map(id => S.adds[id] && Object.assign({id}, S.adds[id])).filter(Boolean);
+const LOY_N = 10, LOY_EXP = 183*86400000;
+const loyConsent = () => ls.get("pb.loyal") === "1";
+function loyFresh(d){ if(!d || !d.last || d.last < Date.now() - LOY_EXP) return {f:[], c:[], last:0}; return {f:d.f||[], c:d.c||[], last:d.last}; }
+function loyRewards(list){ const m = new Map(); list.slice(0, LOY_N).forEach(x => (x.it || [x]).forEach(i => { if(!m.has(i.k)) m.set(i.k, i); })); return [...m.values()]; }
+let unsubLoy = null;
+async function watchLoy(){ if(unsubLoy){ unsubLoy(); unsubLoy = null; } const ph = normPhone(ls.get("pb.phone")); if(!ph || !loyConsent() || !db) { S.loy = null; return; }
+  const k = await sha("pl:" + ph); if(!k) return; S.loyPh = ph;
+  unsubLoy = db.collection("loyalty").doc(k).onSnapshot(sn => { S.loy = loyFresh(sn.exists ? sn.data() : null); if(S.screen === "menu" || S.screen === "card") { S.keepScroll = true; render(); } }, () => { S.loy = loyFresh(null); }); }
 const cartQty = () => S.cart.reduce((a,r)=>a+r.qty, 0);
 const cartTotal = () => S.cart.reduce((a,r)=>a+r.unit*r.qty, 0);
 function saveCart(){ ls.set("pb.cart", JSON.stringify(S.cart)); }
@@ -198,7 +214,7 @@ function openState(){ const d = new Date(), m = d.getHours()*60 + d.getMinutes()
 const $ = id => document.getElementById(id);
 function toast(t){ const el = $("toast"); el.innerHTML = `<div class="toast">${esc(t)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(()=>el.innerHTML="", 3200); }
 function render(){ const y = window.scrollY, f = document.activeElement && document.activeElement.id;
-  $("app").innerHTML = S.screen==="item" ? itemView() : S.screen==="cart" ? cartView() : S.screen==="status" ? statusView() : S.screen==="blocked" ? blockedView() : menuView();
+  $("app").innerHTML = S.screen==="item" ? itemView() : S.screen==="cart" ? cartView() : S.screen==="status" ? statusView() : S.screen==="blocked" ? blockedView() : S.screen==="card" ? cardView() : menuView();
   if(f && $(f)) $(f).focus({preventScroll:true}); if(S.keepScroll) window.scrollTo(0, y); S.keepScroll = false; }
 function focusErr(id){ if(!id) return; const el = document.getElementById(id); if(!el) return; el.scrollIntoView({block:"center", behavior:"smooth"}); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){} }
 /* Vissza gomb: a tételből / kosárból / állapotlapról az étlapra lép, nem hagyja el az oldalt */
@@ -218,6 +234,7 @@ function menuView(){
     ${active && !S.addFor ? `<button class="note g" style="border:0;text-align:left;width:100%;cursor:pointer" data-act="showStatus">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',22,"currentColor",1.9)}<span><b>Folyamatban lévő rendelésed: #${esc(S.order.no)}</b><br>Koppints az állapotához.</span></button>` : ""}
     ${!os.ok ? `<div class="note w" role="status">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',22,"currentColor",1.9)}<span>${esc(os.msg)} Az étlapot addig is böngészheted.</span></div>` : ""}
     ${!S.addFor && last && last.items && last.items.length ? `<section class="card row" style="padding:14px 14px 14px 16px;gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:3px"><div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.6px">Mint múltkor</div><div style="font-size:14px;line-height:1.35">${esc(last.items.map(r=>`${r.qty}× ${r.name}${r.opts.length?" ("+r.opts.join(", ")+")":""}`).join(", "))}</div></div><button class="btn2 g" style="width:auto;padding:0 14px;min-height:44px;font-size:14px" data-act="reorder">Újrarendelem</button></section>` : ""}
+    ${!S.addFor ? `<button class="loycard" data-act="card">${svg('<path d="M12 3l2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 16.5 6.8 19.3l1-5.9L3.5 9.2l5.9-.9z"/>',26,"#F4B400",1.8)}<span style="flex:1"><b style="font-size:16px">Törzsvásárlói kártyám</b><br><span style="font-size:13px;opacity:.9">${S.loy ? `${Math.min(S.loy.f.length, LOY_N)}/10 ételpecsét · ${Math.min(S.loy.c.length, LOY_N)}/10 kávépecsét` : "10 pecsétért egy étel ajándék"}</span></span>${svg('<path d="M9 5l7 7-7 7"/>',20,"#fff",2.2)}</button>` : ""}
     ${cats.map(c => `<section class="col"><h2>${esc(c)}</h2>${MENU.filter(i=>i.cat===c).map(it => { const off = !!(S.pub.soldOut||{})[it.id];
       return `<button class="item ${off?"off":""}" data-act="open" data-id="${it.id}" ${off?'aria-disabled="true"':""} aria-label="${esc(it.name)}, ${off?"elfogyott":esc(priceTxt(it))}">
         <span class="ico" style="background:${TINT[it.kind]}">${svg(ICON[it.kind])}</span>
@@ -267,6 +284,7 @@ function cartView(){
       <label class="field ${e.phone?"need":""}" id="sec-phone">Mobilszám<input id="phone" data-f="phone" value="${esc(S.phone)}" type="tel" autocomplete="tel" placeholder="+36 30 123 4567" ${e.phone?'aria-invalid="true" style="border:2px solid #B53A10"':""}></label>${e.phone?`<div class="err">${esc(e.phone)}</div>`:""}
       <div style="font-size:12px;color:var(--muted)">Ezen a telefonon megjegyezzük, legközelebb nem kell beírni.</div>
       <label class="sr">Ne töltsd ki<input id="hp" data-f="hp" tabindex="-1" autocomplete="off"></label></section>`}
+    ${add ? "" : `<label class="card row" style="padding:12px 14px;gap:12px;cursor:pointer;align-items:flex-start"><input type="checkbox" id="loyOn" data-f="loyOn" ${S.loyOn ?? loyConsent() ? "checked" : ""} style="width:22px;height:22px;margin:2px 0 0;flex:none;accent-color:var(--green)"><span style="font-size:14px;line-height:1.4"><b>Pecsétet kérek erre a rendelésre</b><br><span style="color:var(--muted)">Törzsvásárlói program: 10 pecsétért egy étel ajándék. A telefonszámodat csak ehhez tároljuk. <a href="#" data-act="privacy">Adatkezelés</a></span></span></label>`}
     <div class="note g">${svg('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/>',22,"currentColor",1.8)}<span>Fizetés átvételkor a pultnál – készpénz vagy kártya.</span></div>
     ${e.send ? `<div class="note r" role="alert">${esc(e.send)}</div>` : ""}
   </main>
@@ -302,6 +320,32 @@ function statusView(){
     ${st==="done"||st==="ready" ? `<button class="btn2" data-act="newOrder">Új rendelés</button>` : `<button class="btn2" data-act="menu">Vissza az étlaphoz</button>`}
   </main>`;
 }
+const PRIVACY = "A törzsvásárlói programban a mobilszámodat (titkosított azonosítóként) és a pecsétekhez tartozó vásárlásokat (dátum, étel/kávé fajtája) tároljuk, kizárólag a pecsétek és jutalmak nyilvántartására. Az adatokat nem adjuk át harmadik félnek. 6 hónap vásárlás nélkül a pecsétek lejárnak és törlődnek. Kilépni és az adataid törlését kérni a büfénél vagy telefonon (" + PHONE_TXT + ") tudod. Adatkezelő: Szebe Kft., 2700 Cegléd, Nyúl u. 9.";
+function cardView(){
+  const ph = normPhone(ls.get("pb.phone")), ok = ph && loyConsent(), L = S.loy || loyFresh(null);
+  const head = `<div class="bar"><button class="back" data-act="menu" aria-label="Vissza az étlaphoz">${BACK}</button><h1>Törzsvásárlói kártyám</h1></div>`;
+  const rules = `<section class="card" style="padding:14px 16px;font-size:14px;line-height:1.5;color:var(--ink2)"><b style="color:var(--ink)">Így működik</b><br>
+    • Minden 500 Ft feletti, ételt is tartalmazó vásárlás 1 ételpecsét (naponta egy).<br>• 10 ételpecsétért egy étel ajándék alapáron (kiegészítők nélkül) azok közül, amiket a pecsétgyűjtés alatt ettél.<br>
+    • Minden kávé 1 kávépecsét (naponta egy) – 10 kávépecsétért egy kávé ajándék.<br>• A pultnál mutasd meg a QR-kódodat; az online rendeléseidért magától jár a pecsét.<br>• 6 hónap vásárlás nélkül a pecsétek lejárnak.</section>`;
+  if(!ok) return head + `<main class="body">
+    <section class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px"><b style="font-size:17px">Csatlakozz a pecsétgyűjtéshez!</b><span style="font-size:14px;color:var(--ink2)">Add meg a mobilszámodat – ezzel azonosítunk a pultnál és az online rendeléseknél is.</span>
+      <label class="field ${S.err.lphone?"need":""}" id="sec-lphone">Mobilszám<input id="lphone" data-f="lphone" type="tel" autocomplete="tel" value="${esc(S.lphone ?? (ls.get("pb.phone")||""))}" placeholder="+36 30 123 4567"></label>${S.err.lphone?`<div class="err">${esc(S.err.lphone)}</div>`:""}
+      <label class="row ${S.err.lcons?"need":""}" style="align-items:flex-start;gap:10px;cursor:pointer;font-size:14px"><input type="checkbox" data-f="lcons" ${S.lcons?"checked":""} style="width:22px;height:22px;margin:2px 0 0;flex:none;accent-color:var(--green)"><span>Elfogadom az <a href="#" data-act="privacy">adatkezelési tájékoztatót</a>, és részt veszek a pecsétgyűjtésben.</span></label>
+      <button class="btn2 g" data-act="loyJoin">Kártyám megnyitása</button></section>${rules}</main>`;
+  const food = L.f.length, cof = L.c.length, rw = food >= LOY_N ? loyRewards(L.f) : [], crw = cof >= LOY_N ? loyRewards(L.c) : [];
+  const dots = (n, cls) => `<div class="stamps">${Array.from({length:LOY_N}, (_,i) => `<span class="stamp ${cls} ${i < n ? "on" : ""}">${i < n ? CHECK("#fff") : i+1}</span>`).join("")}</div>`;
+  const exp = L.last ? new Date(L.last + LOY_EXP) : null;
+  return head + `<main class="body">
+    <section class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center"><b style="font-size:16px">Mutasd meg a pultnál</b><div class="qrbox" id="qr" aria-label="Törzsvásárlói QR-kód">${qrSvg("PIACBUFE:" + ph)}</div><span style="font-size:14px;color:var(--muted)">${esc(ph.replace(/^\+36(\d\d)(\d{3})(\d{4})$/, "+36 $1 $2 $3"))}</span></section>
+    <section class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:10px"><div class="row"><b style="flex:1;font-size:16px">Ételpecsétek</b><b>${Math.min(food, LOY_N)}/10</b></div>${dots(Math.min(food, LOY_N), "")}
+      ${food >= LOY_N ? `<div class="note g" style="background:var(--green);color:#fff"><span><b>Jár egy ajándék étel!</b> Válassz a pultnál: ${esc(rw.map(i => i.n).join(", "))} (alapáron, kiegészítők nélkül).</span></div>` : `<span style="font-size:13px;color:var(--muted)">Még ${LOY_N - food} pecsét az ajándék ételig.</span>`}</section>
+    <section class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:10px"><div class="row"><b style="flex:1;font-size:16px">Kávépecsétek</b><b>${Math.min(cof, LOY_N)}/10</b></div>${dots(Math.min(cof, LOY_N), "c")}
+      ${cof >= LOY_N ? `<div class="note g" style="background:#7A4A1E;color:#fff"><span><b>Jár egy ajándék kávé!</b> ${esc(crw.map(i => i.n).join(", "))}</span></div>` : `<span style="font-size:13px;color:var(--muted)">Még ${LOY_N - cof} kávé az ajándék kávéig.</span>`}</section>
+    ${exp ? `<div style="font-size:13px;color:var(--muted);text-align:center">Utolsó pecsét: ${new Date(L.last).toLocaleDateString("hu-HU")} · ha addig nem vásárolsz, ${exp.toLocaleDateString("hu-HU")}-én lejárnak.</div>` : ""}
+    ${rules}
+    <button class="btn2" data-act="loyLeave" style="color:var(--muted)">${S.confirmLeave ? "Biztosan kilépsz? Koppints újra" : "Kilépés a programból ezen a telefonon"}</button></main>`;
+}
+function qrSvg(text){ try{ const q = qrcode(0, "M"); q.addData(text); q.make(); return q.createSvgTag({cellSize: 6, margin: 0, scalable: true}); }catch(e){ return `<div style="color:#1B211E;font-size:14px;padding:20px">QR-kód betöltése…</div>`; } }
 function blockedView(){
   return `<main class="body" style="padding-top:48px;align-items:stretch;text-align:center;gap:18px">
     <div style="width:72px;height:72px;border-radius:999px;background:var(--line3);display:flex;align-items:center;justify-content:center;align-self:center;color:var(--muted)">${PHONE_ICO}</div>
@@ -314,7 +358,14 @@ function blockedView(){
 const A = {
   theme(){ const order = ["auto","light","dark"], n = order[(order.indexOf(themePref()) + 1) % 3]; try{ localStorage.setItem("pb.theme", n); }catch(e){} applyTheme(); S.keepScroll = true; render();
     toast(n === "auto" ? "Megjelenés: a telefon beállítását követi" : n === "dark" ? "Megjelenés: sötét" : "Megjelenés: világos"); },
-  menu(){ go("menu"); }, cart(){ S.err = {}; go("cart"); }, showStatus(){ go("status"); },
+  menu(){ go("menu"); },
+  card(){ S.err = {}; S.confirmLeave = false; go("card"); },
+  privacy(){ alert(PRIVACY); },
+  async loyJoin(){ const ph = normPhone(S.lphone ?? ls.get("pb.phone")), err = {};
+    if(!ph) err.lphone = "Kérlek, mobilszámot adj meg (+36 20 / 30 / 31 / 50 / 70 …)."; if(!S.lcons) err.lcons = 1;
+    S.err = err; if(Object.keys(err).length){ S.keepScroll = true; render(); return focusErr(err.lphone ? "sec-lphone" : null); }
+    ls.set("pb.phone", ph); ls.set("pb.loyal", "1"); S.phone = ph; await watchLoy(); toast("Kész! Mutasd meg a QR-kódot a pultnál."); render(); },
+  loyLeave(){ if(!S.confirmLeave){ S.confirmLeave = true; S.keepScroll = true; return render(); } S.confirmLeave = false; ls.del("pb.loyal"); if(unsubLoy) unsubLoy(); S.loy = null; toast("Kiléptél ezen a telefonon. Az adataid törléséhez szólj a pultnál."); go("menu"); }, cart(){ S.err = {}; go("cart"); }, showStatus(){ go("status"); },
   open(d){ const it = MENU.find(i=>i.id===d.id); if((S.pub.soldOut||{})[it.id]) return toast(it.name + " ma elfogyott."); S.cur = it.id; S.sel = newSel(it); S.qty = 1; go("item"); },
   var(d){ S.sel.v = d.k; S.keepScroll = true; render(); },
   sauce(d){ S.sel.sauces[d.k] = !S.sel.sauces[d.k]; delete S.err.sauce; S.keepScroll = true; render(); },
@@ -370,15 +421,17 @@ const A = {
     if(prev) { S.err = {send:`Már van egy folyamatban lévő rendelésed (#${S.order.no}). Várd meg, amíg elkészül, vagy hívj minket.`}; S.keepScroll = true; return render(); }
     ls.set("pb.name", name); ls.set("pb.phone", S.phone.trim());
     const doc = { no: String(100 + Math.floor(Math.random()*900)), at: Date.now(), name: name.slice(0,40), phone: ph, eat: S.eat, when,
-      items: S.cart.map(r => ({id: r.id, name: r.name, opts: r.opts.slice(0,8), unit: r.unit, qty: r.qty})), total: cartTotal(), qtyTotal: cartQty(), status: "new" };
+      items: S.cart.map(r => ({id: r.id, name: r.name, opts: r.opts.slice(0,8), unit: r.unit, qty: r.qty})), total: cartTotal(), qtyTotal: cartQty(), status: "new",
+      loyal: !!(S.loyOn ?? loyConsent()) };
     S.sending = true; S.keepScroll = true; render();
     try{ const ref = db.collection("weborders").doc(); await ref.set(doc);
+      if(doc.loyal){ ls.set("pb.loyal", "1"); } else if(S.loyOn === false) ls.del("pb.loyal"); watchLoy();
       ls.set("pb.active", ref.id); ls.set("pb.last", JSON.stringify({items: S.cart})); S.cart = []; saveCart(); S.sending = false; S.orderId = ref.id; S.order = doc; watchOrder(ref.id); go("status"); }
     catch(e){ S.sending = false; S.err = {send: "Nem sikerült elküldeni. Ellenőrizd az internetet, vagy hívj minket: " + PHONE_TXT}; S.keepScroll = true; render(); }
   }
 };
 document.addEventListener("click", e => { const b = e.target.closest("[data-act]"); if(!b || b.disabled) return; const f = A[b.dataset.act]; if(f){ e.preventDefault(); f(b.dataset); } });
-document.addEventListener("input", e => { const f = e.target.dataset && e.target.dataset.f; if(!f) return; if(f === "note") S.sel.note = e.target.value; else S[f] = e.target.value;
+document.addEventListener("input", e => { const f = e.target.dataset && e.target.dataset.f; if(!f) return; if(f === "note") S.sel.note = e.target.value; else S[f] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
   if(S.err[f]){ delete S.err[f]; } if(f === "time"){ S.keepScroll = true; render(); } });
 
 /* ---------- data ---------- */
@@ -395,10 +448,12 @@ function boot(){
   try{ firebase.initializeApp(window.FB_CONFIG); db = firebase.firestore(); if(window.FB_EMULATOR) db.useEmulator("127.0.0.1", 8080); }catch(e){ db = firebase.firestore(); }
   db.collection("public").doc("menu").onSnapshot(s => { S.pub = Object.assign({soldOut:{}, paused:false, closed:[], blockedH:[]}, s.exists ? s.data() : {}); S.pubOk = true; if(S.screen !== "item") { S.keepScroll = true; render(); } }, () => { S.pubOk = true; });
   if(S.orderId){ watchOrder(S.orderId); addIds().forEach(watchAdd); }
+  watchLoy();
   render();
   setInterval(() => { if(S.screen === "menu" || S.screen === "cart"){ S.keepScroll = true; render(); } }, 60000);
 }
 boot();
+window.addEventListener("load", () => { if(S.screen === "card"){ S.keepScroll = true; render(); } });
 </script>
 </body>
 </html>
