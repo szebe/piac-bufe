@@ -75,9 +75,19 @@ jobs:
       - run: python3 build.py
       - uses: actions/download-artifact@v4
         with: { name: PiacBufe-apk, path: www }
-      - run: cp download.html www/letoltes.html
+      - name: Assemble site (root = rendelőoldal, /app = munkatársi app)
+        run: |
+          mkdir -p site/app site/letoltes
+          cp -r www/. site/app/
+          cp www/rendeles.html site/index.html
+          cp www/rendeles.html site/rendeles.html
+          cp www/firebase-app-compat.js www/firebase-firestore-compat.js www/firebase-config.js www/icon-192.png www/apple-touch-icon.png site/
+          sed 's#href="./"#href="../app/"#; s#href="icon-192.png"#href="../icon-192.png"#; s#href="PiacBufe.apk"#href="../app/PiacBufe.apk"#' download.html > site/letoltes/index.html
+          cp site/letoltes/index.html site/app/letoltes.html
+          sed 's#href="./"#href="app/"#; s#href="PiacBufe.apk"#href="app/PiacBufe.apk"#' download.html > site/letoltes.html
+          echo "piacbufe83.hu" > site/CNAME
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
-        with: { path: www }
+        with: { path: site }
       - id: deploy
         uses: actions/deploy-pages@v4

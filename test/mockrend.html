@@ -4,38 +4,44 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0E6646">
-<meta name="color-scheme" content="light only">
+<meta name="color-scheme" content="light dark">
+<script>(function(){ var t = "auto"; try{ t = localStorage.getItem("pb.theme") || "auto"; }catch(e){}
+  var d = t === "dark" || (t === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches); document.documentElement.setAttribute("data-theme", d ? "dark" : "light"); })();</script>
 <title>Piac Büfé – online rendelés</title>
 <meta name="description" content="Rendelj előre a ceglédi Piac Büfétől: melegszendvics, hamburger, hot dog, kávé, tea, üdítő.">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script>(()=>{const T=new Date(2026,9,29,14,5).getTime(), D=Date, off=T-D.now(); class FD extends D{constructor(...a){ if(a.length) super(...a); else super(D.now()+off);} static now(){return D.now()+off;}} window.Date=FD;})();</script>
+<script>(()=>{const T=new Date(2026,9,29,8,5).getTime(), D=Date, off=T-D.now(); class FD extends D{constructor(...a){ if(a.length) super(...a); else super(D.now()+off);} static now(){return D.now()+off;}} window.Date=FD;})();</script>
 <script src="mockfb.js"></script>
 <style>
-:root{color-scheme:light only;--bg:#F5F2EA;--card:#FFFFFF;--ink:#1B211E;--muted:#5E655F;--line:#E2DED3;--line2:#D6D1C4;--green:#0E6646;--green2:#0B4E36;--tint:#E3EFE8;--warn:#FCEFD0;--warnInk:#6A3A00;--red:#8A2A0A;--redBg:#FBE1D6;--chili:#D23A12}
+:root{color-scheme:light;--bg:#F5F2EA;--card:#FFFFFF;--soft:#F0EDE4;--ink:#1B211E;--ink2:#333A35;--muted:#5E655F;--muted2:#8E877A;--line:#E2DED3;--line2:#D6D1C4;--line3:#EEEAE0;--green:#0E6646;--accent:#0E6646;--green2:#0B4E36;--tint:#E3EFE8;--tintInk:#12432F;--warn:#FCEFD0;--warnInk:#4A2A00;--warnInk2:#7A4300;--red:#8A2A0A;--redBg:#FBE1D6;--need:#FDF0EA;--needLine:#B53A10;--needInk:#9A2A0C;--chili:#D23A12;--off:#C9C2B3;--offInk:#1B211E;--inv:#1B211E;--invInk:#FFFFFF;--box:#B9B3A4;--noBg:#F3EFE6;--noInk:#6B6B63;--hotBg:#FDEDE4;--btnLine:#C9C3B5;--test:#FFE08A;--testInk:#3D2A00}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#121614;--card:#1D2420;--soft:#28302C;--ink:#ECEFEA;--ink2:#C9CFCA;--muted:#A6AEA8;--muted2:#7F8882;--line:#313A35;--line2:#45504A;--line3:#29312D;--green:#17794F;--accent:#74D3A6;--green2:#A6E6C6;--tint:#1C3A2D;--tintInk:#CDEBDC;--warn:#3A2E12;--warnInk:#F3D38A;--warnInk2:#F3C86A;--red:#FF9C7C;--redBg:#3D1F17;--need:#2E1A14;--needLine:#E0663D;--needInk:#FFB49A;--off:#3A423E;--offInk:#E2E6E3;--inv:#ECEFEA;--invInk:#121614;--box:#5A645E;--noBg:#262C29;--noInk:#8E968F;--hotBg:#3A2218;--btnLine:#45504A;--test:#5A4A12;--testInk:#FFE9A8}
+:root[data-theme="dark"] .ico{background:var(--soft)!important}
+:root[data-theme="dark"] .ico svg{stroke:var(--ink)}
+.theme{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:999px;height:36px;min-width:36px;padding:0 10px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;-webkit-text-size-adjust:100%}
 button{font-family:inherit;cursor:pointer;color:inherit}
 input,textarea{font-family:inherit;font-size:16px}
-a{color:var(--green)}
+a{color:var(--accent)}
 .wrap{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
 .top{background:var(--green);color:#fff;padding:20px 18px 14px;padding-top:max(20px,env(safe-area-inset-top))}
 .top .row1{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .brand{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.5px}
-.badge{font-size:12px;font-weight:700;background:#F4B400;color:var(--ink);padding:5px 10px;border-radius:999px}
+.badge{font-size:12px;font-weight:700;background:#F4B400;color:#1B211E;padding:5px 10px;border-radius:999px}
 .sub{font-size:13px;color:#D5E8DD;margin-top:4px}
-.bar{display:flex;align-items:center;gap:10px;padding:14px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.bar{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 .bar h1{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;flex:1}
-.back{border:0;background:#F0EDE4;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.back{border:0;background:var(--soft);width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
 .body{flex:1;padding:16px 16px 120px;display:flex;flex-direction:column;gap:18px}
 h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px}
 h3{margin:0;font-size:15px;font-weight:700}
 h3 small{font-weight:500;color:var(--muted);font-size:13px}
-.req{font-weight:700;font-size:12px;color:#7A4300;background:var(--warn);padding:3px 8px;border-radius:999px;margin-left:4px}
+.req{font-weight:700;font-size:12px;color:var(--warnInk2);background:var(--warn);padding:3px 8px;border-radius:999px;margin-left:4px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px}
-.item{width:100%;border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px 14px 12px 12px;display:flex;align-items:center;gap:12px;min-height:80px;text-align:left}
+.item{width:100%;border:1px solid var(--line);background:var(--card);border-radius:16px;padding:12px 14px 12px 12px;display:flex;align-items:center;gap:12px;min-height:80px;text-align:left}
 .item.off{opacity:.55}
 .ico{width:56px;height:56px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center}
 .iname{font-weight:600;font-size:16px;display:block}
@@ -44,54 +50,54 @@ h3 small{font-weight:500;color:var(--muted);font-size:13px}
 .plus{width:32px;height:32px;border-radius:999px;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;margin-left:auto}
 .col{display:flex;flex-direction:column;gap:10px}
 .grid{display:grid;gap:8px}
-.pill{border:1px solid var(--line2);background:#fff;border-radius:14px;padding:10px 12px;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center}
+.pill{border:1px solid var(--line2);background:var(--card);border-radius:14px;padding:10px 12px;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center}
 .pill.on{border:2px solid var(--green);background:var(--tint);color:var(--green2)}
 .pill b{font-size:15px}.pill span{font-size:12px}
-.chip{border:1px solid var(--line2);background:#fff;border-radius:999px;padding:0 16px;min-height:44px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.chip{border:1px solid var(--line2);background:var(--card);border-radius:999px;padding:0 16px;min-height:44px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
 .chip.on{border:2px solid var(--green);background:var(--tint);color:var(--green2)}
-.chip.no{background:#F3EFE6;color:#6B6B63;border:1px dashed #B9B3A4;text-decoration:line-through}
-.chip.inc{background:var(--tint);color:var(--green2);border:1px solid #B8D6C6}
+.chip.no{background:var(--noBg);color:var(--noInk);border:1px dashed var(--box);text-decoration:line-through}
+.chip.inc{background:var(--tint);color:var(--green2);border:1px solid var(--line2)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chk{border:0;border-bottom:1px solid #EEEAE0;background:#fff;display:flex;align-items:center;gap:12px;padding:14px 16px;min-height:56px;font-size:16px;text-align:left;width:100%}
+.chk{border:0;border-bottom:1px solid var(--line3);background:var(--card);display:flex;align-items:center;gap:12px;padding:14px 16px;min-height:56px;font-size:16px;text-align:left;width:100%}
 .chk:last-child{border-bottom:0}
-.box{width:26px;height:26px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;border:2px solid #B9B3A4;background:#fff}
+.box{width:26px;height:26px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;border:2px solid var(--box);background:var(--card)}
 .chk.on .box{background:var(--green);border-color:var(--green)}
 .qty{display:flex;align-items:center;gap:12px}
-.qb{width:44px;height:44px;border-radius:12px;border:1px solid var(--line2);background:#fff;font-size:22px}
+.qb{width:44px;height:44px;border-radius:12px;border:1px solid var(--line2);background:var(--card);font-size:22px}
 .qb.p{background:var(--green);border:0;color:#fff}
 .field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
-.field input,.field textarea{padding:12px 14px;border:1px solid var(--line2);border-radius:12px;background:#fff;color:var(--ink);width:100%}
+.field input,.field textarea{padding:12px 14px;border:1px solid var(--line2);border-radius:12px;background:var(--card);color:var(--ink);width:100%}
 .field textarea{resize:none}
 .err{font-size:13px;color:var(--red)}
-.hint{font-size:13px;color:#7A4300}
-.foot{position:fixed;left:0;right:0;bottom:0;padding:12px 12px max(14px,env(safe-area-inset-bottom));background:linear-gradient(rgba(245,242,234,0),var(--bg) 30%);z-index:6}
+.hint{font-size:13px;color:var(--warnInk2)}
+.foot{position:fixed;left:0;right:0;bottom:0;padding:12px 12px max(14px,env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 30%);z-index:6}
 .foot .in{max-width:536px;margin:0 auto}
 .cta{width:100%;border:0;border-radius:16px;padding:16px 18px;display:flex;align-items:center;gap:12px;font-size:17px;font-weight:700;min-height:58px;background:var(--green);color:#fff;box-shadow:0 8px 24px rgba(14,102,70,.3)}
-.cta.dark{background:var(--ink);box-shadow:0 8px 24px rgba(27,33,30,.25);font-size:16px}
-.cta[disabled],.cta.off{background:#C9C2B3;color:#1B211E;box-shadow:none}
+.cta.dark{background:var(--inv);color:var(--invInk);box-shadow:0 8px 24px rgba(27,33,30,.25);font-size:16px}
+.cta[disabled],.cta.off{background:var(--off);color:var(--offInk);box-shadow:none}
 .cta.off span:last-child{opacity:.8}
-.need{border:2px solid #B53A10;border-radius:16px;padding:10px;background:#FDF0EA;scroll-margin:90px}
-.need .hint,.need .err{color:#9A2A0C;font-weight:700}
+.need{border:2px solid var(--needLine);border-radius:16px;padding:10px;background:var(--need);scroll-margin:90px}
+.need .hint,.need .err{color:var(--needInk);font-weight:700}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .need.shake{animation:shake .35s ease-in-out 2}
-.cnt{background:#F4B400;color:var(--ink);border-radius:999px;min-width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;padding:0 6px}
+.cnt{background:#F4B400;color:#1B211E;border-radius:999px;min-width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;padding:0 6px}
 .note{border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.45;display:flex;gap:10px;align-items:flex-start}
-.note.g{background:var(--tint);color:#12432F}
-.note.w{background:var(--warn);color:#4A2A00}
-.note.r{background:var(--redBg);color:#6E1F05}
+.note.g{background:var(--tint);color:var(--tintInk)}
+.note.w{background:var(--warn);color:var(--warnInk)}
+.note.r{background:var(--redBg);color:var(--red)}
 .row{display:flex;align-items:center;gap:10px}
-.line{display:flex;gap:12px;padding:14px 14px 14px 16px;border-bottom:1px solid #EEEAE0;align-items:center}
-.link{border:0;background:#fff;color:var(--green);font-weight:600;font-size:15px;padding:14px 16px;text-align:left;min-height:48px;width:100%;border-radius:0 0 16px 16px}
-.hot{width:100%;border:1px solid var(--line2);background:#fff;border-radius:16px;padding:10px 16px;min-height:56px;display:flex;align-items:center;gap:12px;text-align:left}
-.hot.on{border:2px solid #C2410C;background:#FDEDE4}
-.big{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:64px;line-height:1;color:var(--green)}
+.line{display:flex;gap:12px;padding:14px 14px 14px 16px;border-bottom:1px solid var(--line3);align-items:center}
+.link{border:0;background:var(--card);color:var(--accent);font-weight:600;font-size:15px;padding:14px 16px;text-align:left;min-height:48px;width:100%;border-radius:0 0 16px 16px}
+.hot{width:100%;border:1px solid var(--line2);background:var(--card);border-radius:16px;padding:10px 16px;min-height:56px;display:flex;align-items:center;gap:12px;text-align:left}
+.hot.on{border:2px solid #C2410C;background:var(--hotBg)}
+.big{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:64px;line-height:1;color:var(--accent)}
 .steps .s{display:flex;gap:14px;align-items:center;padding:12px 0}
-.dot{width:28px;height:28px;border-radius:999px;flex:none;display:flex;align-items:center;justify-content:center;border:2px solid var(--line2);background:#fff}
+.dot{width:28px;height:28px;border-radius:999px;flex:none;display:flex;align-items:center;justify-content:center;border:2px solid var(--line2);background:var(--card)}
 .dot.done{background:var(--green);border-color:var(--green)}
 .dot.cur{border:4px solid #E8890C}
-.btn2{border:1px solid #C9C3B5;background:#fff;border-radius:14px;min-height:52px;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;color:var(--ink);width:100%}
+.btn2{border:1px solid var(--btnLine);background:var(--card);border-radius:14px;min-height:52px;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;color:var(--ink);width:100%}
 .btn2.g{background:var(--green);color:#fff;border:0;font-weight:700}
-.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;z-index:20;max-width:90vw}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--inv);color:var(--invInk);padding:12px 16px;border-radius:12px;font-size:14px;z-index:20;max-width:90vw}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
 .ready{animation:pulse 1.4s ease-in-out 3}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -131,6 +137,15 @@ const BACK = svg('<path d="M15 5l-7 7 7 7"/>', 20, "#1B211E", 2.2);
 const PLUS = svg('<path d="M12 5v14M5 12h14"/>', 16, "#fff", 2.6);
 const PHONE_ICO = svg('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>', 22, "currentColor", 1.9);
 const chili = on => `<svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="${on?"#D23A12":"none"}" stroke="${on?"#9A2A0C":"#9E978A"}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6c-4.5 1-7.5 6-8.5 14 6.5-1.5 11.5-6 11.5-11 0-1.7-1.2-3-3-3z"/><path d="M13 6c0-1.5 1-2.5 2.5-3" fill="none"/></svg>`;
+const THEME_TXT = {auto:"Auto", light:"Világos", dark:"Sötét"};
+const THEME_ICO = {
+  auto:'<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>',
+  light:'<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  dark:'<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>'};
+function themePref(){ try{ const t = localStorage.getItem("pb.theme"); return THEME_TXT[t] ? t : "auto"; }catch(e){ return "auto"; } }
+function applyTheme(){ const t = themePref(), d = t === "dark" || (t === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.setAttribute("data-theme", d ? "dark" : "light"); }
+try{ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { applyTheme(); }); }catch(e){}
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ft = n => n.toLocaleString("hu-HU") + " Ft";
 const pad = n => String(n).padStart(2, "0");
@@ -195,20 +210,21 @@ window.addEventListener("popstate", () => { if(S.screen !== "menu"){ S.screen = 
 
 function menuView(){
   const os = openState(), cats = [...new Set(MENU.map(i=>i.cat))], last = lsJ("pb.last", null), active = S.order && !["done","rejected","noshow","cancelled"].includes(S.order.status);
-  return `<header class="top"><div class="row1"><div class="brand">Piac Büfé</div><span class="badge">Előrendelés</span></div>
+  return `<header class="top"><div class="row1"><div class="brand">Piac Büfé</div><span style="display:flex;gap:8px;align-items:center"><button class="theme" data-act="theme" aria-label="Megjelenés: ${THEME_TXT[themePref()]} (koppints a váltáshoz)" title="Megjelenés váltása">${THEME_ICO[themePref()]}<span>${THEME_TXT[themePref()]}</span></button><span class="badge">Előrendelés</span></span></div>
     <div class="sub">Cegléd, Piac · nyitva 6:00–12:30 · fizetés a pultnál</div></header>
   <main class="body">
-    ${S.pub.test ? `<div class="note w" role="status" style="background:#FFE08A;color:#3D2A00"><b>TESZTÜZEM</b> – nyitvatartáson kívül is lehet rendelni. Ez nem éles rendelés.</div>` : ""}
+    ${S.pub.test ? `<div class="note w" role="status" style="background:var(--test);color:var(--testInk)"><b>TESZTÜZEM</b> – nyitvatartáson kívül is lehet rendelni. Ez nem éles rendelés.</div>` : ""}
     ${S.addFor && S.order ? `<div class="note w" role="status" style="align-items:center">${svg('<path d="M12 5v14M5 12h14"/>',22,"currentColor",2.2)}<span style="flex:1"><b>Bővíted a #${esc(S.order.no)} rendelést.</b><br>Válaszd ki, mit kérsz még – a végén csak az új tételeket küldjük el.</span><button class="btn2" style="width:auto;min-height:40px;padding:0 12px;font-size:14px" data-act="addCancel">Mégse</button></div>` : ""}
     ${active && !S.addFor ? `<button class="note g" style="border:0;text-align:left;width:100%;cursor:pointer" data-act="showStatus">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',22,"currentColor",1.9)}<span><b>Folyamatban lévő rendelésed: #${esc(S.order.no)}</b><br>Koppints az állapotához.</span></button>` : ""}
     ${!os.ok ? `<div class="note w" role="status">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',22,"currentColor",1.9)}<span>${esc(os.msg)} Az étlapot addig is böngészheted.</span></div>` : ""}
-    ${!S.addFor && last && last.items && last.items.length ? `<section class="card row" style="padding:14px 14px 14px 16px;gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:3px"><div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.6px">Mint múltkor</div><div style="font-size:14px;line-height:1.35">${esc(last.items.map(r=>`${r.qty}× ${r.name}${r.opts.length?" ("+r.opts.join(", ")+")":""}`).join(", "))}</div></div><button class="btn2 g" style="width:auto;padding:0 14px;min-height:44px;font-size:14px" data-act="reorder">Újrarendelem</button></section>` : ""}
+    ${!S.addFor && last && last.items && last.items.length ? `<section class="card row" style="padding:14px 14px 14px 16px;gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:3px"><div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.6px">Mint múltkor</div><div style="font-size:14px;line-height:1.35">${esc(last.items.map(r=>`${r.qty}× ${r.name}${r.opts.length?" ("+r.opts.join(", ")+")":""}`).join(", "))}</div></div><button class="btn2 g" style="width:auto;padding:0 14px;min-height:44px;font-size:14px" data-act="reorder">Újrarendelem</button></section>` : ""}
     ${cats.map(c => `<section class="col"><h2>${esc(c)}</h2>${MENU.filter(i=>i.cat===c).map(it => { const off = !!(S.pub.soldOut||{})[it.id];
       return `<button class="item ${off?"off":""}" data-act="open" data-id="${it.id}" ${off?'aria-disabled="true"':""} aria-label="${esc(it.name)}, ${off?"elfogyott":esc(priceTxt(it))}">
         <span class="ico" style="background:${TINT[it.kind]}">${svg(ICON[it.kind])}</span>
         <span style="flex:1"><span class="iname">${esc(it.name)}</span><span class="isub">${off ? "Ma elfogyott" : esc(it.sub)}</span></span>
         <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="price">${off ? "–" : esc(priceTxt(it))}</span>${off?"":`<span class="plus">${PLUS}</span>`}</span></button>`; }).join("")}</section>`).join("")}
     <p style="font-size:13px;color:var(--muted);text-align:center;margin:8px 0 0">Kérdésed van? Hívj minket: <a href="tel:${PHONE}">${PHONE_TXT}</a></p>
+    <p style="font-size:12px;text-align:center;margin:0"><a href="app/" style="color:var(--muted)">Munkatársi belépés</a></p>
   </main>
   ${cartQty() ? `<div class="foot"><div class="in"><button class="cta dark" data-act="cart"><span class="cnt">${cartQty()}</span><span style="flex:1;text-align:left">Kosár megtekintése</span><span>${ft(cartTotal())}</span></button></div></div>` : ""}`;
 }
@@ -263,22 +279,22 @@ function statusView(){
   const steps = [["Elküldve","megkaptuk a rendelésed"], st==="new" ? ["Visszaigazolásra vár","a büfé hamarosan jóváhagyja"] : ["Visszaigazolva", o.mins ? `kb. ${o.mins} perc alatt elkészül` : ""], ["Készül", o.readyAt ? `kész kb. ${o.readyAt}-kor` : ""], ["Kész","átveheted a pultnál"]];
   const failed = st==="rejected" || st==="noshow";
   if(st === "cancelled") return `<main class="body" style="padding-top:28px;padding-bottom:40px;gap:16px">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px">Rendelésszám</div><div class="big" style="color:#8E877A;text-decoration:line-through">#${esc(o.no)}</div></div>
-    <section class="card" style="padding:18px;display:flex;flex-direction:column;gap:8px"><b style="font-size:17px">A rendelést törölted</b><span style="font-size:15px;line-height:1.5;color:#333A35">Nem készítjük el, és nem kell fizetned semmit. Ha mégis kérsz valamit, adj le új rendelést.</span></section>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px">Rendelésszám</div><div class="big" style="color:var(--muted2);text-decoration:line-through">#${esc(o.no)}</div></div>
+    <section class="card" style="padding:18px;display:flex;flex-direction:column;gap:8px"><b style="font-size:17px">A rendelést törölted</b><span style="font-size:15px;line-height:1.5;color:var(--ink2)">Nem készítjük el, és nem kell fizetned semmit. Ha mégis kérsz valamit, adj le új rendelést.</span></section>
     <button class="btn2 g" data-act="newOrder">Új rendelés</button></main>`;
   return `<main class="body" style="padding-top:28px;padding-bottom:40px">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px">Rendelésszám</div><div class="big" style="${failed?"color:#8E877A":""}">#${esc(o.no)}</div><div style="font-size:15px">${esc(o.name)} · ${o.eat==="helyben"?"helyben fogyasztás":"elvitel"} · ${o.when==="asap"?"mielőbb":esc(o.when)}</div></div>
-    ${failed ? `<section class="card" style="padding:18px;display:flex;flex-direction:column;gap:10px"><b style="font-size:17px">Most nem tudtuk elkészíteni</b><span style="font-size:15px;line-height:1.5;color:#333A35">${st==="noshow"?"A rendelést nem vették át.":"Nem értünk el a megadott számon, vagy a rendelést most nem tudtuk vállalni."} Ha még kéred, hívj minket, és rögtön összerakjuk.</span></section>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px">Rendelésszám</div><div class="big" style="${failed?"color:var(--muted2)":""}">#${esc(o.no)}</div><div style="font-size:15px">${esc(o.name)} · ${o.eat==="helyben"?"helyben fogyasztás":"elvitel"} · ${o.when==="asap"?"mielőbb":esc(o.when)}</div></div>
+    ${failed ? `<section class="card" style="padding:18px;display:flex;flex-direction:column;gap:10px"><b style="font-size:17px">Most nem tudtuk elkészíteni</b><span style="font-size:15px;line-height:1.5;color:var(--ink2)">${st==="noshow"?"A rendelést nem vették át.":"Nem értünk el a megadott számon, vagy a rendelést most nem tudtuk vállalni."} Ha még kéred, hívj minket, és rögtön összerakjuk.</span></section>
       <a class="btn2 g" href="tel:${PHONE}">${PHONE_ICO} ${PHONE_TXT} – hívás</a><button class="btn2" data-act="newOrder">Új rendelés</button>` : `
     ${st==="ready" ? `<div class="note g ready" style="background:var(--green);color:#fff;padding:18px"><b style="font-size:18px">Kész, jöhetsz érte!</b><br>Mondd a pultnál: #${esc(o.no)}</div>` : ""}
     ${st==="accepted" ? `<div class="note g" style="background:var(--green);color:#fff;padding:16px"><span><b style="font-size:17px">Visszaigazolva – kb. ${esc(o.mins)} perc múlva kész</b><br><span style="color:#D5E8DD">${esc(o.readyAt)}-ra jöhetsz érte. Szólunk, ha elkészült.</span></span></div>` : ""}
     ${st==="new" && !trusted ? `<div class="note w">${PHONE_ICO}<span><b>Most rendelsz először – üdv nálunk!</b><br>A büfé 1–2 percen belül felhívhat a megadott számon, hogy megerősítse a rendelést. Ez csak az első alkalommal van így.</span></div>` : ""}
     <section class="card steps" style="padding:6px 16px">${steps.map((s,i)=>{ const done = i < step || (st==="ready"||st==="done") && i===3, cur = i===step && !done; return `<div class="s"><span class="dot ${done?"done":""} ${cur?"cur":""}">${done?CHECK("#fff"):""}</span><div style="display:flex;flex-direction:column"><span style="font-size:16px;${cur?"font-weight:700":done?"":"color:var(--muted)"}">${s[0]}</span>${s[1]?`<span style="font-size:12px;color:var(--muted)">${esc(s[1])}</span>`:""}</div></div>`; }).join("")}</section>`}
     <section class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:6px;font-size:14px">${(o.items||[]).map(r=>`<div class="row" style="align-items:flex-start"><span style="flex:1">${r.qty}× ${esc(r.name)}${r.opts&&r.opts.length?`<span style="color:var(--muted)"> · ${esc(r.opts.join(", "))}</span>`:""}</span><b>${ft(r.unit*r.qty)}</b></div>`).join("")}
-      ${addDocs().map(a => `<div style="border-top:1px dashed #E2DED3;padding-top:8px;display:flex;flex-direction:column;gap:4px"><div class="row"><b style="flex:1;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:${a.status==="rejected"?"var(--red)":"var(--green)"}">+ Pótrendelés</b><span style="font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;${a.status==="new"?"background:var(--warn);color:#7A4300":a.status==="rejected"?"background:var(--redBg);color:var(--red)":"background:var(--tint);color:var(--green2)"}">${a.status==="new"?"jóváhagyásra vár":a.status==="rejected"?"nem tudtuk hozzáadni":a.status==="cancelled"?"törölted":"hozzáadva"}</span>${a.status==="new"?`<button style="border:0;background:none;color:#9A2A0C;font-size:13px;font-weight:600;padding:6px 0 6px 8px;text-decoration:underline" data-act="cancelAdd" data-id="${esc(a.id)}">törlöm</button>`:""}</div>
+      ${addDocs().map(a => `<div style="border-top:1px dashed var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px"><div class="row"><b style="flex:1;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:${a.status==="rejected"?"var(--red)":"var(--green)"}">+ Pótrendelés</b><span style="font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;${a.status==="new"?"background:var(--warn);color:var(--warnInk2)":a.status==="rejected"?"background:var(--redBg);color:var(--red)":"background:var(--tint);color:var(--green2)"}">${a.status==="new"?"jóváhagyásra vár":a.status==="rejected"?"nem tudtuk hozzáadni":a.status==="cancelled"?"törölted":"hozzáadva"}</span>${a.status==="new"?`<button style="border:0;background:none;color:#9A2A0C;font-size:13px;font-weight:600;padding:6px 0 6px 8px;text-decoration:underline" data-act="cancelAdd" data-id="${esc(a.id)}">törlöm</button>`:""}</div>
         ${(a.items||[]).map(r=>`<div class="row" style="align-items:flex-start;${a.status==="rejected"||a.status==="cancelled"?"text-decoration:line-through;color:var(--muted)":""}"><span style="flex:1">${r.qty}× ${esc(r.name)}${r.opts&&r.opts.length?`<span style="color:var(--muted)"> · ${esc(r.opts.join(", "))}</span>`:""}</span><b>${ft(r.unit*r.qty)}</b></div>`).join("")}</div>`).join("")}
-      <div class="row" style="border-top:1px solid #EEEAE0;padding-top:8px;font-weight:700"><span style="flex:1">Fizetendő átvételkor</span><span>${ft(o.total + addDocs().filter(a=>a.status!=="rejected"&&a.status!=="cancelled").reduce((x,a)=>x+(a.total||0),0))}</span></div></section>
-    ${st==="new" && !failed ? (S.confirmCancel ? `<section class="card" role="alertdialog" aria-label="Rendelés törlése" style="padding:16px;display:flex;flex-direction:column;gap:10px;border:2px solid #B53A10"><b style="font-size:16px">Biztosan törlöd a #${esc(o.no)} rendelést?</b><span style="font-size:14px;color:#333A35">Amíg a büfé el nem fogadta, ingyen és azonnal visszavonhatod.</span><div class="row"><button class="btn2" data-act="cancelNo">Mégsem</button><button class="btn2" style="background:#9A2A0C;color:#fff;border:0;font-weight:700" data-act="cancelYes">Igen, törlöm</button></div></section>`
+      <div class="row" style="border-top:1px solid var(--line3);padding-top:8px;font-weight:700"><span style="flex:1">Fizetendő átvételkor</span><span>${ft(o.total + addDocs().filter(a=>a.status!=="rejected"&&a.status!=="cancelled").reduce((x,a)=>x+(a.total||0),0))}</span></div></section>
+    ${st==="new" && !failed ? (S.confirmCancel ? `<section class="card" role="alertdialog" aria-label="Rendelés törlése" style="padding:16px;display:flex;flex-direction:column;gap:10px;border:2px solid #B53A10"><b style="font-size:16px">Biztosan törlöd a #${esc(o.no)} rendelést?</b><span style="font-size:14px;color:var(--ink2)">Amíg a büfé el nem fogadta, ingyen és azonnal visszavonhatod.</span><div class="row"><button class="btn2" data-act="cancelNo">Mégsem</button><button class="btn2" style="background:#9A2A0C;color:#fff;border:0;font-weight:700" data-act="cancelYes">Igen, törlöm</button></div></section>`
       : `<button class="btn2" style="color:#9A2A0C;border-color:#E2B5A3" data-act="cancelAsk">${svg('<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',20,"#9A2A0C",2)} Elrontottam – törlöm a rendelést</button>`) : ""}
     ${canAdd(o) ? `<button class="btn2 g" data-act="addMore">${svg('<path d="M12 5v14M5 12h14"/>',20,"#fff",2.4)} Még kérek valamit ehhez a rendeléshez</button>` : ""}
     ${!failed ? `<a class="btn2" href="tel:${PHONE}">${PHONE_ICO} Kérdésed van? ${PHONE_TXT}</a>` : ""}
@@ -287,14 +303,16 @@ function statusView(){
 }
 function blockedView(){
   return `<main class="body" style="padding-top:48px;align-items:stretch;text-align:center;gap:18px">
-    <div style="width:72px;height:72px;border-radius:999px;background:#EEEAE0;display:flex;align-items:center;justify-content:center;align-self:center;color:#4F564F">${PHONE_ICO}</div>
+    <div style="width:72px;height:72px;border-radius:999px;background:var(--line3);display:flex;align-items:center;justify-content:center;align-self:center;color:var(--muted)">${PHONE_ICO}</div>
     <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-size:24px;margin:0">Erről a számról most telefonon rendelj</h1>
-    <p style="font-size:15px;line-height:1.5;color:#333A35;margin:0">Ezen a számon az online rendelés jelenleg nem elérhető. Hívj minket, és szívesen felvesszük a rendelésed.</p>
+    <p style="font-size:15px;line-height:1.5;color:var(--ink2);margin:0">Ezen a számon az online rendelés jelenleg nem elérhető. Hívj minket, és szívesen felvesszük a rendelésed.</p>
     <a class="btn2 g" href="tel:${PHONE}">${PHONE_ICO} ${PHONE_TXT} – hívás</a><button class="btn2" data-act="menu">Vissza</button></main>`;
 }
 
 /* ---------- actions ---------- */
 const A = {
+  theme(){ const order = ["auto","light","dark"], n = order[(order.indexOf(themePref()) + 1) % 3]; try{ localStorage.setItem("pb.theme", n); }catch(e){} applyTheme(); S.keepScroll = true; render();
+    toast(n === "auto" ? "Megjelenés: a telefon beállítását követi" : n === "dark" ? "Megjelenés: sötét" : "Megjelenés: világos"); },
   menu(){ go("menu"); }, cart(){ S.err = {}; go("cart"); }, showStatus(){ go("status"); },
   open(d){ const it = MENU.find(i=>i.id===d.id); if((S.pub.soldOut||{})[it.id]) return toast(it.name + " ma elfogyott."); S.cur = it.id; S.sel = newSel(it); S.qty = 1; go("item"); },
   var(d){ S.sel.v = d.k; S.keepScroll = true; render(); },
