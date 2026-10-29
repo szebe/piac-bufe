@@ -1,0 +1,13 @@
+const { chromium } = require(process.env.PW||'playwright');
+const SP='/tmp/claude-0/-home-claude/e9bfa389-a662-5a2b-a20d-7977b9feea75/scratchpad/';
+(async()=>{ const b = await chromium.launch(); const p = await b.newPage({viewport:{width:390,height:844}});
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockrend.html'); await p.waitForTimeout(400);
+await p.click('[data-act=open][data-id=av]'); await p.click('[data-act=add]'); await p.click('[data-act=cart]');
+await p.click('[data-act=eat][data-k=elvitel]'); await p.fill('#name','Teszt Elek'); await p.fill('#phone','+36301234567'); await p.click('[data-act=submit]'); await p.waitForTimeout(300);
+console.log('no:', await p.evaluate(()=>S.order.no));
+await p.click('[data-act=cancelAsk]'); await p.screenshot({path:SP+'c1.png'});
+await p.click('[data-act=cancelYes]'); await p.waitForTimeout(300);
+console.log('status:', await p.evaluate(()=>S.order.status), '|', (await p.evaluate(()=>document.body.innerText)).split('\n').slice(0,5).join(' / '));
+await p.screenshot({path:SP+'c2.png'});
+await b.close(); })();

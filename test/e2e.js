@@ -41,6 +41,13 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   ok((await mkOrder("w_bad3", Object.assign({}, order, {qtyTotal: 11}))).status === 403, "rules: web order over 10 items denied");
   ok((await mkOrder("w_bad4", Object.assign({}, order, {hack: 1}))).status === 403, "rules: web order with extra field denied");
   ok((await fetch(docUrl("weborders"))).status === 403, "rules: anonymous cannot list web orders");
+  const patchAnon = (id, fields, mask) => fetch(docUrl("weborders/" + id) + "?" + mask.map(m => "updateMask.fieldPaths=" + m).join("&"), {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: toFs(fields).mapValue.fields})});
+  await mkOrder("w_c1", order); await mkOrder("w_c2", order);
+  ok((await patchAnon("w_c1", {status: "cancelled", cancelledAt: Date.now()}, ["status", "cancelledAt"])).status === 200, "rules: customer can cancel a new order");
+  ok((await patchAnon("w_c2", {status: "cancelled", total: 1}, ["status", "total"])).status === 403, "rules: cancel that changes other fields denied");
+  await put("weborders/w_c2", Object.assign({}, order, {status: "accepted"}));
+  ok((await patchAnon("w_c2", {status: "cancelled"}, ["status"])).status === 403, "rules: accepted order cannot be cancelled by customer");
+  await put("weborders/w_c2", Object.assign({}, order, {status: "done"}));
   ok((await fetch(docUrl("weborders/w_ok") + "?updateMask.fieldPaths=status", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {status: {stringValue: "done"}}})})).status === 403, "rules: anonymous cannot update web order");
   ok((await mkOrder("w_add", Object.assign({}, order, {parent: "w_ok", total: 400}))).status === 200, "rules: add-on to open order allowed");
   ok((await mkOrder("w_add2", Object.assign({}, order, {parent: "w_ok", phone: "+36309999999"}))).status === 403, "rules: add-on with other phone denied");

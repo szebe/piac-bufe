@@ -10,7 +10,7 @@
     get: async () => snapDoc(path),
     set: async d => { store.set(path, clone(JSON.parse(JSON.stringify(d)))); notify(); },
     delete: async () => { store.delete(path); notify(); },
-    update: async (...a) => { if(!store.has(path)) { const e = new Error("nf"); e.code="not-found"; throw e; } window.__updates.push({path, a: a.map(x=> x instanceof FieldPath ? x.s.join("|") : x)}); const d = store.get(path);
+    update: async (...a) => { if(a.length === 1 && a[0] && typeof a[0] === "object" && !(a[0] instanceof FieldPath)) a = Object.entries(a[0]).flat(); if(!store.has(path)) { const e = new Error("nf"); e.code="not-found"; throw e; } window.__updates.push({path, a: a.map(x=> x instanceof FieldPath ? x.s.join("|") : x)}); const d = store.get(path);
       for(let i=0;i<a.length;i+=2){ const segs = a[i] instanceof FieldPath ? a[i].s : String(a[i]).split("."); let o = d; segs.slice(0,-1).forEach(k=>{ if(typeof o[k]!=="object"||o[k]===null) o[k]={}; o=o[k]; }); o[segs[segs.length-1]] = clone(a[i+1]===undefined?null:a[i+1]); } notify(); },
     onSnapshot: (cb) => { const l = () => cb(snapDoc(path)); listeners.add(l); l(); return () => listeners.delete(l); }
   }; }

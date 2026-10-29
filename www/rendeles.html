@@ -194,7 +194,7 @@ function go(screen){
 window.addEventListener("popstate", () => { if(S.screen !== "menu"){ S.screen = "menu"; S.err = {}; render(); window.scrollTo(0,0); } });
 
 function menuView(){
-  const os = openState(), cats = [...new Set(MENU.map(i=>i.cat))], last = lsJ("pb.last", null), active = S.order && !["done","rejected","noshow"].includes(S.order.status);
+  const os = openState(), cats = [...new Set(MENU.map(i=>i.cat))], last = lsJ("pb.last", null), active = S.order && !["done","rejected","noshow","cancelled"].includes(S.order.status);
   return `<header class="top"><div class="row1"><div class="brand">Piac Büfé</div><span class="badge">Előrendelés</span></div>
     <div class="sub">Cegléd, Piac · nyitva 6:00–12:30 · fizetés a pultnál</div></header>
   <main class="body">
@@ -261,6 +261,10 @@ function statusView(){
   const step = st==="new" ? 1 : st==="accepted" ? 2 : st==="ready" || st==="done" ? 3 : 1;
   const steps = [["Elküldve","megkaptuk a rendelésed"], st==="new" ? ["Visszaigazolásra vár","a büfé hamarosan jóváhagyja"] : ["Visszaigazolva", o.mins ? `kb. ${o.mins} perc alatt elkészül` : ""], ["Készül", o.readyAt ? `kész kb. ${o.readyAt}-kor` : ""], ["Kész","átveheted a pultnál"]];
   const failed = st==="rejected" || st==="noshow";
+  if(st === "cancelled") return `<main class="body" style="padding-top:28px;padding-bottom:40px;gap:16px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px">Rendelésszám</div><div class="big" style="color:#8E877A;text-decoration:line-through">#${esc(o.no)}</div></div>
+    <section class="card" style="padding:18px;display:flex;flex-direction:column;gap:8px"><b style="font-size:17px">A rendelést törölted</b><span style="font-size:15px;line-height:1.5;color:#333A35">Nem készítjük el, és nem kell fizetned semmit. Ha mégis kérsz valamit, adj le új rendelést.</span></section>
+    <button class="btn2 g" data-act="newOrder">Új rendelés</button></main>`;
   return `<main class="body" style="padding-top:28px;padding-bottom:40px">
     <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><div style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px">Rendelésszám</div><div class="big" style="${failed?"color:#8E877A":""}">#${esc(o.no)}</div><div style="font-size:15px">${esc(o.name)} · ${o.eat==="helyben"?"helyben fogyasztás":"elvitel"} · ${o.when==="asap"?"mielőbb":esc(o.when)}</div></div>
     ${failed ? `<section class="card" style="padding:18px;display:flex;flex-direction:column;gap:10px"><b style="font-size:17px">Most nem tudtuk elkészíteni</b><span style="font-size:15px;line-height:1.5;color:#333A35">${st==="noshow"?"A rendelést nem vették át.":"Nem értünk el a megadott számon, vagy a rendelést most nem tudtuk vállalni."} Ha még kéred, hívj minket, és rögtön összerakjuk.</span></section>
@@ -270,9 +274,11 @@ function statusView(){
     ${st==="new" && !trusted ? `<div class="note w">${PHONE_ICO}<span><b>Most rendelsz először – üdv nálunk!</b><br>A büfé 1–2 percen belül felhívhat a megadott számon, hogy megerősítse a rendelést. Ez csak az első alkalommal van így.</span></div>` : ""}
     <section class="card steps" style="padding:6px 16px">${steps.map((s,i)=>{ const done = i < step || (st==="ready"||st==="done") && i===3, cur = i===step && !done; return `<div class="s"><span class="dot ${done?"done":""} ${cur?"cur":""}">${done?CHECK("#fff"):""}</span><div style="display:flex;flex-direction:column"><span style="font-size:16px;${cur?"font-weight:700":done?"":"color:var(--muted)"}">${s[0]}</span>${s[1]?`<span style="font-size:12px;color:var(--muted)">${esc(s[1])}</span>`:""}</div></div>`; }).join("")}</section>`}
     <section class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:6px;font-size:14px">${(o.items||[]).map(r=>`<div class="row" style="align-items:flex-start"><span style="flex:1">${r.qty}× ${esc(r.name)}${r.opts&&r.opts.length?`<span style="color:var(--muted)"> · ${esc(r.opts.join(", "))}</span>`:""}</span><b>${ft(r.unit*r.qty)}</b></div>`).join("")}
-      ${addDocs().map(a => `<div style="border-top:1px dashed #E2DED3;padding-top:8px;display:flex;flex-direction:column;gap:4px"><div class="row"><b style="flex:1;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:${a.status==="rejected"?"var(--red)":"var(--green)"}">+ Pótrendelés</b><span style="font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;${a.status==="new"?"background:var(--warn);color:#7A4300":a.status==="rejected"?"background:var(--redBg);color:var(--red)":"background:var(--tint);color:var(--green2)"}">${a.status==="new"?"jóváhagyásra vár":a.status==="rejected"?"nem tudtuk hozzáadni":"hozzáadva"}</span></div>
-        ${(a.items||[]).map(r=>`<div class="row" style="align-items:flex-start;${a.status==="rejected"?"text-decoration:line-through;color:var(--muted)":""}"><span style="flex:1">${r.qty}× ${esc(r.name)}${r.opts&&r.opts.length?`<span style="color:var(--muted)"> · ${esc(r.opts.join(", "))}</span>`:""}</span><b>${ft(r.unit*r.qty)}</b></div>`).join("")}</div>`).join("")}
-      <div class="row" style="border-top:1px solid #EEEAE0;padding-top:8px;font-weight:700"><span style="flex:1">Fizetendő átvételkor</span><span>${ft(o.total + addDocs().filter(a=>a.status!=="rejected").reduce((x,a)=>x+(a.total||0),0))}</span></div></section>
+      ${addDocs().map(a => `<div style="border-top:1px dashed #E2DED3;padding-top:8px;display:flex;flex-direction:column;gap:4px"><div class="row"><b style="flex:1;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:${a.status==="rejected"?"var(--red)":"var(--green)"}">+ Pótrendelés</b><span style="font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;${a.status==="new"?"background:var(--warn);color:#7A4300":a.status==="rejected"?"background:var(--redBg);color:var(--red)":"background:var(--tint);color:var(--green2)"}">${a.status==="new"?"jóváhagyásra vár":a.status==="rejected"?"nem tudtuk hozzáadni":a.status==="cancelled"?"törölted":"hozzáadva"}</span>${a.status==="new"?`<button style="border:0;background:none;color:#9A2A0C;font-size:13px;font-weight:600;padding:6px 0 6px 8px;text-decoration:underline" data-act="cancelAdd" data-id="${esc(a.id)}">törlöm</button>`:""}</div>
+        ${(a.items||[]).map(r=>`<div class="row" style="align-items:flex-start;${a.status==="rejected"||a.status==="cancelled"?"text-decoration:line-through;color:var(--muted)":""}"><span style="flex:1">${r.qty}× ${esc(r.name)}${r.opts&&r.opts.length?`<span style="color:var(--muted)"> · ${esc(r.opts.join(", "))}</span>`:""}</span><b>${ft(r.unit*r.qty)}</b></div>`).join("")}</div>`).join("")}
+      <div class="row" style="border-top:1px solid #EEEAE0;padding-top:8px;font-weight:700"><span style="flex:1">Fizetendő átvételkor</span><span>${ft(o.total + addDocs().filter(a=>a.status!=="rejected"&&a.status!=="cancelled").reduce((x,a)=>x+(a.total||0),0))}</span></div></section>
+    ${st==="new" && !failed ? (S.confirmCancel ? `<section class="card" role="alertdialog" aria-label="Rendelés törlése" style="padding:16px;display:flex;flex-direction:column;gap:10px;border:2px solid #B53A10"><b style="font-size:16px">Biztosan törlöd a #${esc(o.no)} rendelést?</b><span style="font-size:14px;color:#333A35">Amíg a büfé el nem fogadta, ingyen és azonnal visszavonhatod.</span><div class="row"><button class="btn2" data-act="cancelNo">Mégsem</button><button class="btn2" style="background:#9A2A0C;color:#fff;border:0;font-weight:700" data-act="cancelYes">Igen, törlöm</button></div></section>`
+      : `<button class="btn2" style="color:#9A2A0C;border-color:#E2B5A3" data-act="cancelAsk">${svg('<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',20,"#9A2A0C",2)} Elrontottam – törlöm a rendelést</button>`) : ""}
     ${canAdd(o) ? `<button class="btn2 g" data-act="addMore">${svg('<path d="M12 5v14M5 12h14"/>',20,"#fff",2.4)} Még kérek valamit ehhez a rendeléshez</button>` : ""}
     ${!failed ? `<a class="btn2" href="tel:${PHONE}">${PHONE_ICO} Kérdésed van? ${PHONE_TXT}</a>` : ""}
     ${st==="done"||st==="ready" ? `<button class="btn2" data-act="newOrder">Új rendelés</button>` : `<button class="btn2" data-act="menu">Vissza az étlaphoz</button>`}
@@ -307,6 +313,13 @@ const A = {
     S.cart = last.items.filter(r => !(S.pub.soldOut||{})[r.id]).map(r => ({...r})); saveCart(); if(off.length) toast("Ma elfogyott: " + off.map(r=>r.name).join(", ")); if(S.cart.length) A.cart(); else render(); },
   newOrder(){ ls.del("pb.active"); ls.del("pb.adds"); if(unsubOrder) unsubOrder(); unsubAdds.forEach(f=>f()); unsubAdds = []; S.adds = {}; S.addFor = null; S.order = null; S.orderId = ""; S.eat = null; go("menu"); },
   addMore(){ if(!canAdd(S.order)) return toast("Ez a rendelés már nem bővíthető – hívj minket: " + PHONE_TXT); S.addFor = S.orderId; S.cart = []; saveCart(); go("menu"); },
+  cancelAsk(){ S.confirmCancel = true; S.keepScroll = true; render(); },
+  cancelNo(){ S.confirmCancel = false; S.keepScroll = true; render(); },
+  async cancelYes(){ S.confirmCancel = false; const id = S.orderId; if(!id || !S.order || S.order.status !== "new") return render();
+    try{ await db.collection("weborders").doc(id).update({status:"cancelled", cancelledAt: Date.now()}); toast("A rendelést töröltük.");
+      for(const a of addDocs().filter(a => a.status === "new")) await db.collection("weborders").doc(a.id).update({status:"cancelled", cancelledAt: Date.now()}).catch(()=>{}); }
+    catch(e){ toast("Már nem törölhető – a büfé közben elfogadta. Hívj minket: " + PHONE_TXT); } S.keepScroll = true; render(); },
+  async cancelAdd(d){ try{ await db.collection("weborders").doc(d.id).update({status:"cancelled", cancelledAt: Date.now()}); toast("A pótrendelést töröltük."); }catch(e){ toast("Már nem törölhető – a büfé közben hozzáadta."); } },
   addCancel(){ S.addFor = null; S.cart = []; saveCart(); go("status"); },
   async submit(){
     const os = openState(); if(!os.ok) return toast(os.msg);
@@ -333,7 +346,7 @@ const A = {
     S.err = err; if(Object.keys(err).length){ S.keepScroll = true; render(); focusErr(err.eat ? "sec-eat" : err.time ? "time" : err.name ? "sec-name" : err.phone ? "sec-phone" : null); return; }
     if(($("hp")||{}).value) return;
     const h = await sha(ph); if(h && (S.pub.blockedH||[]).includes(h)) return go("blocked");
-    const prev = S.order && !["done","rejected","noshow"].includes(S.order.status) && S.order.at > Date.now() - 6*3600000;
+    const prev = S.order && !["done","rejected","noshow","cancelled"].includes(S.order.status) && S.order.at > Date.now() - 6*3600000;
     if(prev) { S.err = {send:`Már van egy folyamatban lévő rendelésed (#${S.order.no}). Várd meg, amíg elkészül, vagy hívj minket.`}; S.keepScroll = true; return render(); }
     ls.set("pb.name", name); ls.set("pb.phone", S.phone.trim());
     const doc = { no: String(100 + Math.floor(Math.random()*900)), at: Date.now(), name: name.slice(0,40), phone: ph, eat: S.eat, when,
@@ -353,7 +366,7 @@ let unsubAdds = [];
 function watchAdd(id){ unsubAdds.push(db.collection("weborders").doc(id).onSnapshot(s => { if(!s.exists) return; S.adds[id] = s.data(); if(S.screen === "status") render(); }, () => {})); }
 function watchOrder(id){ if(unsubOrder) unsubOrder(); let first = true;
   unsubOrder = db.collection("weborders").doc(id).onSnapshot(s => { if(!s.exists){ return; } const o = s.data(), prev = S.order && S.order.status; S.order = o;
-    if(first && S.screen === "menu" && !["done","rejected","noshow"].includes(o.status) && o.at > Date.now() - 12*3600000){ try{ history.pushState({pb:1}, ""); }catch(e){} S.screen = "status"; } first = false;
+    if(first && S.screen === "menu" && !["done","rejected","noshow","cancelled"].includes(o.status) && o.at > Date.now() - 12*3600000){ try{ history.pushState({pb:1}, ""); }catch(e){} S.screen = "status"; } first = false;
     if(["accepted","ready","done"].includes(o.status)) ls.set("pb.trusted", o.phone);
     if(o.status === "ready" && prev && prev !== "ready"){ try{ navigator.vibrate && navigator.vibrate([300,150,300]); }catch(e){} }
     if(o.at < Date.now() - 12*3600000){ ls.del("pb.active"); S.order = null; }
