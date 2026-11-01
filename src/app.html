@@ -543,7 +543,6 @@ function alarmTick(){
   const wn = webNew().filter(o => !(S.snooze["web-"+o.id] > now));
   let next = wn.length ? { id: "web-" + wn[0].id } : due[0];
   if(!next && invDue() && !(S.snooze[INV_ID()] > now)) next = { id: INV_ID() };
-  if(!next && cashDue() && !(S.snooze[CASH_ID()] > now) && S.sub !== "cash") next = { id: CASH_ID() };
   if(!next && kremDue() && !(S.snooze[KREM_ID()] > now)) next = { id: KREM_ID() };
   if(!next && bakeCloseDue() && !(S.snooze["bake-"+today()] > now)) next = { id: "bake-"+today() };
   if(S.close){ document.title = "Büfé CRM"; return; }
@@ -568,7 +567,6 @@ async function nativeSched(){ nCleared = false;
   for(let k = 0; k < 7; k++){ const dd = addDays(new Date(), k), ds = ymd(dd); if(isClosed(ds)) continue;
     const base = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 50).getTime();
     if(hasKrem && (dd.getDay() === 1 || dd.getDay() === 4) && !(k === 0 && !kremDue() && now >= base)){ const done = k === 0 && S.items.filter(i=>i.krem).every(i => i.lastCountDate === ds); if(!done) for(let i = 0; i < 4; i++) add(base + i*5*60000, "⏰ Krémleltár!", "Hétfő/csütörtök 10:50 – számold meg a krémeket."); }
-    if(canCash() && !isReadonly() && S.cashLoaded && shiftOf(ds).some(e => e.staffId === S.me)){ const b11 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 11, 0).getTime(); if(!(k === 0 && !cashDue() && now >= b11)){ const tc = k===0 && S.cash.find(x=>x.date===ds); if(!(tc && tc.close!=null && tc.close!=="")) add(b11, "⏰ Mehet a kasszazárás?", "11:00 – nyisd meg az appot a kasszazáráshoz."); } }
     if(dd.getDay() === 1 || dd.getDay() === 4 || isMonthlyInvDay(ds)){ const b10 = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), 10, 0).getTime();
       if(!(k === 0 && !leltarPending())) for(let i = 0; i < 4; i++) add(b10 + i*15*60000, "⏰ Leltár ma!", (isMonthlyInvDay(ds) ? "Havi leltár" : dd.getDay()===1 ? "Hétfői teljes leltár" : "Csütörtöki részleges leltár") + " – indítsd el az appban."); }
     if(k === 0){ const doc = bakeDoc(ds); if(!(doc && doc.remaining) && (hasArrived(doc) || Object.keys(openingFor(ds)).length)) for(let i = 0; i < 3; i++) add(base + 5*60000 + i*5*60000, "⏰ Pékáru zárás", "10:55 – írd be a maradékot."); }
