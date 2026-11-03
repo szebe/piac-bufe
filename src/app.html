@@ -1318,6 +1318,7 @@ function moreView(){
   if(S.sub==="bakery") return bakeryView();
   if(S.sub==="olog") return orderLogView();
   if(S.sub==="msgs") return msgsView();
+  if(S.sub==="pw") return pwView();
   if(S.sub==="reqs"){ S.sub=null; S.tab="shift"; S.unOpen=true; return shiftView(); }
   if(S.sub==="settings") return settingsView();
   const um = unreadMsgs(), rq = openReqs().length;
@@ -1326,10 +1327,18 @@ function moreView(){
     <button data-act="goSub" data-sub="bakery"><span class="grow">Pékáru érkezés<small>Naponta beérkezett kifli, zsemle, kenyér</small></span>›</button>
     <button data-act="goSub" data-sub="temp"><span class="grow">Hőmérsékletnapló<small>Hűtők hőfoka nyitáskor</small></span>›</button>
     <button data-act="goSub" data-sub="msgs"><span class="grow">Üzenőfal<small>${um?`${um} olvasatlan`:"Közlemények"}</small></span>${um?`<span class="pill d">${um}</span>`:""}›</button>
+    ${S.me?`<button data-act="goSub" data-sub="pw"><span class="grow">Jelszó módosítása<small>A saját belépési jelszavad (${esc(staffName(S.me))})</small></span>›</button>`:""}
     <button data-act="goSub" data-sub="settings"><span class="grow">Beállítások<small>${isAdmin()?"Kollégák, hűtők, zárva tartás":"Admin belépés"}</small></span>›</button>
   </div>`;
 }
 const back = `<button class="back" data-act="goSub" data-sub="">‹ Vissza</button>`;
+function pwView(){ const s = S.cfg.staff.find(x=>x.id===S.me); if(!s) return header("Jelszó módosítása") + `<div class="stack">${back}<section class="card"><p class="muted">Előbb válaszd ki a neved.</p></section></div>`;
+  return header("Jelszó módosítása") + `<div class="stack">${back}<section class="card"><h3>${esc(s.name)} – jelszó módosítása</h3>
+    ${s.pinHash ? `<label class="field"><span>Jelenlegi jelszó</span><input id="pwOld" type="password" autocomplete="current-password" data-f="f.pwOld" value=""></label>` : ""}
+    <label class="field"><span>Új jelszó (legalább 4 karakter)</span><input id="pwNew" type="password" autocomplete="new-password" data-f="f.pwNew" value=""></label>
+    <label class="field"><span>Új jelszó még egyszer</span><input id="pwNew2" type="password" autocomplete="new-password" data-f="f.pwNew2" value=""></label>
+    <button class="btn pri" style="width:100%" data-act="pwChange">Jelszó módosítása</button>
+    <p class="small muted">Ha elfelejtetted a jelenlegi jelszavad, az Admin (főfiók) a Beállítások → Kollégák listában törölni tudja, és a következő belépéskor újat adhatsz meg.</p></section></div>`; }
 
 function loadCashDraft(){
   const c = S.cash.find(x=>x.date===S.cashDate);
@@ -1622,7 +1631,7 @@ function settingsView(){
 const cfgRef = "config/main";
 async function saveCfg(patch){ const next = Object.assign({}, S.cfg, patch); next.emails = staffEmails(next.staff); S.cfg = next; render(); await write(cfgRef, r => r.set(next)); }
 const RO_FIELDS = new Set(["cashDate","tempDate","f.pinIn2","f.pinA","f.pinB","f.pinTrust","f.lgEm","f.lgPw"]);
-const RO_OK = new Set(["nav","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","webOpen","webBack","loyOpen","loyBack","loyReset","loyFind","loyScan","loyScanCancel","fbLogout","fbRetry","lgMode","fbVerified","fbResend","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","unOpen","goUnavail","ologOpen","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
+const RO_OK = new Set(["nav","pwChange","goSub","fbLogin","pickMe","pinBack","pinEnter","pinCreate","switchMe","webOpen","webBack","loyOpen","loyBack","loyReset","loyFind","loyScan","loyScanCancel","fbLogout","fbRetry","lgMode","fbVerified","fbResend","dismiss","sound","wake","personCal","personCalClose","personMonth","week","shiftHist","shiftHistClose","calStep","invTab","itemOpen","ologStep","bakeToggle","bakeOrdToggle","wasteStep","movesFilter","sortMode","celebDemo","cashWeek","stockStep","msgOpen","unStep","unOpen","goUnavail","ologOpen","goLeltar","cashPopClose","cashOfferLater","goShift","invClose","forgetLogins"]);
 const A = {
   webOpen(d){ S.tab = "order"; S.sub = "web"; if(d && d.id) S.snooze["web-"+d.id] = Date.now() + 90000; S.alarmFor = null; renderAlarm(); window.scrollTo(0,0); render(); },
   webBack(){ S.sub = null; render(); },
@@ -1726,6 +1735,12 @@ const A = {
     if(roleOf(s)==="owner" && r!=="owner" && S.cfg.staff.filter(x=>roleOf(x)==="owner").length<=1) { render(); return toast("Legalább egy Admin (főfiók) kell."); }
     await saveCfg({staff: S.cfg.staff.map(x => x.id===d.id ? {...x, role:r, admin:(r==="admin"||r==="owner")} : x)}); toast(`${s.name}: ${roleName(r)}`); },
   async staffPinReset(d){ const s = S.cfg.staff.find(x=>x.id===d.id); if(!s) return; await saveCfg({staff: S.cfg.staff.map(x => { if(x.id!==d.id) return x; const y = {...x}; delete y.pinHash; return y; })}); toast(`${s.name}: jelszó törölve, a következő belépéskor újat kell megadni.`); },
+  async pwChange(){ const s = S.cfg.staff.find(x=>x.id===S.me); if(!s) return; const o = S.f.pwOld||"", a = S.f.pwNew||"", b = S.f.pwNew2||"";
+    if(s.pinHash && await pinHash(s.id, o) !== s.pinHash) return toast("A jelenlegi jelszó hibás.");
+    if(a.length < 4) return toast("Az új jelszó legalább 4 karakter legyen."); if(a !== b) return toast("A két új jelszó nem egyezik.");
+    const h = await pinHash(s.id, a); await saveCfg({staff: S.cfg.staff.map(x => x.id===s.id ? {...x, pinHash:h} : x)});
+    const m = trustMap(); if(m[s.id]){ m[s.id] = h; ls.set("bufe.trust", JSON.stringify(m)); }
+    delete S.f.pwOld; delete S.f.pwNew; delete S.f.pwNew2; S.sub = null; render(); toast("Jelszó módosítva."); },
   switchMe(){ if(BACKEND==="fb"){ if(S.logoutAsk && Date.now() - S.logoutAsk < 4000) return A.fbLogout(); S.logoutAsk = Date.now(); return toast(`${(meStaff()||{}).name||""} – koppints még egyszer a kilépéshez.`); }
     S.me = ""; ls.del("bufe.me"); S.unlockedId = ""; S.pinFor = null; render(); },
   async staffEmail(d){ const s = S.cfg.staff.find(x=>x.id===d.id); if(!s) return; const em = normEm(S.f["em_"+d.id] ?? s.email);
