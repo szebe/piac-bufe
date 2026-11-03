@@ -10,5 +10,5 @@ await p.click('[data-act=homeWd]'); await p.waitForTimeout(200);
 console.log('title:', await p.evaluate(()=>document.body.innerText.includes('Új pénzkivét')));
 await p.fill('#cpVal','5000'); await p.fill('#cpNote','tulaj'); await p.click('[data-act=cashPopOk]'); await p.waitForTimeout(400);
 console.log(await p.evaluate(()=>[...document.querySelectorAll('section.card')].map(x=>x.innerText).find(t=>t.includes('pénzkivét'))));
-await p.screenshot({path:'/tmp/claude-0/t60.png'});
+await p.click('[data-act=homeExp]'); await p.fill('#cpVal','1800'); await p.click('[data-act=cashPopOk]'); await p.waitForTimeout(400); await p.screenshot({path:'/tmp/claude-0/t60.png'});
 await b.close(); })();
