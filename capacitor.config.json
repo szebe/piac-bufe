@@ -2,8 +2,16 @@
   "appId": "hu.piacbufe.crm",
   "appName": "Piac Büfé",
   "webDir": "www",
-  "android": { "allowMixedContent": false },
+  "android": {
+    "allowMixedContent": false
+  },
   "plugins": {
-    "LocalNotifications": { "iconColor": "#1F6F4A" }
+    "LocalNotifications": {
+      "iconColor": "#1F6F4A"
+    }
+  },
+  "server": {
+    "url": "https://piacbufe83.hu/app/",
+    "errorPath": "offline.html"
   }
 }

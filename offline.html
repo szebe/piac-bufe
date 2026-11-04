@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Piac Büfé – nincs kapcsolat</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f3f5f1;color:#1d2420;font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px;box-sizing:border-box;text-align:center}
+.box{max-width:340px}h1{font-size:1.4rem;margin:0 0 8px}p{color:#5d6a63;margin:0 0 20px}
+button{border:0;border-radius:14px;background:#1F6F4A;color:#fff;font:600 1.05rem system-ui,sans-serif;padding:14px 22px;width:100%}
+.s{font-size:.85rem;margin-top:14px}
+</style></head><body><div class="box">
+<h1>Nincs internetkapcsolat</h1>
+<p>A Piac Büfé app az internetről töltődik be, hogy mindig a legfrissebb változat fusson. Kapcsold be a mobilnetet vagy a Wi-Fit, és próbáld újra.</p>
+<button onclick="location.href='https://piacbufe83.hu/app/'">Újrapróbálás</button>
+<p class="s" id="t"></p>
+</div>
+<script>
+window.addEventListener("online", function(){ location.href = "https://piacbufe83.hu/app/"; });
+var n = 0; setInterval(function(){ n++; if(navigator.onLine && n % 15 === 0) location.href = "https://piacbufe83.hu/app/"; }, 1000);
+</script></body></html>

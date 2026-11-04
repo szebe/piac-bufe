@@ -2228,6 +2228,27 @@ let lastDay = today();
 let lastHalf = new Date().getHours() >= 12;
 setInterval(()=>{ alarmTick(); const h = new Date().getHours() >= 12; if(today() !== lastDay || h !== lastHalf){ lastDay = today(); lastHalf = h; render(); } }, 15000);
 document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) alarmTick(); });
+/* ---- automatikus frissítés: új kiadás esetén újratölt (androidos app és web) ---- */
+const UPD = { newVer:false, target:"", lastTouch:Date.now() };
+function updReload(){ const v = UPD.target || ""; try{ if(sessionStorage.getItem("bufe.updTry") === v && v){ UPD.auto = false; } sessionStorage.setItem("bufe.updTry", v); }catch(e){}
+  location.replace(location.pathname + "?v=" + encodeURIComponent(v) + location.hash); }
+function updBusy(){ const ae = document.activeElement; return !!(S.cashPop || S.alarmFor || S.close || (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) || document.querySelector(".alarm")); }
+function updBanner(){ let el = document.getElementById("updbar"); if(!UPD.newVer){ if(el) el.remove(); return; }
+  if(!el){ el = document.createElement("div"); el.id = "updbar"; el.setAttribute("role","status");
+    el.style.cssText = "position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:60;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--accent,#1F6F4A);color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.25);font-weight:600";
+    el.innerHTML = '<span style="flex:1">Új verzió érhető el</span><button style="border:0;border-radius:10px;padding:8px 14px;font:inherit;background:#fff;color:var(--accent,#1F6F4A)">Frissítés</button>';
+    el.querySelector("button").onclick = () => updReload(); document.body.appendChild(el); } }
+async function updCheck(){ if(!window.APP_VERSION || !/^https?:$/.test(location.protocol)) return;
+  try{ const r = await fetch("version.json?t=" + Date.now(), {cache:"no-store"}); if(!r.ok) return; const j = await r.json();
+    if(j && j.v && j.v !== window.APP_VERSION){ UPD.newVer = true; UPD.target = j.v;
+      if(updAuto() && !updBusy() && (document.hidden || Date.now() - UPD.lastTouch > 3*60000)) return updReload();
+      updBanner(); } }catch(e){} }
+["pointerdown","keydown"].forEach(ev => document.addEventListener(ev, () => { UPD.lastTouch = Date.now(); }, {passive:true}));
+// ugyanarra a verzióra csak egyszer próbál magától újratölteni (ha a szerver még a régit adná, nem lesz végtelen ciklus)
+function updAuto(){ try{ return sessionStorage.getItem("bufe.updTry") !== UPD.target; }catch(e){ return true; } }
+document.addEventListener("visibilitychange", () => { if(!document.hidden){ if(UPD.newVer && updAuto() && !updBusy()) return updReload(); updCheck(); } });
+setInterval(() => { if(UPD.newVer){ if(updAuto() && !updBusy() && Date.now() - UPD.lastTouch > 3*60000) updReload(); else updBanner(); } else updCheck(); }, 60000);
+setTimeout(updCheck, 5000);
 const CELEB_AUDIO = {}; /* zenék: Firestore assets/audio_* (artifact-változatnál publikáláskor kerül be) */
 boot();
 </script>
