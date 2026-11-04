@@ -38,4 +38,6 @@ for f, src in [("qrcode.js", "node_modules/qrcode-generator/qrcode.js"), ("jsQR.
 (root / "www/rendeles.html").write_text((root / "src/rendeles.html").read_text(encoding="utf-8"), encoding="utf-8")
 sw = (root / "sw.template.js").read_text(encoding="utf-8").replace("__VERSION__", ver)
 (root / "www/sw.js").write_text(sw, encoding="utf-8")
+(root / "www/version.json").write_text(json.dumps({"v": ver}), encoding="utf-8")
+(root / "www/offline.html").write_text((root / "offline.html").read_text(encoding="utf-8"), encoding="utf-8")
 print("built www/index.html", ver, len(out)//1024, "KB")
