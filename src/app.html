@@ -710,7 +710,7 @@ function prevCash(date){ return S.cash.filter(c => c.date < date && c.close!=nul
 function cashCalc(c, prev){
   const exp = (c.exp||[]).reduce((a,e)=> a + num(e.amt), 0), wd = (c.wd||[]).reduce((a,e)=> a + num(e.amt), 0);
   if(!prev || c.close==="" || c.close==null) return { exp, wd, cashT:null, total:null };
-  const cashT = num(c.close) - num(prev.close) + exp + wd;
+  const cashT = num(c.close) - (num(prev.close) - (prev.wdAfter||[]).reduce((a,e)=> a + num(e.amt), 0)) + exp + wd;
   return { exp, wd, cashT, total: cashT + num(c.card) };
 }
 
@@ -1014,6 +1014,8 @@ function homeViewInner(){
     ${lp ? `<section class="card invcta"><div class="label">Ma leltárnap</div><h3 style="margin:2px 0 4px">${esc(lt.name)}</h3><div class="small">${lt.items.length} tételből <b>${lp}</b> van hátra.</div><button class="btn pri" style="width:100%;margin-top:10px;font-size:1.1rem" data-act="invStart">Leltár indítása</button></section>` : ""}
     ${freezerSection()}
     ${bakeryBox()}
+    ${(()=>{ if(!cashClosedToday() || !isOwnerish()) return ""; const tc = S.cash.find(x=>x.date===today()), wa = (tc && tc.wdAfter) || [], s2 = wa.reduce((a,e)=>a+num(e.amt),0);
+      return `<section class="card"><div class="row"><span class="grow"><b>Pénzkivét zárás után</b><br><span class="small muted">${wa.length ? `${wa.length} tétel · ${ft(s2)}` : "a kassza már le van zárva"}</span></span><button class="btn sm pri" data-act="homeWdAfter">+ Pénzkivét</button></div></section>`; })()}
     ${(()=>{ if(cashClosedToday()) return ""; const tc = S.cash.find(x=>x.date===today()), ex = (tc && tc.exp) || [], sum = ex.reduce((a,e)=>a+num(e.amt),0), wd = (tc && tc.wd) || [], wsum = wd.reduce((a,e)=>a+num(e.amt),0);
       const tile = (t, n, v, act, lbl) => `<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px"><b>${t}</b><span class="small muted" style="white-space:nowrap">${n ? ft(v) : "–"}</span></div><button class="btn sm pri" style="width:100%" data-act="${act}">${lbl}</button></div>`;
       return `<section class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${tile("Kiadás", ex.length, sum, "homeExp", "+ Kiadás")}${tile("Pénzkivét", wd.length, wsum, "homeWd", "+ Pénzkivét")}</section>`; })()}
@@ -1308,7 +1310,7 @@ function pwView(){ const s = S.cfg.staff.find(x=>x.id===S.me); if(!s) return hea
 
 function loadCashDraft(){
   const c = S.cash.find(x=>x.date===S.cashDate);
-  S.cashDraft = c ? JSON.parse(JSON.stringify({close:c.close??"",card:c.card??"",exp:c.exp||[],wd:c.wd||[]})) : {close:"",card:"",exp:[],wd:[]};
+  S.cashDraft = c ? JSON.parse(JSON.stringify({close:c.close??"",card:c.card??"",exp:c.exp||[],wd:c.wd||[],wdAfter:c.wdAfter||[]})) : {close:"",card:"",exp:[],wd:[],wdAfter:[]};
 }
 const MEDAL_GOLD = `<svg class="medal" viewBox="0 0 34 34" aria-hidden="true"><path d="M10 2h5l2 8-5 3zM24 2h-5l-2 8 5 3z" fill="#b3261e"/><circle cx="17" cy="21" r="11" fill="#e4a92a" stroke="#8a5a00" stroke-width="2"/><path d="M17 14l2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z" fill="#fff6d8"/></svg>`;
 const MEDAL_SILVER = `<svg class="medal" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="19" r="10" fill="#cfd6d9" stroke="#6b7a80" stroke-width="2"/><text x="17" y="23" text-anchor="middle" font-size="11" font-weight="800" fill="#3d4a50" font-family="system-ui,sans-serif">2</text></svg>`;
@@ -1354,19 +1356,20 @@ function cashRow(k, label, val, sub){
 }
 function cashPopView(){
   const p = S.cashPop; if(!p) return "";
-  const c = S.cashDraft, title = {close:"Záró egyenleg (készpénz)", card:"Bankkártyás forgalom", exp:"Új kiadás", wd:"Új pénzkivét"}[p.k];
-  const list = p.k==="exp" ? c.exp : p.k==="wd" ? c.wd : null;
+  const c = S.cashDraft, title = {close:"Záró egyenleg (készpénz)", card:"Bankkártyás forgalom", exp:"Új kiadás", wd:"Új pénzkivét", wda:"Pénzkivét kasszazárás után"}[p.k];
+  const list = p.k==="exp" ? c.exp : p.k==="wd" ? c.wd : p.k==="wda" ? (c.wdAfter = c.wdAfter || []) : null;
   return `<div class="alarm" role="dialog" aria-modal="true" aria-labelledby="cpT"><div class="box calm">
     <h3 id="cpT" style="margin:0">${title}</h3>
-    ${list && list.length ? `<div class="list">${list.map((e,i)=>`<div class="li"><span class="grow">${esc((p.k==="exp"?e.name:e.note)||"–")}${p.k==="wd"&&e.by?` <span class="small muted">(${esc(staffName(e.by))})</span>`:""}</span><b class="num">${ft(e.amt)}</b><button class="btn sm ghost" data-act="cashPopDel" data-i="${i}" aria-label="Törlés">✕</button></div>`).join("")}</div>` : ""}
+    ${list && list.length ? `<div class="list">${list.map((e,i)=>`<div class="li"><span class="grow">${esc((p.k==="exp"?e.name:e.note)||"–")}${p.k!=="exp"&&e.by?` <span class="small muted">(${esc(staffName(e.by))})</span>`:""}</span><b class="num">${ft(e.amt)}</b><button class="btn sm ghost" data-act="cashPopDel" data-i="${i}" aria-label="Törlés">✕</button></div>`).join("")}</div>` : ""}
     <label class="field"><span>Összeg (Ft)</span><input id="cpVal" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-f="cashPop.val" value="${esc(p.val||"")}"></label>
+    ${p.k==="wda" ? `<p class="small muted" style="margin:0">A mai zárás már megtörtént. Ez az összeg a holnapi nyitó készpénzből vonódik le, így a holnapi forgalom pontos marad.</p>` : ""}
     ${list ? `<label class="field"><span>${p.k==="exp"?"Megnevezés, pl. tej – Spar":"Megjegyzés, pl. bankba befizetés"} (nem kötelező)</span><input id="cpNote" data-f="cashPop.note" value="${esc(p.note||"")}"></label>` : ""}
     <div class="row"><button class="btn grow" data-act="cashPopClose">Mégse</button><button class="btn pri grow" data-act="cashPopOk">OK</button></div>
   </div></div>`;
 }
 /* ---- Google Táblázat szinkron ---- */
 function driveRow(c){ const r = cashCalc(c, prevCash(c.date)), d = parseYmd(c.date);
-  return { date:c.date, nap:DAYS[d.getDay()], close:c.close, card:c.card, exp:r.exp, expList:(c.exp||[]).map(e=>`${e.name}: ${e.amt}`).join("; "), wd:r.wd, wdList:(c.wd||[]).map(e=>`${e.note||"kivét"}: ${e.amt}${e.by?" ("+staffName(e.by)+")":""}`).join("; "), cashT:r.cashT, total:r.total, by:staffName(c.by), at:c.at ? new Date(c.at).toLocaleString("hu-HU") : "" }; }
+  return { date:c.date, nap:DAYS[d.getDay()], close:c.close, card:c.card, exp:r.exp, expList:(c.exp||[]).map(e=>`${e.name}: ${e.amt}`).join("; "), wd:r.wd, wdList:[...(c.wd||[]).map(e=>`${e.note||"kivét"}: ${e.amt}${e.by?" ("+staffName(e.by)+")":""}`), ...(c.wdAfter||[]).map(e=>`zárás után – ${e.note||"kivét"}: ${e.amt}${e.by?" ("+staffName(e.by)+")":""}`)].join("; "), cashT:r.cashT, total:r.total, by:staffName(c.by), at:c.at ? new Date(c.at).toLocaleString("hu-HU") : "" }; }
 const driveTargets = () => ((S.drive && S.drive.targets) || []).filter(t => t && t.url && t.key);
 async function drivePushOne(t, rows){
   const res = await fetch(t.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({key:t.key, rows})});
@@ -1387,7 +1390,8 @@ async function saveCashDraft(){
   const exp = c.exp.filter(e => num(e.amt)).map(e => ({name:(e.name||"").trim()||"Kiadás", amt:num(e.amt)}));
   const wd = c.wd.filter(e => num(e.amt)).map(e => ({note:(e.note||"").trim(), amt:num(e.amt), by:e.by||S.me}));
   const old = S.cash.find(x=>x.date===S.cashDate), oldTot = old ? cashTotal(old) : null;
-  const doc = {date:S.cashDate, close: c.close===""||c.close==null ? null : num(c.close), card: c.card===""||c.card==null ? null : num(c.card), exp, wd, ...by()};
+  const wdAfter = (c.wdAfter||[]).filter(e => num(e.amt)).map(e => ({note:(e.note||"").trim(), amt:num(e.amt), by:e.by||S.me, at:e.at||Date.now()}));
+  const doc = {date:S.cashDate, close: c.close===""||c.close==null ? null : num(c.close), card: c.card===""||c.card==null ? null : num(c.card), exp, wd, ...(wdAfter.length ? {wdAfter} : {}), ...by()};
   const i = S.cash.findIndex(x=>x.date===S.cashDate); if(i>=0) S.cash[i]=doc; else S.cash.push(doc); render();
   await write("cash/"+S.cashDate, r=>r.set(doc));
   driveAfterSave(doc.date);
@@ -1420,6 +1424,7 @@ function cashView(){
       ${cashRow("close", "Záró egyenleg (készpénz)", c.close===""||c.close==null ? null : ft(c.close))}
       ${cashRow("exp", "Kiadások összesen", ft(r.exp), c.exp.length ? c.exp.length + " tétel" : "")}
       ${cashRow("wd", "Pénzkivét összesen", ft(r.wd), c.wd.length ? c.wd.length + " tétel" : "")}
+      ${(c.wdAfter||[]).length ? (isOwnerish() ? cashRow("wda", "Pénzkivét zárás után", ft(c.wdAfter.reduce((x,e)=>x+num(e.amt),0)), "a következő napi nyitóból vonódik le") : `<tr><td>Pénzkivét zárás után<br><span class="small muted">a következő napi nyitóból vonódik le</span></td><td class="r"><b>${ft(c.wdAfter.reduce((x,e)=>x+num(e.amt),0))}</b></td></tr>`) : ""}
       <tr><td>Készpénzes forgalom</td><td class="r">${r.cashT==null?"—":ft(r.cashT)}</td></tr>
       ${cashRow("card", "Bankkártyás forgalom", c.card===""||c.card==null ? null : ft(c.card))}
       <tr><td><b>Teljes napi forgalom</b></td><td class="r"><b>${r.total==null?"—":ft(r.total)}</b></td></tr>
@@ -1821,12 +1826,13 @@ const A = {
   cashPop(d){ const c = S.cashDraft; S.cashPop = {k:d.k, val: (d.k==="close"||d.k==="card") ? String(c[d.k]??"") : "", note:""}; render(); setTimeout(()=>{ const el = $("#cpVal"); if(el){ el.focus(); el.select && el.select(); } }, 30); },
   cashPopClose(){ S.cashPop = null; render(); },
   homeExp(){ S.cashDate = today(); loadCashDraft(); S.cashPop = {k:"exp", val:"", note:"", home:true}; render(); setTimeout(()=>{ const el = $("#cpVal"); el && el.focus(); }, 30); },
+  homeWdAfter(){ if(!isOwnerish()) return; S.cashDate = today(); loadCashDraft(); S.cashPop = {k:"wda", val:"", note:"", home:true}; render(); setTimeout(()=>{ const el = $("#cpVal"); el && el.focus(); }, 30); },
   homeWd(){ S.cashDate = today(); loadCashDraft(); S.cashPop = {k:"wd", val:"", note:"", home:true}; render(); setTimeout(()=>{ const el = $("#cpVal"); el && el.focus(); }, 30); },
-  async cashPopDel(d){ const p = S.cashPop; if(!p) return; const arr = p.k==="exp" ? S.cashDraft.exp : S.cashDraft.wd; arr.splice(+d.i, 1); render(); await saveCashDraft(); },
+  async cashPopDel(d){ const p = S.cashPop; if(!p) return; const arr = p.k==="exp" ? S.cashDraft.exp : p.k==="wda" ? S.cashDraft.wdAfter : S.cashDraft.wd; arr.splice(+d.i, 1); render(); await saveCashDraft(); },
   async cashPopOk(){ const p = S.cashPop, c = S.cashDraft; if(!p) return; const raw = String(p.val||"").replace(/\s/g,"");
     if(p.k==="close" || p.k==="card"){ if(raw!=="" && !/^\d+$/.test(raw)) return toast("Csak számot írj be."); c[p.k] = raw; }
     else { if(raw==="") { S.cashPop = null; return render(); } if(!/^\d+$/.test(raw)) return toast("Csak számot írj be.");
-      if(p.k==="exp") c.exp.push({name:(p.note||"").trim()||"Kiadás", amt:num(raw)}); else c.wd.push({note:(p.note||"").trim(), amt:num(raw), by:S.me}); }
+      if(p.k==="exp") c.exp.push({name:(p.note||"").trim()||"Kiadás", amt:num(raw)}); else if(p.k==="wda") (c.wdAfter = c.wdAfter || []).push({note:(p.note||"").trim(), amt:num(raw), by:S.me, at:Date.now()}); else c.wd.push({note:(p.note||"").trim(), amt:num(raw), by:S.me}); }
     const pr = saveCashDraft(); S.cashPop = null; render(); await pr; },
   expAdd(){ S.cashDraft.exp.push({name:"",amt:""}); render(); },
   expDel(d){ S.cashDraft.exp.splice(+d.i,1); render(); },
