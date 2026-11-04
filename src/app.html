@@ -1982,7 +1982,7 @@ function onField(e){
   if(el.dataset.actChange==="cashDate" && e.type==="change"){ S.cashDraft=null; render(); return; }
   if(el.dataset.actChange==="tempDate" && e.type==="change"){ S.tempDraft={}; render(); return; }
   if(f.startsWith("bk.") && !S.f.bkEdit && !hasArrived(bakeDoc(today())) && BAKERY.every(([k])=> S.bk[k]!=null && S.bk[k]!=="")){ A.bakeSave().catch(()=>{}); return; }
-  if(f.startsWith("bo.") && BAKERY.every(([k])=> S.bo[k]!=null && S.bo[k]!=="")){ const d = bakeDoc(today()); if(d && !d.ordered){ A.bakeOrdSave().catch(()=>{}); return; } }
+  if(f.startsWith("bo.") && BAKERY.every(([k])=> S.bo[k]!=null && S.bo[k]!=="")){ const d = bakeDoc(today()); if(!(d && d.ordered)){ A.bakeOrdSave().catch(()=>{}); return; } }
   if(f.startsWith("close.")){ renderAlarm(); return; }
   if(el.tagName==="SELECT" || el.type==="checkbox" || (el.dataset.rr && e.type==="input")) render();
 }
