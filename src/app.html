@@ -947,6 +947,11 @@ function bakeryBox(){
     out += `<section class="bake todo"><button data-act="bakeOrdToggle" aria-expanded="${!!S.bakeOrdOpen}"><span class="grow">Holnapra rendelt pékáru: még nincs beírva</span><span>${S.bakeOrdOpen?"▴":"▾"}</span></button>
     ${S.bakeOrdOpen?`<div class="body">${bakeSelects("bo", S.bo, 300)}<div class="small">Ha mindhármat kiválasztottad, automatikusan ment.</div></div>`:""}</section>`;
   }
+  if(d && d.remaining && d.ordered){
+    let nx = addDays(new Date(), 1); for(let i=0; i<7 && isClosed(ymd(nx)); i++) nx = addDays(nx, 1);
+    const when = ymd(nx) === ymd(addDays(new Date(), 1)) ? "Holnap" : DAYS[nx.getDay()].replace(/^./, x=>x.toUpperCase());
+    out += `<section class="shiftbar bakebar"><span class="label">${when} érkezik</span><span class="small">${bakeLine(d.ordered)}</span></section>`;
+  }
   if(!(d && d.remaining)){
     out += `<section class="shiftbar bakebar"><span class="label">Pékáru a büfében</span><span class="small">${bakeLine(bakeStock(today()))}</span>${d && d.ordered?`<span class="small muted">· holnapra rendelve: ${BAKERY.map(([k])=>d.ordered[k]||0).join(" / ")}</span>`:""}</section>`;
   }
