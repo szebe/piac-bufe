@@ -351,6 +351,21 @@ body.wide #app{max-width:1400px}
 .wbmins .btn{padding:6px 0;display:flex;flex-direction:column;align-items:center;line-height:1.05}
 .wbtime{font-size:.9rem;font-weight:800;padding:3px 9px;border-radius:7px;background:var(--accent-soft);color:var(--accent)}
 .wbtime.late{background:var(--danger-soft);color:var(--danger)}
+#wkCard{overflow:hidden;touch-action:pan-y}
+#wkSlide{will-change:transform}
+.wkhead{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.wkt{flex:1;min-width:0;text-align:center;display:flex;flex-direction:column;line-height:1.25}
+.wkt b{white-space:nowrap;font-size:1.05rem}
+.wkarr{flex:0 0 auto;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:1.5rem;line-height:1;display:flex;align-items:center;justify-content:center;padding:0 0 3px}
+.wkarr:disabled{visibility:hidden}
+.wktbl td{white-space:nowrap}
+.wktbl td:first-child{overflow:hidden;text-overflow:ellipsis;max-width:0;width:100%}
+.wktbl tr.wktoday td{background:rgba(46,160,110,.25);background:color-mix(in srgb, var(--accent, #1F6F4A) 28%, transparent);font-weight:700}
+.wktbl tr.wktoday td:first-child{border-radius:10px 0 0 10px;padding-left:8px}
+.wktbl tr.wktoday td:last-child{border-radius:0 10px 10px 0;padding-right:8px}
+.wkdots{display:flex;justify-content:center;gap:6px;margin-top:10px}
+.wkdots i{width:7px;height:7px;border-radius:50%;background:var(--line);transition:all .2s}
+.wkdots i.on{width:18px;border-radius:4px;background:var(--accent, #1F6F4A)}
 </style>
 
 <div id="app"></div>
@@ -1018,15 +1033,17 @@ function readonlyHome(){
   const off = S.roWk || 0, now = new Date(), mon = addDays(now, -((now.getDay()+6)%7) - 7*off), td = today();
   const rows = []; let tot = 0;
   for(let i = 0; i < 7; i++){ const d = ymd(addDays(mon, i)), fut = d > td, c = S.cash.find(x=>x.date===d), t = c ? cashTotal(c) : null; if(t != null) tot += t;
-    rows.push(`<tr${d===td?' style="font-weight:700"':""}><td>${DAYS[parseYmd(d).getDay()].replace(/^./,x=>x.toUpperCase())}, ${fmtDay(d).split(",")[0]}${d===td?' <span class="small muted">(ma)</span>':""}</td><td class="r"><b>${t==null ? (isClosed(d) ? '<span class="muted">zárva</span>' : '<span class="muted">—</span>') : fut ? "" : ft(t)}</b></td></tr>`); }
+    rows.push(`<tr class="${d===td?"wktoday":""}"><td>${DAYS[parseYmd(d).getDay()].replace(/^./,x=>x.toUpperCase())}, ${fmtDay(d).split(",")[0]}</td><td class="r"><b>${t==null ? (isClosed(d) ? '<span class="muted">zárva</span>' : '<span class="muted">—</span>') : fut ? "" : ft(t)}</b></td></tr>`); }
   const sun = ymd(addDays(mon, 6)), wkTitle = off===0 ? "Forgalom – e hét" : off===1 ? "Forgalom – múlt hét" : "Forgalom";
   const range = `${fmtDay(ymd(mon)).split(",")[0]} – ${fmtDay(sun).split(",")[0]}`;
   const watch = ["hus-suritmeny","gomba-suritmeny"].map(id => S.items.find(i=>i.id===id)).filter(Boolean);
   return header() + `<div class="stack rohome">
     ${freezerSection()}
     ${shiftBars()}
-    <section class="card" id="wkCard" style="touch-action:pan-y"><div class="row" style="align-items:center;gap:8px"><button class="btn sm ghost" data-act="roWk" data-d="1" aria-label="Előző hét">‹</button><span class="grow" style="text-align:center"><b>${wkTitle}</b><br><span class="small muted">${range}</span></span><button class="btn sm ghost" data-act="roWk" data-d="-1" aria-label="Következő hét" ${off===0?'disabled style="visibility:hidden"':""}>›</button></div>
-      <table class="tbl"><tbody>${rows.join("")}</tbody></table><div class="row" style="border-top:2px solid var(--fg);margin-top:6px;padding-top:8px"><b class="grow">Heti összesen</b><b>${ft(tot)}</b></div><div class="small muted" style="text-align:center">Húzd jobbra vagy balra a hetek közti lépéshez</div></section>
+    <section class="card" id="wkCard"><div id="wkSlide">
+      <div class="wkhead"><button class="wkarr" data-act="roWk" data-d="1" aria-label="Előző hét">‹</button><div class="wkt"><b>${wkTitle}</b><span class="small muted">${range}</span></div><button class="wkarr" data-act="roWk" data-d="-1" aria-label="Következő hét" ${off===0?'disabled':""}>›</button></div>
+      <table class="tbl wktbl"><tbody>${rows.join("")}</tbody></table><div class="row" style="border-top:2px solid var(--fg);margin-top:6px;padding-top:8px;white-space:nowrap"><b class="grow">Heti összesen</b><b>${ft(tot)}</b></div>
+      <div class="wkdots" aria-hidden="true">${[4,3,2,1,0].map(k=>`<i class="${k===off?"on":""}"></i>`).join("")}</div></div></section>
     ${cashClosedToday() ? "" : `<section class="card"><div class="row"><b class="grow">Mai kiadások</b><span>${ex.length ? `${ex.length} tétel · <b>${ft(sum)}</b>` : '<span class="muted">nincs</span>'}</span></div><div class="row" style="margin-top:8px"><b class="grow">Mai pénzkivét</b><span>${(tc&&tc.wd||[]).length ? `${tc.wd.length} tétel · <b>${ft(tc.wd.reduce((a,e)=>a+num(e.amt),0))}</b>` : '<span class="muted">nincs</span>'}</span></div></section>`}
     ${watch.length ? `<section class="card"><b>Leltár</b><div class="list">${watch.map(it=>`<div class="li"><span class="grow">${esc(it.name)}<br><span class="small muted">${it.lastCountDate ? "számolva: " + fmtDay(it.lastCountDate).split(",")[0] : "még nem volt leltározva"}</span></span><b>${fmtQty(it.stock||0, it)}</b></div>`).join("")}</div></section>` : ""}
   </div>`;
@@ -1897,7 +1914,7 @@ const A = {
   cashPopClose(){ S.cashPop = null; render(); },
   homeExp(){ S.cashDate = today(); loadCashDraft(); S.cashPop = {k:"exp", val:"", note:"", home:true}; render(); setTimeout(()=>{ const el = $("#cpVal"); el && el.focus(); }, 30); },
   homeWdAfter(){ if(!isOwnerish()) return; S.cashDate = today(); loadCashDraft(); S.cashPop = {k:"wda", val:"", note:"", home:true}; render(); setTimeout(()=>{ const el = $("#cpVal"); el && el.focus(); }, 30); },
-  roWk(d){ S.roWk = Math.min(104, Math.max(0, (S.roWk||0) + num(d.d))); render(); },
+  roWk(d){ wkGo(num(d.d) > 0 ? 1 : -1); },
   homeWd(){ S.cashDate = today(); loadCashDraft(); S.cashPop = {k:"wd", val:"", note:"", home:true}; render(); setTimeout(()=>{ const el = $("#cpVal"); el && el.focus(); }, 30); },
   async cashPopDel(d){ const p = S.cashPop; if(!p) return; const arr = p.k==="exp" ? S.cashDraft.exp : p.k==="wda" ? S.cashDraft.wdAfter : S.cashDraft.wd; arr.splice(+d.i, 1); render(); await saveCashDraft(); },
   async cashPopOk(){ const p = S.cashPop, c = S.cashDraft; if(!p) return; const raw = String(p.val||"").replace(/\s/g,"");
@@ -2309,11 +2326,25 @@ let lastDay = today();
 let lastHalf = new Date().getHours() >= 12;
 setInterval(()=>{ alarmTick(); const h = new Date().getHours() >= 12; if(today() !== lastDay || h !== lastHalf){ lastDay = today(); lastHalf = h; render(); } }, 15000);
 document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) alarmTick(); });
-/* heti forgalom kártya: húzással lépés a hetek között (jobbra húzva régebbi hét) */
-let wkSw = null;
-document.addEventListener("touchstart", e => { const c = e.target.closest && e.target.closest("#wkCard"); wkSw = c && e.touches.length===1 ? {x:e.touches[0].clientX, y:e.touches[0].clientY} : null; }, {passive:true});
-document.addEventListener("touchend", e => { if(!wkSw) return; const t = e.changedTouches[0], dx = t.clientX - wkSw.x, dy = t.clientY - wkSw.y; wkSw = null;
-  if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)*1.5) A.roWk({d: dx > 0 ? 1 : -1}); }, {passive:true});
+/* heti forgalom kártya: lapozás húzással (az ujjat követi, mint az Android rendszeroldalak), jobbra húzva régebbi hét */
+let wkSw = null, wkBusy = false;
+const wkEl = () => document.getElementById("wkSlide");
+function wkGo(dir){ // dir: +1 = régebbi hét, -1 = újabb
+  const nxt = Math.min(104, Math.max(0, (S.roWk||0) + dir)); const el = wkEl();
+  if(nxt === (S.roWk||0) || wkBusy){ if(el) el.animate([{transform:el.style.transform||"translateX(0)"},{transform:"translateX(0)"}],{duration:200,easing:"ease-out"}); if(el) el.style.transform = ""; return; }
+  wkBusy = true; const out = dir > 0 ? "110%" : "-110%";
+  const finish = () => { S.roWk = nxt; render(); const n = wkEl(); if(n){ n.animate([{transform:`translateX(${dir > 0 ? "-110%" : "110%"})`, opacity:.4},{transform:"translateX(0)", opacity:1}],{duration:260,easing:"cubic-bezier(.2,.8,.2,1)"}); } wkBusy = false; };
+  if(!el || !el.animate){ finish(); return; }
+  const a = el.animate([{transform:el.style.transform||"translateX(0)", opacity:1},{transform:`translateX(${out})`, opacity:.4}],{duration:180,easing:"cubic-bezier(.4,0,1,1)",fill:"forwards"});
+  a.onfinish = finish; }
+document.addEventListener("touchstart", e => { const c = e.target.closest && e.target.closest("#wkCard"); wkSw = c && e.touches.length===1 && !wkBusy ? {x:e.touches[0].clientX, y:e.touches[0].clientY, h:null} : null; }, {passive:true});
+document.addEventListener("touchmove", e => { if(!wkSw) return; const t = e.touches[0], dx = t.clientX - wkSw.x, dy = t.clientY - wkSw.y;
+  if(wkSw.h === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) wkSw.h = Math.abs(dx) > Math.abs(dy);
+  if(wkSw.h){ const el = wkEl(); if(!el) return; const lim = (dx < 0 && !(S.roWk||0)) ? dx*0.25 : dx; el.style.transform = `translateX(${lim}px)`; } }, {passive:true});
+document.addEventListener("touchend", e => { if(!wkSw) return; const t = e.changedTouches[0], dx = t.clientX - wkSw.x, h = wkSw.h; wkSw = null; if(!h) return;
+  const el = wkEl(), w = el ? el.offsetWidth : 300;
+  if(Math.abs(dx) > Math.min(80, w*0.2)) wkGo(dx > 0 ? 1 : -1);
+  else if(el){ const from = el.style.transform; el.style.transform = ""; el.animate([{transform:from},{transform:"translateX(0)"}],{duration:200,easing:"ease-out"}); } }, {passive:true});
 /* ---- automatikus frissítés: új kiadás esetén újratölt (androidos app és web) ---- */
 const UPD = { newVer:false, target:"", lastTouch:Date.now() };
 function updReload(){ const v = UPD.target || ""; try{ if(sessionStorage.getItem("bufe.updTry") === v && v){ UPD.auto = false; } sessionStorage.setItem("bufe.updTry", v); }catch(e){}
