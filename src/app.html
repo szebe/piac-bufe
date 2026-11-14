@@ -575,7 +575,7 @@ function closeWizard(){
   }
   return `<div class="alarm" role="dialog" aria-labelledby="alT"><div class="box calm">${body}</div></div>`;
 }
-function alarmTick(){
+function alarmTick(){ try{ if(S.bakery && S.bakery.length) autoArrive(); }catch(e){}
   const now = Date.now(); if(isReadonly() || S.needLogin || !S.me || !meStaff() || S.pinFor){ if(isReadonly()) clearNativeNotifs(); if(S.alarmFor){ S.alarmFor = null; renderAlarm(); } return; } nativeSched();
   const due = dueOrders().filter(o => !(S.snooze[o.id] > now)).sort((a,b)=> pickupTs(a)-pickupTs(b));
   const wn = webNew().filter(o => !(S.snooze["web-"+o.id] > now));
@@ -948,12 +948,32 @@ async function bakeMerge(date, patch){
   await write("bakery/"+date, async r => { const sn = await r.get(); await r.set(Object.assign({date}, sn.exists?sn.data():{}, patch)); });
 }
 function bakeSelects(prefix, src, max){ return `<div class="grid3">${BAKERY.map(([k,l])=>`<label class="field"><span>${l}</span><select id="${prefix}_${k}" data-f="${prefix}.${k}"><option value="" ${src[k]==null||src[k]===""?"selected":""}>–</option>${countOptions(src[k]==null||src[k]===""?-1:num(src[k]), max)}</select></label>`).join("")}</div>`; }
+function prevOrdered(date){ for(let i = 1; i <= 7; i++){ const dd = ymd(addDays(parseYmd(date), -i)), doc = bakeDoc(dd); if(doc && doc.ordered) return doc.ordered; if(!isClosed(dd)) return null; } return null; }
+let autoArrDay = null;
+function autoArrive(){
+  if(BACKEND!=="fb" || !S.me || isReadonly() || isClosed(today()) || autoArrDay === today()) return;
+  const d = bakeDoc(today()); if(hasArrived(d)) return; const o = prevOrdered(today()); if(!o) return;
+  autoArrDay = today(); const date = today(), arrived = {}; BAKERY.forEach(([k])=> arrived[k] = Math.round(num(o[k]||0)));
+  const patch = {arrived, opening: openingFor(date), arrivedAuto:true, arrivedAt:Date.now(), by:S.me, at:Date.now()};
+  write("bakery/"+date, async r => { const sn = await r.get(); if(sn.exists && hasArrived(sn.data())) return; await r.set(Object.assign({date}, sn.exists ? sn.data() : {}, patch)); }).catch(()=>{ autoArrDay = null; });
+}
+function bakeFixCard(){
+  if(isClosed(today()) || isReadonly()) return "";
+  const d = bakeDoc(today()), open = S.f.bkEdit === today(), done = d && d.remaining;
+  return `<section class="card"><div class="row"><span class="grow"><b>Ma érkezett pékáru</b><br><span class="small muted">${hasArrived(d) ? bakeLine({kifli:bArr(d,"kifli"), zsemle:bArr(d,"zsemle"), kenyer:bArr(d,"kenyer")}) + (d.arrivedAuto && !(d.edits||[]).length ? " · a tegnapi rendelés alapján" : (d.edits||[]).length ? " · javítva" : "") : "még nincs rögzítve"}</span></span>
+    ${open || done ? "" : `<button class="btn sm" data-act="bakeEdit" data-date="${today()}">Eltért? Javítás</button>`}</div>
+    ${done ? `<div class="small muted" style="margin-top:6px">A mai nap végi pékáru-leltár már megvolt, ezért az érkezés itt nem módosítható (az admin a Több → Pékáru oldalon javíthatja).</div>` : ""}
+    ${open ? `<div class="small" style="margin:8px 0 4px">Ennyi jött ténylegesen:</div><div class="grid3">${BAKERY.map(([k,l])=>`<label class="field"><span>${l}</span><select id="bke_${k}" data-f="bk.${k}">${countOptions(num(S.bk[k] ?? bArr(d,k)), 300)}</select></label>`).join("")}</div>
+      <div class="row"><button class="btn pri grow" data-act="bakeEditSave" data-date="${today()}">Mentés</button><button class="btn grow" data-act="bakeEditCancel">Mégse</button></div>
+      <div class="small muted">A módosítás naplózva lesz (ki, mikor, mi volt előtte), és a készlet is ehhez igazodik.</div>` : ""}</section>`;
+}
 function bakeryBox(){
   if(isClosed(today()) || isReadonly()) return "";
   const d = bakeDoc(today());
   const y = bakeDoc(ymd(addDays(new Date(),-1))), ord = y && y.ordered;
   const noneComing = !!ord && BAKERY.every(([k]) => !num(ord[k]||0));
   if(!hasArrived(d) && !noneComing){
+    return ""; // az érkezést az előző napi rendelésből automatikusan beírja (autoArrive); eltérés: Készlet → Leltár
     return `<section class="bake todo"><button data-act="bakeToggle" aria-expanded="${S.bakeryOpen}"><span class="grow">Ma érkezett pékáru: még nincs beírva</span><span>${S.bakeryOpen?"▴":"▾"}</span></button>
     ${S.bakeryOpen?`<div class="body">${ord?`<div class="small">Tegnap rendelve: ${bakeLine(ord)}</div>`:""}${bakeSelects("bk", S.bk, 300)}<div class="small">Ha mindhármat kiválasztottad, automatikusan ment, és a pékáru bekerül a büfé készletébe.</div></div>`:""}</section>`;
   }
@@ -1169,7 +1189,7 @@ function stockView(){
   const lt = leltarToday();
   return header("Készlet") + `<div class="stack">
     <div class="seg" role="tablist">${[["stock","Készlet"],["leltar","Leltár"],["selejt","Selejt"],["moves","Mozgások"]].map(([k,l])=>`<button class="${S.invTab===k?"on":""}" data-act="invTab" data-t="${k}" role="tab" aria-selected="${S.invTab===k}">${l}</button>`).join("")}</div>
-    ${S.invTab==="leltar" ? leltarView(lt) : S.invTab==="moves" ? movesView() : S.invTab==="selejt" ? wasteLogView() : itemsView()}
+    ${S.invTab==="leltar" ? leltarView(lt) + bakeFixCard() : S.invTab==="moves" ? movesView() : S.invTab==="selejt" ? wasteLogView() : itemsView()}
   </div>`;
 }
 function qtyInputs(prefix, it){
@@ -1803,7 +1823,7 @@ const A = {
   async bakeEditSave(d){ const old = bakeDoc(d.date); const arrived = {}; BAKERY.forEach(([k])=> arrived[k] = Math.round(num(S.bk[k] ?? bArr(old,k))));
     const before = {}; BAKERY.forEach(([k])=>{ if(bArr(old,k)!==arrived[k]) before[k]=bArr(old,k); });
     const edits = [...((old&&old.edits)||[]), ...(Object.keys(before).length?[{by:S.me, at:Date.now(), before}]:[])].slice(-20);
-    S.f.bkEdit=null; S.bk={}; await bakeMerge(d.date, {arrived, edits}); toast("Mentve."); },
+    S.f.bkEdit=null; S.bk={}; await bakeMerge(d.date, {arrived, edits, ...(d.date===today() && !(old && old.opening) ? {opening: openingFor(d.date)} : {})}); toast("Mentve."); },
   wasteStep(d){ const now = new Date(), c = S.wasteMonth || {y:now.getFullYear(), m:now.getMonth()}; const x = new Date(c.y, c.m + (+d.d), 1); S.wasteMonth = {y:x.getFullYear(), m:x.getMonth()}; subWaste(); render(); },
   niToggle(){ S.niOpen = !S.niOpen; render(); if(S.niOpen) setTimeout(()=>{ const el = document.querySelector(".newitem"); if(!el) return; const r = el.getBoundingClientRect(), tabs = document.querySelector(".tabs"), top = document.querySelector(".top");
     const bottomLimit = window.innerHeight - (tabs ? tabs.offsetHeight : 0) - 12, topLimit = (top ? top.getBoundingClientRect().bottom : 0) + 8;
@@ -2195,7 +2215,7 @@ function wire(){
   }
   db.doc("unavail/main").onSnapshot(s => { S.unavail = s.exists ? (s.data()||{}) : {}; render(); }, err);
   db.doc("freezer/main").onSnapshot(s => { S.freezer = s.exists ? {...s.data()} : {}; render(); }, err);
-  db.collection("bakery").orderBy("date","desc").limit(70).onSnapshot(q => { S.bakery = q.docs.map(x=>x.data()); render(); }, err);
+  db.collection("bakery").orderBy("date","desc").limit(70).onSnapshot({includeMetadataChanges:true}, q => { S.bakery = q.docs.map(x=>x.data()); render(); if(!q.metadata || !q.metadata.fromCache) autoArrive(); }, err);
   db.collection("orders").where("date",">=",ymd(addDays(new Date(),-60))).orderBy("date","desc").onSnapshot(q => { S.orders = q.docs.map(x=>({id:x.id, ...x.data()})); alarmTick(); render(); }, err);
   const cutoff = ymd(addDays(new Date(), -120));
   db.collection("shifts").where("date",">=",cutoff).onSnapshot(q => {
