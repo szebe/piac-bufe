@@ -1,0 +1,22 @@
+const { chromium } = require(process.env.PW||'playwright');
+(async()=>{ const b = await chromium.launch(); const ctx = await b.newContext({viewport:{width:400,height:900}, hasTouch:true}); const p = await ctx.newPage();
+p.on('pageerror', e=>console.log('PAGEERR', e.message));
+await p.goto('file://'+__dirname+'/mockyr.html'); await p.waitForTimeout(400);
+await p.evaluate(()=>{ for(let i=0;i<20;i++){ const d=ymd(addDays(new Date(),-i)); window.__store.set("cash/"+d, {date:d, close:10000*(20-i), card:1000, exp:[], wd:[]}); } });
+await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(400);
+const ro = await p.evaluate(async()=>{ const id='ro1'; await saveCfg({staff:[...S.cfg.staff,{id,name:'Olvasó',role:'readonly'}]}); return id; });
+await p.waitForTimeout(200); await p.evaluate(()=>render());
+await p.click(`[data-act=pickMe][data-id=${ro}]`); await p.waitForTimeout(300);
+if(await p.$('#pinA')){ await p.fill('#pinA','1111'); await p.fill('#pinB','1111'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(400); }
+await p.evaluate(async()=>{ S.alarmFor=null; renderAlarm();  S.tab='home'; render(); });
+await p.waitForTimeout(300);
+const card = () => p.evaluate(()=>document.getElementById('wkCard').innerText.replace(/\n+/g,' | '));
+console.log('W0:', await card());
+await p.screenshot({path:'shot67a.png'});
+const box = await (await p.$('#wkCard')).boundingBox();
+const swipe = async (dx) => { await p.evaluate(({x,y,dx})=>{ const el=document.getElementById('wkCard'); const mk=(t,X)=>new TouchEvent(t,{bubbles:true,touches:t==='touchend'?[]:[new Touch({identifier:1,target:el,clientX:X,clientY:y})],changedTouches:[new Touch({identifier:1,target:el,clientX:X,clientY:y})]}); el.dispatchEvent(mk('touchstart',x)); el.dispatchEvent(mk('touchend',x+dx)); },{x:box.x+200,y:box.y+100,dx}); await p.waitForTimeout(200); };
+await swipe(150); console.log('right swipe ->', await card());
+await swipe(150); console.log('right again ->', (await card()).slice(0,60));
+await swipe(-150); await swipe(-150); await swipe(-150); console.log('left x3 ->', (await card()).slice(0,60));
+await p.click('[data-act=roWk][data-d="1"]'); console.log('arrow ->', (await card()).slice(0,60));
+await b.close(); })();
