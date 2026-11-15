@@ -1,6 +1,6 @@
 // App-shell cache for the web/iPhone version (data itself is cached by Firestore)
 const CACHE = "bufe-__VERSION__";
-const SHELL = ["./", "index.html", "firebase-app-compat.js", "firebase-auth-compat.js", "firebase-firestore-compat.js", "firebase-config.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
+const SHELL = ["./", "index.html", "firebase-app-compat.js", "firebase-auth-compat.js", "firebase-firestore-compat.js", "firebase-config.js", "manifest.webmanifest", "icon-192.png", "logo.png", "icon-512.png", "apple-touch-icon.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {
