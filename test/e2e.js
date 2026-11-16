@@ -112,7 +112,8 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   await p.evaluate(async () => { const it = S.items.find(i => i.id === "i1"); await write("items/i1", r => r.update({stock: 9})); });
   await p2.waitForTimeout(1500); ok(await p2.evaluate(() => S.items.find(i => i.id === "i1").stock === 9), "realtime sync to second device");
   // műszak: két telefon egyszerre ír ugyanarra a napra – egyik sem törli a másikét
-  await p2.fill("#pinA", "1111"); await p2.fill("#pinB", "1111"); await p2.click("[data-act=pinCreate]"); await p2.waitForTimeout(1200);
+  if(await p2.$("#pinA")){ await p2.fill("#pinA", "1111"); await p2.fill("#pinB", "1111"); await p2.click("[data-act=pinCreate]"); await p2.waitForTimeout(1200); }
+  ok(await p2.evaluate(() => S.me === "b"), "Böbe logged in on second device: " + await p2.evaluate(() => S.me));
   const SD = await p.evaluate(() => ymd(addDays(new Date(), 3)));
   await p.evaluate(d => setShift(d, [{staffId: "tamas", start: "06:00", end: "11:30"}]), SD);
   await p2.evaluate(d => { delete S.shifts[d]; return setShift(d, [{staffId: "b", start: "07:00", end: "11:30"}]); }, SD);
