@@ -111,6 +111,19 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   ok(await p2.evaluate(() => !isAdmin()), "Böbe is not admin");
   await p.evaluate(async () => { const it = S.items.find(i => i.id === "i1"); await write("items/i1", r => r.update({stock: 9})); });
   await p2.waitForTimeout(1500); ok(await p2.evaluate(() => S.items.find(i => i.id === "i1").stock === 9), "realtime sync to second device");
+  // műszak: két telefon egyszerre ír ugyanarra a napra – egyik sem törli a másikét
+  if(await p2.$("#pinA")){ await p2.fill("#pinA", "1111"); await p2.fill("#pinB", "1111"); await p2.click("[data-act=pinCreate]"); await p2.waitForTimeout(1200); }
+  ok(await p2.evaluate(() => S.me === "b"), "Böbe logged in on second device: " + await p2.evaluate(() => S.me));
+  const SD = await p.evaluate(() => ymd(addDays(new Date(), 3)));
+  await p.evaluate(d => setShift(d, [{staffId: "tamas", start: "06:00", end: "11:30"}]), SD);
+  await p2.evaluate(d => { delete S.shifts[d]; return setShift(d, [{staffId: "b", start: "07:00", end: "11:30"}]); }, SD);
+  await p.waitForTimeout(1500);
+  let sh = await get("shifts/" + SD); ok(sh && sh.entries.length === 2 && sh.entries.some(e => e.staffId === "tamas") && sh.entries.some(e => e.staffId === "b"), "shift: concurrent edits merged, nothing lost: " + JSON.stringify(sh && sh.entries));
+  ok(await p.evaluate(d => shiftOf(d).length === 2, SD) && await p2.evaluate(d => shiftOf(d).length === 2, SD), "shift: both devices see both entries");
+  await p.evaluate(d => setShift(d, shiftOf(d).filter(e => e.staffId !== "tamas")), SD); await p.waitForTimeout(1200);
+  sh = await get("shifts/" + SD); ok(sh && sh.entries.length === 1 && sh.entries[0].staffId === "b", "shift: delete removes only that person");
+  await p2.evaluate(d => { S.shifts[d] = {date: d, entries: []}; return setShift(d, [{staffId: "erika", start: "08:00", end: "11:00"}]); }, SD); await p.waitForTimeout(1200);
+  sh = await get("shifts/" + SD); ok(sh && sh.entries.length === 2 && sh.entries.some(e => e.staffId === "b"), "shift: stale device does not wipe others: " + JSON.stringify(sh && sh.entries));
   await p.screenshot({path: path.join(__dirname, "e2e.png")});
   ok(errs.length === 0, "no page errors " + errs.join(" | "));
   await b.close(); srv.close();
