@@ -2,6 +2,8 @@
 
 A büfé saját appja (rendelés, műszak, készlet, pékáru, kassza).
 
+**Fejlesztőknek / új sessionnek: először olvasd el a [FEJLESZTES.md](FEJLESZTES.md) fájlt.**
+
 - `src/app.html`: az app teljes forrása, egyetlen fájl.
 - `build.py`: ebből készíti a `www/index.html`-t (Firebase + PWA).
 - `android/`: Capacitor Android-projekt.
