@@ -1145,6 +1145,7 @@ function dayCard(d){
   const dd = parseYmd(d);
   const meta = [];
   const clash = es.filter(e => unavailOn(e.staffId, d)).map(e => staffName(e.staffId));
+  if(S.shiftPending && S.shiftPending.has(d)) meta.push(`<span class="unwarn">⏳ még nincs feltöltve – a többiek csak akkor látják, ha ez a telefon internetet kap</span>`);
   if(clash.length && !closed) meta.push(`<span class="unwarn">⚠ ${esc(clash.join(", "))} jelezte, hogy nem ér rá – cseréld!</span>`);
   if(closed) meta.push(`<span>${esc(closedLabel(d))}</span>`);
   else if(hol) meta.push(`<span>${esc(hol)} · nyitva</span>`);
@@ -1970,10 +1971,40 @@ async function finishClose(add){
   }
   await bakeMerge(today(), {stockAtClose: st, countAtClose: cnt, toFreezer: add, remaining: rem, sold, closedBy:S.me, closedAt:Date.now()});
 }
+/* Műszak mentése: nem a teljes napi listát írja felül, hanem csak a változást (ki került be / ki került ki / kinek változott az ideje)
+   alkalmazza a szerveren lévő legfrissebb listára – így két telefon nem törli egymás beírását, és egy régi (offline) állapot sem írja felül a többit. */
+function shiftDiff(before, after){
+  const ids = a => new Set(a.map(e=>e.staffId)); const bi = ids(before), ai = ids(after);
+  return { removed: [...bi].filter(id => !ai.has(id)), upserts: after.filter(e => { const o = before.find(x=>x.staffId===e.staffId); return !o || o.start!==e.start || o.end!==e.end; }) };
+}
+function shiftApply(base, diff){
+  let r = (base||[]).filter(e => !diff.removed.includes(e.staffId));
+  diff.upserts.forEach(u => { const i = r.findIndex(e=>e.staffId===u.staffId); if(i>=0) r[i] = {...u}; else r.push({...u}); });
+  return r.sort((a,b)=> a.start<b.start?-1:a.start>b.start?1:0);
+}
 async function setShift(date, entries){
-  const before = shiftOf(date); S.shifts[date] = {date, entries, ...by()}; render();
-  await write("shifts/"+date, r=>r.set({date, entries, ...by()}));
+  const before = shiftOf(date), diff = shiftDiff(before, entries);
+  S.shifts[date] = {date, entries, ...by()}; render();
+  if(isReadonly()) return toast("Csak olvasási jogod van.");
+  const ref = db.doc("shifts/"+date);
+  let online = true;
+  try{
+    if(BACKEND==="fb" && db.runTransaction){
+      await db.runTransaction(async t => { const sn = await t.get(ref); const cur = sn.exists ? (sn.data().entries||[]) : []; t.set(ref, {date, entries: shiftApply(cur, diff), ...by()}); });
+    } else {
+      await write("shifts/"+date, async r => { const sn = await r.get(); const cur = sn.exists ? (sn.data().entries||[]) : []; await r.set({date, entries: shiftApply(cur, diff), ...by()}); });
+    }
+  }catch(e){
+    const c = e && e.code;
+    if(c === "permission-denied"){ toast("Nincs jogosultság menteni. Jelentkezz be újra."); throw e; }
+    // nincs kapcsolat: elmentjük a telefonon, a Firestore feltölti, amint lesz net
+    online = false;
+    try{ const sn = await ref.get({source:"cache"}); const cur = sn && sn.exists ? (sn.data().entries||[]) : before; ref.set({date, entries: shiftApply(cur, diff), ...by()}).catch(()=>{}); }
+    catch(e2){ ref.set({date, entries, ...by()}).catch(()=>{}); }
+    toast("Nincs internet – a műszak a telefonon elmentve, és feltöltődik, amint lesz kapcsolat.");
+  }
   try{ await db.collection("shiftlog").add({date, before, after:entries, ...by()}); }catch(e){}
+  return online;
 }
 async function addMove(m){ try{ await db.collection("moves").add({...m, ...by()}); }catch(e){} }
 async function logFreezer(kind, op, qty){ try{ const k = today().slice(0,7); await enqueue("fzlog/"+k, async ()=>{ const ref = db.doc("freezerlog/"+k); const s = await ref.get(); const list = s.exists ? (s.data().list||[]) : []; await ref.set({list:[...list, {kind, op, qty, ...by()}].slice(-3000)}); }); }catch(e){} }
@@ -2218,7 +2249,8 @@ function wire(){
   db.collection("bakery").orderBy("date","desc").limit(70).onSnapshot({includeMetadataChanges:true}, q => { S.bakery = q.docs.map(x=>x.data()); render(); if(!q.metadata || !q.metadata.fromCache) autoArrive(); }, err);
   db.collection("orders").where("date",">=",ymd(addDays(new Date(),-60))).orderBy("date","desc").onSnapshot(q => { S.orders = q.docs.map(x=>({id:x.id, ...x.data()})); alarmTick(); render(); }, err);
   const cutoff = ymd(addDays(new Date(), -120));
-  db.collection("shifts").where("date",">=",cutoff).onSnapshot(q => {
+  db.collection("shifts").where("date",">=",cutoff).onSnapshot({includeMetadataChanges:true}, q => {
+    S.shiftPending = new Set(q.docs.filter(x => x.metadata && x.metadata.hasPendingWrites).map(x => (x.data()||{}).date || x.id));
     if(!firstShift){ q.docChanges().forEach(ch => { const d = ch.doc.data(); if(!d || ch.type==="removed" || d.by===S.me) return; const prev = S.shifts[d.date]; const was = (prev&&prev.entries||[]).filter(e=>e.staffId===S.me), now = (d.entries||[]).filter(e=>e.staffId===S.me); if(JSON.stringify(was)!==JSON.stringify(now)) S.notices.push(`${staffName(d.by)} módosította a műszakodat: ${fmtDay(d.date)} ${now.map(e=>e.start+"–"+e.end).join(", ")||"(törölve)"}`); }); }
     firstShift = false; const m = {}; q.docs.forEach(x => { const d = x.data(); m[d.date||x.id] = d; }); S.shifts = m; render(); }, err);
   db.collection("cash").orderBy("date","desc").limit(400).onSnapshot({includeMetadataChanges:true}, q => { S.cash = q.docs.map(x=>x.data()); S.cashLoaded = !q.metadata || !q.metadata.fromCache || S.cashLoaded; alarmTick(); render(); }, err);
