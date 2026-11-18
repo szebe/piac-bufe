@@ -90,7 +90,12 @@ async function signUp(email, password){ const r = await fetch(`${AUTH}/identityt
   await p.fill("#lgEm", EMAIL); await p.fill("#lgPw", "rossz-jelszo"); await p.click("[data-act=fbLogin]"); await p.waitForSelector(".note.d", {timeout: 10000});
   ok(/Hibás/.test(await p.textContent(".note.d")), "wrong password rejected");
   await p.fill("#lgPw", PASS); await p.click("[data-act=fbLogin]");
-  await p.waitForFunction(() => S.dbOk && S.me === "tamas", null, {timeout: 15000}); ok(true, "shop account maps to the owner (Tamás)");
+  // közös bolti fiók: átmenetileg a régi mód (név + saját jelszó), nem lesz automatikusan Admin
+  await p.waitForSelector("[data-act=pickMe][data-id=tamas]", {timeout: 15000}); ok(await p.evaluate(() => !S.me && !isAdmin()), "shop account: name picker, not admin automatically");
+  ok(!!(await p.$("[data-act=fbLogout]")), "shop account: logout button on picker");
+  await p.click("[data-act=pickMe][data-id=tamas]"); await p.waitForSelector("#pinA", {timeout: 5000});
+  await p.fill("#pinA", "tamas1"); await p.fill("#pinB", "tamas1"); await p.click("[data-act=pinCreate]");
+  await p.waitForFunction(() => S.dbOk && S.me === "tamas" && unlocked(), null, {timeout: 15000}); ok(true, "shop account: Tamás logged in with his own password");
   ok(await p.evaluate(() => isAdmin() && canCash()), "Tamás is admin");
   // owner gives Cili an email address
   await p.evaluate(() => { S.tab = "more"; S.sub = "settings"; render(); }); await p.waitForSelector("#em_c", {timeout: 5000});

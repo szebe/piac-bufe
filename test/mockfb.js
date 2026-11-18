@@ -30,10 +30,10 @@
   }
   const fs = { settings(){}, enablePersistence: async()=>{}, collection: c => query(c), doc: p => docRef(p) };
   let user = null, authCb = null;
-  const auth = { onAuthStateChanged(cb){ authCb = cb; setTimeout(()=>cb(user), 10); }, async signInWithEmailAndPassword(e,p){ if(p!=="titok"){ const er=new Error("x"); er.code="auth/invalid-credential"; throw er; } user={email:e}; authCb(user); } };
+  const auth = { onAuthStateChanged(cb){ authCb = cb; setTimeout(()=>cb(user), 10); }, currentUser: null, languageCode: "", async signOut(){ user=null; authCb(null); }, async signInWithEmailAndPassword(e,p){ if(p!=="titok"){ const er=new Error("x"); er.code="auth/invalid-credential"; throw er; } user={email:e}; authCb(user); } };
   const firestore = () => fs; firestore.FieldPath = FieldPath;
   window.firebase = { initializeApp(){}, firestore, auth: () => auth };
-  window.FB_CONFIG = {projectId:"mock"}; window.FB_EMAIL = "piacbufe@szebe.hu";
+  window.FB_CONFIG = {projectId:"mock"}; window.FB_EMAIL = "piacbufe@szebe.hu"; try{ if(!localStorage.getItem("bufe.lastEm")) localStorage.setItem("bufe.lastEm", window.FB_EMAIL); }catch(e){}
   store.set("config/main", {staff:[{id:"tamas",name:"Tamás",active:true,admin:true},{id:"b",name:"Böbe",active:true}], adminPin:"", allTime:{amount:242500}});
   store.set("items/i1", {id:"i1", name:"Szalvéta", unit:"karton", stock:4, min:2});
   store.set("messages/m1", {text:"Teszt", by:"b", at:Date.now(), readBy:{b:1}});

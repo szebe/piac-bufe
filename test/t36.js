@@ -7,6 +7,8 @@ await p.screenshot({path:SP+'login.png'});
 await p.click('[data-act=lgMode][data-m=reg]'); await p.screenshot({path:SP+'reg.png'});
 await p.click('[data-act=lgMode][data-m=in]');
 await p.fill('#lgEm','piacbufe@szebe.hu'); await p.fill('#lgPw','titok'); await p.click('[data-act=fbLogin]'); await p.waitForTimeout(800);
+console.log('shared before pick (expect ["",false]):', JSON.stringify(await p.evaluate(()=>[S.me, isAdmin()])), 'logout btn:', !!(await p.$('[data-act=fbLogout]')));
+await p.click('[data-act=pickMe][data-id=admin]'); await p.waitForTimeout(200); await p.fill('#pinA','tamas1'); await p.fill('#pinB','tamas1'); await p.click('[data-act=pinCreate]'); await p.waitForTimeout(400);
 console.log('me', await p.evaluate(()=>[S.me, isAdmin()]));
 await p.evaluate(()=>{ S.alarmFor=null; S.tab='more'; S.sub='settings'; render(); }); await p.waitForTimeout(200);
 await p.fill('#em_b','bobe@example.com'); await p.click('[data-act=staffEmail][data-id=b]'); await p.waitForTimeout(300);

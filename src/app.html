@@ -472,14 +472,15 @@ const roleName = r => (ROLES.find(x=>x[0]===r)||ROLES[0])[1];
 const needsPin = s => !!s;
 function trustMap(){ try{ return JSON.parse(ls.get("bufe.trust") || "{}"); }catch(e){ return {}; } }
 const trusted = id => { const st = S.cfg.staff.find(x=>x.id===id); return !!st && !!st.pinHash && trustMap()[id] === st.pinHash; };
-const unlocked = () => !!S.me && (BACKEND==="fb" ? S.authMe === S.me : (S.unlockedId === S.me || trusted(S.me)));
 const SHOP_EMAIL = () => (window.FB_EMAIL || "").toLowerCase();
+const shared = () => BACKEND==="fb" && !!S.authEmail && S.authEmail === SHOP_EMAIL();
+const unlocked = () => !!S.me && (BACKEND==="fb" && !shared() ? S.authMe === S.me : (S.unlockedId === S.me || trusted(S.me)));
 const normEm = e => String(e||"").trim().toLowerCase();
 const staffEmails = staff => [...new Set((staff||[]).filter(s => s.active !== false && s.email).map(s => normEm(s.email)))];
 function resolveMe(){
-  if(BACKEND!=="fb" || !S.authEmail) return;
+  if(BACKEND!=="fb" || !S.authEmail || shared()) return;
   const em = S.authEmail, st = S.cfg.staff;
-  const m = st.find(s => s.active !== false && normEm(s.email) === em) || (em === SHOP_EMAIL() ? st.find(s => roleOf(s) === "owner") : null);
+  const m = st.find(s => s.active !== false && normEm(s.email) === em);
   const id = m ? m.id : "";
   if(S.me !== id || S.authMe !== id){ S.me = id; S.authMe = id; }
 }
@@ -823,7 +824,7 @@ function view(){
   if(BACKEND==="fb" && S.noAccess) return noAccessView();
   if(S.dbOk === null) return loaderView();
   if(S.dbOk === false) return header() + `<div class="card"><h3>Az adatbázis nem érhető el</h3><p class="muted">${BACKEND==="fb" ? "Ellenőrizd az internetkapcsolatot, majd indítsd újra az appot." : "Nyisd meg az appot bejelentkezve a claude.ai-ban. A közös adatokhoz Tamásnak meg kell osztania veled szerkesztési joggal."}</p></div>`;
-  if(BACKEND==="fb" && S.dbOk && (!S.me || !meStaff())) return noAccessView();
+  if(BACKEND==="fb" && !shared() && S.dbOk && (!S.me || !meStaff())) return noAccessView();
   if(S.pinFor) return pinView();
   if(!S.me || !meStaff()) return pickView();
   if(BACKEND==="fb" && needsPin(meStaff()) && !unlocked()){ S.pinFor = S.me; return pinView(); }
@@ -864,7 +865,8 @@ function pickView(){
       : `<div class="empty">Még nincs felvéve kolléga.</div>`}
   </div>
   ${BACKEND==="fb" && !st.length ? importCard() : ""}
-  ${isOwnerish() ? staffEditor() : ""}</div>`;
+  ${isOwnerish() ? staffEditor() : ""}
+  ${shared() ? `<div class="card"><p class="small muted">Ez a telefon a közös bolti fiókkal van belépve. Ha már van saját e-mailes fiókod, lépj ki, és a saját címeddel lépj be.</p><button class="btn ghost" style="width:100%" data-act="fbLogout">Kilépés a közös fiókból</button></div>` : ""}</div>`;
 }
 
 
@@ -1667,7 +1669,7 @@ function settingsView(){
   <section class="card"><h3>Hűtők</h3><div class="list">${fr.map(f=>`<div class="li"><span class="grow"><b>${esc(f.name)}</b><br><span class="small muted">${f.min} – ${f.max} °C</span></span><button class="btn sm ghost" data-act="fridgeDel" data-id="${esc(f.id)}">Törlés</button></div>`).join("")||'<div class="empty">Még nincs hűtő.</div>'}</div>
   <div class="grid3"><label class="field"><span>Név</span><input id="frName" data-f="f.frName" value="${esc(S.f.frName||"")}"></label><label class="field"><span>Min °C</span><input id="frMin" type="number" step="1" data-f="f.frMin" value="${esc(S.f.frMin??"0")}"></label><label class="field"><span>Max °C</span><input id="frMax" type="number" step="1" data-f="f.frMax" value="${esc(S.f.frMax??"5")}"></label></div>
   <button class="btn" data-act="fridgeAdd">Hűtő hozzáadása</button></section>
-  ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted">Mindenki a saját e-mail címével lép be. Az admin a Kollégák listában beírja a címet, utána a kolléga az appban a Regisztráció fülön saját jelszót választ, és a kapott levélben megerősíti a címét. Elfelejtett jelszót a belépő képernyőn lehet kérni. <b>Dolgozó:</b> napi munka. <b>Adminisztrátor:</b> beállítások és kasszazárás. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre kétszer koppintva lehet.</p>${Object.keys(trustMap()).length?`<button class="btn ghost" style="width:100%" data-act="forgetLogins">Megjegyzett belépések törlése ezen a telefonon</button>`:""}</section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
+  ${BACKEND==="fb" ? `<section class="card"><h3>Jogosultságok</h3><p class="small muted">Mindenki a saját e-mail címével lép be. Az admin a Kollégák listában beírja a címet, utána a kolléga az appban a Regisztráció fülön saját jelszót választ, és a kapott levélben megerősíti a címét. Elfelejtett jelszót a belépő képernyőn lehet kérni. Átmenetileg a közös bolti fiókkal is be lehet lépni a régi módon (név + saját jelszó); onnan a névválasztó alján lehet kilépni. <b>Dolgozó:</b> napi munka. <b>Adminisztrátor:</b> beállítások és kasszazárás. <b>Csak olvasás:</b> mindent lát (kasszazárást is), de semmit nem módosíthat. <b>Admin (főfiók):</b> mindez, plusz a jogosultságok kiosztása. A jogosultságot az Admin főfiók állítja a Kollégák listában. Kilépni a jobb felső sarokban, a névre kétszer koppintva lehet.</p>${Object.keys(trustMap()).length?`<button class="btn ghost" style="width:100%" data-act="forgetLogins">Megjegyzett belépések törlése ezen a telefonon</button>`:""}</section>` : isOwnerish()?`<section class="card"><h3>Admin PIN</h3><p class="small muted">A második adminisztrátor ezzel lép be a saját telefonján. ${S.cfg.adminPin?"Beállítva.":"Még nincs beállítva."}</p><div class="row"><input id="pinNew" class="grow" type="password" inputmode="numeric" placeholder="Új PIN (legalább 4 számjegy)" data-f="f.pinNew" value="${esc(S.f.pinNew||"")}"><button class="btn" data-act="pinSet">Mentés</button></div></section>`
    :`<button class="btn ghost" data-act="adminLogout">Kilépés az admin módból</button>`}
   <section class="card"><h3>Éves rekord (${today().slice(0,4)})</h3>
     <p class="small muted">Az idei legjobb napi forgalom. Január 1-jén nulláról indul, januárban csak gyűjt, február 1-től ünnepel, ha valamelyik nap megdönti.${today().slice(0,4)==="2026" ? " <b>2026-ban még nincs éves top, az első összehasonlítás 2027. február 1-jén indul.</b>" : ""}</p>
@@ -1775,7 +1777,7 @@ const A = {
     if(!firebase.auth().currentUser.emailVerified){ S.loginErr = "Még nincs megerősítve. Kattints a levélben lévő linkre, aztán próbáld újra."; return render(); }
     await firebase.auth().currentUser.getIdToken(true).catch(()=>{}); S.needVerify = false; startData(); render(); },
   fbRetry(){ location.reload(); },
-  async fbLogout(){ try{ await firebase.auth().signOut(); }catch(e){} ls.del("bufe.me"); location.reload(); },
+  async fbLogout(){ try{ await firebase.auth().signOut(); }catch(e){} ls.del("bufe.me"); ls.del("bufe.trust"); location.reload(); },
   pickMe(d){ const st = S.cfg.staff.find(x=>x.id===d.id);
     if(BACKEND==="fb" && needsPin(st) && trusted(d.id)){ S.me = d.id; ls.set("bufe.me", d.id); S.unlockedId = d.id; render(); return; }
     if(BACKEND==="fb" && needsPin(st)){ S.pinFor = d.id; delete S.f.pinIn2; delete S.f.pinA; delete S.f.pinB; render(); setTimeout(()=>{ const el = $("#pinIn2") || $("#pinA"); el && el.focus(); }, 0); return; }
@@ -1798,7 +1800,7 @@ const A = {
     const h = await pinHash(s.id, a); await saveCfg({staff: S.cfg.staff.map(x => x.id===s.id ? {...x, pinHash:h} : x)});
     const m = trustMap(); if(m[s.id]){ m[s.id] = h; ls.set("bufe.trust", JSON.stringify(m)); }
     delete S.f.pwOld; delete S.f.pwNew; delete S.f.pwNew2; S.sub = null; render(); toast("Jelszó módosítva."); },
-  switchMe(){ if(BACKEND==="fb"){ if(S.logoutAsk && Date.now() - S.logoutAsk < 4000) return A.fbLogout(); S.logoutAsk = Date.now(); return toast(`${(meStaff()||{}).name||""} – koppints még egyszer a kilépéshez.`); }
+  switchMe(){ if(BACKEND==="fb" && !shared()){ if(S.logoutAsk && Date.now() - S.logoutAsk < 4000) return A.fbLogout(); S.logoutAsk = Date.now(); return toast(`${(meStaff()||{}).name||""} – koppints még egyszer a kilépéshez.`); }
     S.me = ""; ls.del("bufe.me"); S.unlockedId = ""; S.pinFor = null; render(); },
   async staffEmail(d){ const s = S.cfg.staff.find(x=>x.id===d.id); if(!s) return; const em = normEm(S.f["em_"+d.id] ?? s.email);
     if(em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return toast("Érvénytelen e-mail cím.");
@@ -2357,11 +2359,12 @@ function bootFirebase(){
   fs.enablePersistence({synchronizeTabs:true}).catch(()=>{});
   let wired = false;
   try{ firebase.auth().languageCode = "hu"; }catch(e){}
-  ls.del("bufe.trust"); S.f.lgEm = ls.get("bufe.lastEm") || "";
+  S.f.lgEm = ls.get("bufe.lastEm") || "";
   startData = () => { if(wired) return; wired = true; db = fbAdapter(fs); wire(); loadAudio(); setTimeout(()=>{ if(S.dbOk===null){ S.dbOk = true; render(); } }, 8000); };
   firebase.auth().onAuthStateChanged(u => {
     if(u){ S.needLogin = false; S.authEmail = normEm(u.email); ls.set("bufe.lastEm", S.authEmail);
       S.needVerify = !u.emailVerified && S.authEmail !== SHOP_EMAIL();
+      if(shared()){ S.me = ls.get("bufe.me") || ""; } else { ls.del("bufe.trust"); ls.del("bufe.me"); }
       if(!S.needVerify) startData(); render(); }
     else { S.needLogin = true; S.authEmail = ""; S.me = ""; S.authMe = ""; render(); }
   });
